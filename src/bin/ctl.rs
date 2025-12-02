@@ -1,0 +1,32 @@
+use anyhow::Result;
+use clap::{Parser, Subcommand};
+
+use aibox::read::cmd as read_cmd;
+use aibox::run::cmd as run_cmd;
+
+#[derive(Parser)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+
+    #[arg(short, long)]
+    verbose: bool
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Run(run_cmd::RunCmd),
+    Read(read_cmd::ReadCmd),
+}
+
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+    match cli.command {
+        Commands::Run(cmd) => {
+            run_cmd::exec(cmd)
+        },
+        Commands::Read(cmd) => {
+            read_cmd::exec(cmd)
+        },
+    }
+}

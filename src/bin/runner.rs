@@ -8,13 +8,21 @@ use std::fs;
 use handlebars::Handlebars;
 use std::collections::HashMap;
 use std::io::{self, Read};
+use tokio::runtime::Runtime;
+use llm::{
+    builder::{LLMBackend, LLMBuilder},
+    chat::{ChatMessage, ChatRole},
+};
 
 use aibox::config::ConfigLocator;
 use aibox::dotprompt::{self, Frontmatter};
+use log::{info, warn, error, debug};
+use env_logger;
 
 const BIN_NAME: &str = "promptbox";
 
 fn main() -> Result<()> {
+    env_logger::init();
 
     let mut args = env::args();
 
@@ -30,7 +38,7 @@ fn main() -> Result<()> {
         .to_string();
 
 
-    println!("Invoked bin is the following: {invoked_binname}");
+    debug!("Invoked bin is the following: {invoked_binname}");
 
     let mut command: Command = Command::new(&invoked_binname)
         .version("1.0");
@@ -46,19 +54,19 @@ fn main() -> Result<()> {
         invoked_binname
     };
     
-    println!("Prompt name: {promptname}");
+    debug!("Prompt name: {promptname}");
 
     let config_filename: String =  format!("{promptname}.prompt");
     let locator: ConfigLocator = ConfigLocator::new("aibox", "prompts.d", config_filename);
 
-    println!("Searching for config in:");
+    debug!("Searching for config in:");
     for path in locator.get_search_paths() {
-        println!("  - {}", path.display());
+        debug!("  - {}", path.display());
     }
 
     let dotprompt: DotPrompt = match locator.find_config() {
         Some(path) => {
-            println!("Loading config from {}", path.display());
+            debug!("Loading config from {}", path.display());
             let content = fs::read_to_string(path)?;
             DotPrompt::try_from(content)?
         },
@@ -107,8 +115,44 @@ fn main() -> Result<()> {
     let output = hbs.render("prompt", &handlebar_maps)
         .context("Failed to parse template")?;
 
-    println!("{output}");
+    debug!("{output}");
 
+    let model_info = dotprompt.model_info().context("Failed to parse model")?;
+
+    let (backend, base_url) = if model_info.provider == "ollama" {
+        let baseurl = std::env::var("OLLAMA_HOST").context("Provider is ollama but OLLAMA_HOST not set")?;
+        (LLMBackend::Ollama, baseurl)
+    } else {
+        bail!("Unsupported provider: {}", model_info.provider)
+    };
+
+    // Ollama Example
+        // Initialize and configure the LLM client
+    let llm = LLMBuilder::new()
+        .backend(backend) // Use Ollama as the LLM backend
+        .base_url(base_url) // Set the Ollama server URL
+        .model(&model_info.model_name) // Use the Mistral model
+        .max_tokens(1000) // Set maximum response length
+        .temperature(0.7) // Control response randomness (0.0-1.0)
+        .stream(false) // Disable streaming responses
+        .build()
+        .expect("Failed to build LLM model");
+
+    // Prepare conversation history with example messages
+    let messages = vec![
+        ChatMessage::user()
+            .content(output)
+            .build(),
+    ];
+    let rt = Runtime::new().unwrap();
+    let result = rt.block_on(llm.chat(&messages));
+        // Send chat request and handle the response
+    match result  {
+        Ok(text) => println!("{text}"),
+        Err(e) => error!("Chat error: {e}"),
+    }
+    
     Ok(())
+
 
 }

@@ -4,6 +4,12 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt;
+use anyhow::{Context, Result};
+
+pub struct ModelInfo {
+    pub model_name: String,
+    pub provider: String
+}
 
 #[derive(Debug, Deserialize)]
 pub struct Frontmatter {
@@ -93,9 +99,18 @@ impl TryFrom<String> for DotPrompt {
     }
 }
 
+
 impl DotPrompt {
     pub fn template_needs_stdin(&self) -> bool {
         self.template.contains("{{STDIN}}")
+    }
+
+    pub fn model_info(&self) -> Result<ModelInfo> {
+        let dissected = self.frontmatter.model.split_once("/").context("Improper model format")?;
+        Ok(ModelInfo {
+            model_name: dissected.1.to_string(),
+            provider: dissected.0.to_string()
+        })
     }
 
     pub fn input_schema(&self) -> HashMap<String, InputSchemaElement> {

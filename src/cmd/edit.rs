@@ -1,10 +1,8 @@
 use clap::{Parser};
 use std::fs;
-use log::{info, warn, error, debug};
-use anyhow::{bail, Context, Result};
+use log::{debug};
+use anyhow::{bail, Result};
 use edit;
-use std::fs::File;
-use std::io::Write;
 
 use crate::config::ConfigLocator;
 // use aibox::config::ConfigLocator;

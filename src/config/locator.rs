@@ -27,8 +27,7 @@ impl ConfigLocator {
             .join(&self.config_filename))
     }
 
-    /// Returns all possible config paths in order of precedence
-    pub fn get_search_paths(&self) -> Vec<PathBuf> {
+    pub fn get_prompt_search_dirs(&self) -> Vec<PathBuf> {
         let mut paths = Vec::new();
 
         // 1. Current directory
@@ -40,9 +39,8 @@ impl ConfigLocator {
         if let Some(config_dir) = dirs::config_dir() {
             paths.push(config_dir
                 .join(&self.app_name)
-                .join(&self.config_namespace)
-                .join(&self.config_filename));
-            paths.push(config_dir.join(&self.app_name).join(&self.config_filename));
+                .join(&self.config_namespace));
+            paths.push(config_dir.join(&self.app_name));
         }
 
         // 3. System config directory (platform-specific)
@@ -50,9 +48,9 @@ impl ConfigLocator {
         {
             paths.push(PathBuf::from("/etc")
                 .join(&self.app_name)
-                .join(&self.config_namespace)
-                .join(&self.config_filename));
-            paths.push(PathBuf::from("/etc").join(&self.app_name).join(&self.config_filename));
+                .join(&self.config_namespace));
+                
+            paths.push(PathBuf::from("/etc").join(&self.app_name));
         }
 
         #[cfg(target_os = "macos")]
@@ -75,6 +73,12 @@ impl ConfigLocator {
         }
 
         paths
+    }
+
+    /// Returns all possible config paths in order of precedence
+    pub fn get_search_paths(&self) -> Vec<PathBuf> {
+        self.get_prompt_search_dirs()
+            .iter().map(|path| path.join(&self.config_filename)).collect()
     }
 
     /// Finds the first existing config file

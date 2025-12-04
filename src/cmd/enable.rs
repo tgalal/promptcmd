@@ -1,8 +1,7 @@
 use clap::{Parser};
-use std::fs;
 use log::{debug};
+use std::{env};
 use symlink::symlink_file;
-use std::{env, path::Path};
 use anyhow::{bail, Context, Result};
 use dirs;
 
@@ -11,13 +10,13 @@ use crate::config::ConfigLocator;
 #[derive(Parser)]
 pub struct EnableCmd {
     #[arg(long, default_value_t=false)]
-    here: bool,
+    pub here: bool,
     #[arg()]
-    promptname: String,
+    pub promptname: String,
 }
 
-pub fn exec(cmd: EnableCmd) -> Result<()> {
-    let promptname = cmd.promptname;
+pub fn exec(promptname: &String) -> Result<()> {
+
     let config_filename: String =  format!("{promptname}.prompt");
     let locator: ConfigLocator = ConfigLocator::new("aibox", "prompts.d", config_filename);
 

@@ -4,7 +4,7 @@ use log::{debug};
 use anyhow::{bail, Result};
 use edit;
 
-use crate::config::ConfigLocator;
+use crate::{cmd::enable, config::ConfigLocator};
 
 const TEMPL: &str = r#"---
 model: MODEL
@@ -21,14 +21,13 @@ You are a useful assistant
 #[derive(Parser)]
 pub struct CreateCmd {
     #[arg(short, long, default_value_t=true)]
-    now: bool,
+    pub now: bool,
 
     #[arg()]
-    promptname: String,
+    pub promptname: String,
 }
 
-pub fn exec(cmd: CreateCmd) -> Result<()> {
-    let promptname = cmd.promptname;
+pub fn exec(promptname: &String, enable_prompt: bool) -> Result<()> {
     let config_filename: String =  format!("{promptname}.prompt");
     let locator: ConfigLocator = ConfigLocator::new("aibox", "prompts.d", config_filename);
 
@@ -44,6 +43,9 @@ pub fn exec(cmd: CreateCmd) -> Result<()> {
             if TEMPL != edited {
                 fs::write(&path, &edited)?;
                 println!("Saved {}", path.display());
+                if enable_prompt {
+                    enable::exec(promptname)?;
+                }
             } else {
                 println!("No changes, did not save");
             }

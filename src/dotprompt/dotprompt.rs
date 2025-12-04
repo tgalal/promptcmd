@@ -14,7 +14,7 @@ pub struct ModelInfo {
 #[derive(Debug, Deserialize)]
 pub struct Frontmatter {
     pub model: String,
-    pub input: Input,
+    pub input: Option<Input>,
     pub output: Output
 }
 
@@ -115,7 +115,18 @@ impl DotPrompt {
 
     pub fn input_schema(&self) -> HashMap<String, InputSchemaElement> {
         let mut result: HashMap<String, InputSchemaElement> = HashMap::new();
-        let schema = &self.frontmatter.input.schema;
+
+        let input = &self.frontmatter.input;
+
+        let schema = match input {
+            Some(input) => {
+                &input.schema
+            }
+            None => {
+                return result;
+            }
+        };
+
 
         if let Some(input_schema) = schema {
             for (key, value) in input_schema {
@@ -123,7 +134,9 @@ impl DotPrompt {
                     Some(s) => (s.to_string(), false),
                     None => (key.to_string(), true)
                 };
-                let (data_type, description) = value.split_once(",").unwrap_or((value, ""));
+                let (data_type, description) = value.split_once(",")
+                    .unwrap_or((value, ""));
+
                 let input_schema_element = InputSchemaElement {
                     key: sanitized_key.to_string(),
                     required,

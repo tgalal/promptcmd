@@ -76,10 +76,21 @@ fn main() -> Result<()> {
     let inputschema = dotprompt.input_schema();
 
     for (_, inputschema_element) in inputschema {
-        let arg = Arg::new(inputschema_element.key.clone())
+
+        let arg = if inputschema_element.data_type == "bool" {
+            Arg::new(inputschema_element.key.clone())
             .long(inputschema_element.key.clone())
             .help(inputschema_element.description.clone())
-            .required(inputschema_element.required);
+            .required(inputschema_element.required)
+            .action(clap::ArgAction::SetTrue)
+        } else {
+            Arg::new(inputschema_element.key.clone())
+            .long(inputschema_element.key.clone())
+            .help(inputschema_element.description.clone())
+            .required(inputschema_element.required)
+
+        };
+        
         command = command.arg(arg);
     }
 
@@ -89,12 +100,23 @@ fn main() -> Result<()> {
     let inputschema = dotprompt.input_schema();
     let mut handlebar_maps: HashMap<String, String> = HashMap::new();
     for (_, ele) in inputschema {
-        let value = match matches.get_one::<String>(&ele.key) {
-            Some(value) => {
-                value.to_string()
-            },
-            None => {
-                String::from("")
+        let value = if ele.data_type == "bool" {
+            match matches.get_one::<bool>(&ele.key) {
+                Some(value) => {
+                    value.to_string()
+                },
+                None => {
+                    String::from("")
+                }
+            }
+        } else {
+            match matches.get_one::<String>(&ele.key) {
+                Some(value) => {
+                    value.to_string()
+                },
+                None => {
+                    String::from("")
+                }
             }
         };
         handlebar_maps.insert(ele.key.to_string(), value);

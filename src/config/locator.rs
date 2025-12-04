@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::env;
 use std::fs;
+use anyhow::{Context, Result};
 
 pub struct ConfigLocator {
     app_name: String,
@@ -15,6 +16,15 @@ impl ConfigLocator {
             config_namespace: config_namespace.into(),
             config_filename: config_filename.into(),
         }
+    }
+
+    pub fn get_user_config_path(&self) -> Result<PathBuf> {
+        let config_dir = dirs::config_dir().context("Could not get config dir")?;
+
+        Ok(config_dir
+            .join(&self.app_name)
+            .join(&self.config_namespace)
+            .join(&self.config_filename))
     }
 
     /// Returns all possible config paths in order of precedence

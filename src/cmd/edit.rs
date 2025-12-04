@@ -5,7 +5,6 @@ use anyhow::{bail, Result};
 use edit;
 
 use crate::config::ConfigLocator;
-// use aibox::config::ConfigLocator;
 
 #[derive(Parser)]
 pub struct EditCmd {

@@ -93,7 +93,7 @@ fn main() -> Result<()> {
     let inputschema = dotprompt.input_schema();
     let mut handlebar_maps: HashMap<String, String> = HashMap::new();
     for (_, ele) in inputschema {
-        let value = if ele.data_type == "bool" {
+        let value = if ele.data_type == "boolean" {
             match matches.get_one::<bool>(&ele.key) {
                 Some(value) => {
                     value.to_string()
@@ -102,7 +102,7 @@ fn main() -> Result<()> {
                     String::from("")
                 }
             }
-        } else {
+        } else if ele.data_type == "string" {
             match matches.get_one::<String>(&ele.key) {
                 Some(value) => {
                     value.to_string()
@@ -111,6 +111,8 @@ fn main() -> Result<()> {
                     String::from("")
                 }
             }
+        } else {
+            bail!("Unsupported data type {} for {}", &ele.data_type, &ele.key);
         };
         handlebar_maps.insert(ele.key.to_string(), value);
     }

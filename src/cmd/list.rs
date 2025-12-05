@@ -1,8 +1,8 @@
 use clap::{Parser};
 use log::{debug};
-use anyhow::{Context, Result};
-use crate::config::ConfigLocator;
-use prettytable::{row, cell, Table};
+use anyhow::{ Result};
+use crate::config::locator;
+use prettytable::{row, Table};
 use prettytable::format;
 use std::fs;
 
@@ -49,8 +49,7 @@ fn exec_for_prompts(
     fullpath: bool,
 ) -> Result<()> {
     // 1. Get all prompts, search all paths
-    let locator: ConfigLocator = ConfigLocator::new("aibox", "prompts.d", "dummy");
-    let paths = locator.get_prompt_search_dirs();
+    let paths = locator::get_prompt_search_dirs();
 
     let mut promptfiles = Vec::new();
 

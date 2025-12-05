@@ -1,7 +1,6 @@
 use aibox::dotprompt::dotprompt::DotPrompt;
 use clap::{Arg, Command};
-use std::hash::Hash;
-use std::{env, path::Path};
+use std::{env};
 use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
 use std::fs;
@@ -14,7 +13,7 @@ use llm::{
     chat::{ChatMessage, ChatRole},
 };
 
-use aibox::config::ConfigLocator;
+use aibox::config::locator;
 use aibox::dotprompt::{self, Frontmatter};
 use log::{info, warn, error, debug};
 use env_logger;
@@ -56,15 +55,9 @@ fn main() -> Result<()> {
     
     debug!("Prompt name: {promptname}");
 
-    let config_filename: String =  format!("{promptname}.prompt");
-    let locator: ConfigLocator = ConfigLocator::new("aibox", "prompts.d", config_filename);
 
-    debug!("Searching for config in:");
-    for path in locator.get_search_paths() {
-        debug!("  - {}", path.display());
-    }
 
-    let dotprompt: DotPrompt = match locator.find_config() {
+    let dotprompt: DotPrompt = match locator::find_promptfile(&promptname) {
         Some(path) => {
             debug!("Loading config from {}", path.display());
             let content = fs::read_to_string(path)?;

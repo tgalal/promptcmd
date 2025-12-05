@@ -4,7 +4,7 @@ use log::{debug};
 use anyhow::{bail, Result};
 use edit;
 
-use crate::config::ConfigLocator;
+use crate::config::locator;
 
 #[derive(Parser)]
 pub struct EditCmd {
@@ -14,15 +14,9 @@ pub struct EditCmd {
 
 pub fn exec(cmd: EditCmd) -> Result<()> {
     let promptname = cmd.promptname;
-    let config_filename: String =  format!("{promptname}.prompt");
-    let locator: ConfigLocator = ConfigLocator::new("aibox", "prompts.d", config_filename);
 
-    debug!("Searching for config in:");
-    for path in locator.get_search_paths() {
-        debug!("  - {}", path.display());
-    }
 
-    match locator.find_config() {
+    match locator::find_promptfile(&promptname) {
         Some(path) => {
             println!("Editing {}", path.display());
             let content = fs::read_to_string(&path)?;
@@ -35,8 +29,8 @@ pub fn exec(cmd: EditCmd) -> Result<()> {
             }
         },
         None => {
-            let paths : Vec<String>= locator
-                .get_search_paths().iter().map(|path| path.display().to_string()).collect();
+            let paths : Vec<String>= locator::get_promptfile_paths(&promptname)
+                .iter().map(|path| path.display().to_string()).collect();
 
             bail!("Could not create an existing prompt file, searched:\n{}\nConsider creating a new one?", paths.join("\n"))
         }

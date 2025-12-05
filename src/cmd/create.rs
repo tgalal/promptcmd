@@ -4,7 +4,7 @@ use log::{debug};
 use anyhow::{bail, Result};
 use edit;
 
-use crate::{cmd::enable, config::ConfigLocator};
+use crate::{cmd::enable, config::locator};
 
 const TEMPL: &str = r#"---
 model: MODEL
@@ -28,15 +28,13 @@ pub struct CreateCmd {
 }
 
 pub fn exec(promptname: &String, enable_prompt: bool) -> Result<()> {
-    let config_filename: String =  format!("{promptname}.prompt");
-    let locator: ConfigLocator = ConfigLocator::new("aibox", "prompts.d", config_filename);
 
-    match locator.find_config() {
+    match locator::find_promptfile(promptname) {
         Some(path) => {
             bail!("Prompt file already exists: {}", path.display());
         },
         None => {
-            let path = locator.get_user_config_path()?;
+            let path = locator::get_user_promptfile_path(promptname)?;
 
             let edited = edit::edit(TEMPL)?;
 
@@ -44,7 +42,7 @@ pub fn exec(promptname: &String, enable_prompt: bool) -> Result<()> {
                 fs::write(&path, &edited)?;
                 println!("Saved {}", path.display());
                 if enable_prompt {
-                    enable::exec(promptname)?;
+                    enable::exec(promptname);
                 }
             } else {
                 println!("No changes, did not save");

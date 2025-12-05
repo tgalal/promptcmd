@@ -5,7 +5,7 @@ use symlink::symlink_file;
 use anyhow::{bail, Context, Result};
 use dirs;
 
-use crate::config::ConfigLocator;
+use crate::config::locator;
 
 #[derive(Parser)]
 pub struct EnableCmd {
@@ -17,8 +17,6 @@ pub struct EnableCmd {
 
 pub fn exec(promptname: &String) -> Result<()> {
 
-    let config_filename: String =  format!("{promptname}.prompt");
-    let locator: ConfigLocator = ConfigLocator::new("aibox", "prompts.d", config_filename);
 
     let home_dir = dirs::home_dir().context("Coud not determine home dir")?;
     let symlink_path = home_dir.join(".local/bin").join(promptname);
@@ -40,14 +38,14 @@ pub fn exec(promptname: &String) -> Result<()> {
         bail!("Could not locate target bin");
     }
 
-    let res = match locator.find_config() {
+    let res = match locator::find_promptfile(promptname) {
         Some(path) => {
             println!("Enabling {}", path.display());
             symlink_file(targetbin, symlink_path)
         },
         None => {
-            let paths : Vec<String>= locator
-                .get_search_paths().iter().map(|path| path.display().to_string()).collect();
+            let paths : Vec<String>= locator::get_promptfile_paths(&promptname)
+                .iter().map(|path| path.display().to_string()).collect();
 
             bail!("Could not find an existing prompt file, searched:\n{}\nConsider creating a new one?", paths.join("\n"))
         }

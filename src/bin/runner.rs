@@ -69,21 +69,27 @@ fn main() -> Result<()> {
     let inputschema = dotprompt.input_schema();
 
     for (_, inputschema_element) in inputschema {
-
-        let arg = if inputschema_element.data_type == "bool" {
-            Arg::new(inputschema_element.key.clone())
-            .long(inputschema_element.key.clone())
+        let mut arg =  Arg::new(inputschema_element.key.clone())
             .help(inputschema_element.description.clone())
-            .required(inputschema_element.required)
-            .action(clap::ArgAction::SetTrue)
+            .required(inputschema_element.required);
+
+        arg = if inputschema_element.data_type == "boolean" {
+            arg.long(inputschema_element.key.clone())
+                .action(clap::ArgAction::SetTrue)
+        } else if inputschema_element.data_type == "string" {
+            if inputschema_element.positional {
+                    if inputschema_element.required {
+                        arg.num_args(1..)
+                    } else {
+                        arg.num_args(0..)
+                    }
+            } else {
+                arg.long(inputschema_element.key.clone())
+            }
         } else {
-            Arg::new(inputschema_element.key.clone())
-            .long(inputschema_element.key.clone())
-            .help(inputschema_element.description.clone())
-            .required(inputschema_element.required)
-
+            bail!("Unsupported data type {} for {}", &inputschema_element.data_type, &inputschema_element.key);
         };
-        
+ 
         command = command.arg(arg);
     }
 
@@ -103,12 +109,23 @@ fn main() -> Result<()> {
                 }
             }
         } else if ele.data_type == "string" {
-            match matches.get_one::<String>(&ele.key) {
-                Some(value) => {
-                    value.to_string()
-                },
-                None => {
-                    String::from("")
+            if ele.positional {
+                match matches.get_many::<String>(&ele.key) {
+                    Some(value) => {
+                        value.cloned().collect::<Vec<_>>().join(" ")
+                    },
+                    None => {
+                        String::from("")
+                    }
+                }
+            } else {
+                match matches.get_one::<String>(&ele.key) {
+                    Some(value) => {
+                        value.to_string()
+                    },
+                    None => {
+                        String::from("")
+                    }
                 }
             }
         } else {

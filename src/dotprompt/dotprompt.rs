@@ -23,7 +23,8 @@ pub struct InputSchemaElement {
     pub key: String,
     pub data_type:  String,
     pub description: String,
-    pub required: bool
+    pub required: bool,
+    pub positional: bool
 } 
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -130,10 +131,26 @@ impl DotPrompt {
 
         if let Some(input_schema) = schema {
             for (key, value) in input_schema {
-                let (sanitized_key, required) = match key.strip_suffix("?") {
-                    Some(s) => (s.to_string(), false),
-                    None => (key.to_string(), true)
+                let mut key_chars = key.chars();
+                let (required, positional) = if key.ends_with("?!") || key.ends_with("!?") {
+                    // optional and positional
+                    key_chars.next_back();
+                    key_chars.next_back();
+                    (false, true)
+                } else if key.ends_with("?") {
+                    // optional
+                    key_chars.next_back();
+                    (false, false)
+                } else if key.ends_with("!") {
+                    // positional
+                    key_chars.next_back();
+                    (true, true)
+                } else {
+                    (true, false)
                 };
+
+                let sanitized_key = key_chars.as_str();
+
                 let (data_type, description) = value.split_once(",")
                     .unwrap_or((value, ""));
 
@@ -141,7 +158,8 @@ impl DotPrompt {
                     key: sanitized_key.to_string(),
                     required,
                     description: description.to_string(),
-                    data_type: data_type.to_string()
+                    data_type: data_type.to_string(),
+                    positional
                 };
                 result.insert(sanitized_key.to_string(), input_schema_element);
             }

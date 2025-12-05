@@ -7,6 +7,17 @@ const prompts_namespace: &str = "prompts.d";
 const app_name: &str = "aibox";
 
 
+pub fn get_bin_search_dirs() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    if let Some(exec_dir) = dirs::executable_dir() {
+        paths.push(exec_dir)
+    } 
+
+    paths
+}
+
+
 pub fn get_user_promptfile_path(promptname: &str) -> Result<PathBuf> {
     let config_dir = dirs::config_dir().context("Could not get config dir")?;
 

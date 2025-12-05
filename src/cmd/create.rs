@@ -42,7 +42,7 @@ pub fn exec(promptname: &String, enable_prompt: bool) -> Result<()> {
                 fs::write(&path, &edited)?;
                 println!("Saved {}", path.display());
                 if enable_prompt {
-                    enable::exec(promptname);
+                    return enable::exec(promptname);
                 }
             } else {
                 println!("No changes, did not save");

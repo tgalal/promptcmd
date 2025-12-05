@@ -38,7 +38,7 @@ pub fn exec(
     if commands {
         exec_for_commands(long, fullpath)
     } else {
-        exec_for_prompts(long, enabled, disabled, fullpath)
+        exec_for_prompts(long, enabled, disabled, fullpath, commands)
     }
 }
 
@@ -47,6 +47,7 @@ fn exec_for_prompts(
     enabled: bool,
     disabled: bool,
     fullpath: bool,
+    commands: bool
 ) -> Result<()> {
     // 1. Get all prompts, search all paths
     let paths = locator::get_prompt_search_dirs();
@@ -77,10 +78,6 @@ fn exec_for_prompts(
         
         let outputline: Vec<(String, String)> = promptfiles.iter().filter_map(|item| {
             item.file_stem().map(|promptname| {
-            // format!("{}: {}",
-            //     promptname.to_string_lossy(),
-            //     item.display()
-            // )
                 (promptname.to_string_lossy().into_owned(), item.display().to_string()) 
             })
         }).collect();
@@ -89,14 +86,12 @@ fn exec_for_prompts(
         let format = format::FormatBuilder::new()
             .padding(0, 5)
             .build();
-        // table.set_format(*format::consts::FORMAT_CLEAN);
         table.set_format(format);
 
         for line in outputline {
             table.add_row(row![line.0, line.1]);
         }
         table.printstd();
-        // println!("{}", outputline.join("\n"));
 
     } else {
         println!("{}", promptnames.join(" "));

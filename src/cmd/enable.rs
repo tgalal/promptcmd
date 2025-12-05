@@ -3,8 +3,8 @@ use log::{debug};
 use std::{env};
 use symlink::symlink_file;
 use anyhow::{bail, Context, Result};
-use dirs;
 
+use crate::config::bin_locator;
 use crate::config::locator;
 
 #[derive(Parser)]
@@ -16,10 +16,7 @@ pub struct EnableCmd {
 }
 
 pub fn exec(promptname: &String) -> Result<()> {
-
-
-    let home_dir = dirs::home_dir().context("Coud not determine home dir")?;
-    let symlink_path = home_dir.join(".local/bin").join(promptname);
+    let symlink_path = bin_locator::path(promptname).context("Could not determine link path")?;
 
     debug!("symlink path: {}", symlink_path.display());
 

@@ -36,6 +36,9 @@ enum Commands {
 
     #[clap(about = "List commands and prompts")]
     List(cmd::list::ListCmd),
+ 
+    #[clap(about = "Print promptfile contents")]
+    Cat(cmd::cat::CatCmd),
 }
 
 fn main() -> Result<()> {
@@ -53,13 +56,6 @@ fn main() -> Result<()> {
         Commands::List(cmd) => cmd::list::exec(
             cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands
         ),
+        Commands::Cat(cmd) => cmd::cat::exec(&cmd.promptname),
     }
-    // match cli.command {
-    //     Commands::Run(cmd) => {
-    //         run_cmd::exec(cmd)
-    //     },
-    //     Commands::Read(cmd) => {
-    //         read_cmd::exec(cmd)
-    //     },
-    // }
 }

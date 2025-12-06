@@ -14,7 +14,6 @@ use llm::{
 };
 
 use aibox::config::promptfile_locator;
-use aibox::dotprompt::{Frontmatter};
 use log::{error, debug};
 use env_logger;
 

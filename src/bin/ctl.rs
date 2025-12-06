@@ -27,9 +27,15 @@ enum Commands {
 
     #[clap(about = "Create a new prompt file")]
     Create(cmd::create::CreateCmd),
+ 
+    #[clap(about = "Create a new prompt file")]
+    New(cmd::create::CreateCmd),
 
     #[clap(about = "List commands and prompts")]
     Ls(cmd::list::ListCmd),
+
+    #[clap(about = "List commands and prompts")]
+    List(cmd::list::ListCmd),
 }
 
 fn main() -> Result<()> {
@@ -40,7 +46,11 @@ fn main() -> Result<()> {
         Commands::Enable(cmd) => cmd::enable::exec(&cmd.promptname),
         Commands::Disable(cmd) => cmd::disable::exec(cmd),
         Commands::Create(cmd) => cmd::create::exec(&cmd.promptname, cmd.now),
+        Commands::New(cmd) => cmd::create::exec(&cmd.promptname, cmd.now),
         Commands::Ls(cmd) => cmd::list::exec(
+            cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands
+        ),
+        Commands::List(cmd) => cmd::list::exec(
             cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands
         ),
     }

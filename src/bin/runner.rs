@@ -65,31 +65,13 @@ fn main() -> Result<()> {
         None => bail!("No config")
     };
 
-    let inputschema = dotprompt.input_schema();
+    // Vec<Arg>::try_from(dotprompt);
+    let args: Vec<Arg> = Vec::try_from(&dotprompt).context(
+        "Could not create arguments"
+    )?;
 
-    for (_, inputschema_element) in inputschema {
-        let mut arg =  Arg::new(inputschema_element.key.clone())
-            .help(inputschema_element.description.clone())
-            .required(inputschema_element.required);
-
-        arg = if inputschema_element.data_type == "boolean" {
-            arg.long(inputschema_element.key.clone())
-                .action(clap::ArgAction::SetTrue)
-        } else if inputschema_element.data_type == "string" {
-            if inputschema_element.positional {
-                    if inputschema_element.required {
-                        arg.num_args(1..)
-                    } else {
-                        arg.num_args(0..)
-                    }
-            } else {
-                arg.long(inputschema_element.key.clone())
-            }
-        } else {
-            bail!("Unsupported data type {} for {}", &inputschema_element.data_type, &inputschema_element.key);
-        };
- 
-        command = command.arg(arg);
+    for arg in args {
+       command = command.arg(arg);
     }
 
     let matches = command.get_matches();

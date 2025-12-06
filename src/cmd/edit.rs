@@ -1,6 +1,5 @@
 use clap::{Parser};
 use std::fs;
-use log::{debug};
 use anyhow::{bail, Result};
 use edit;
 

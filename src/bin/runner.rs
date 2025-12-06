@@ -1,45 +1,49 @@
-use aibox::dotprompt::dotprompt::DotPrompt;
-use clap::{Arg, Command};
+use aibox::dotprompt::DotPrompt;
+use aibox::dotprompt::render::Render;
+use clap::{Arg, ArgMatches, Command};
 use std::{env};
 use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
 use std::fs;
-use handlebars::Handlebars;
 use std::collections::HashMap;
 use std::io::{self, Read};
 use tokio::runtime::Runtime;
 use llm::{
     builder::{LLMBackend, LLMBuilder},
-    chat::{ChatMessage, ChatRole},
+    chat::{ChatMessage},
 };
 
 use aibox::config::promptfile_locator;
 use log::{error, debug};
-use env_logger;
 
 const BIN_NAME: &str = "promptbox";
 
 fn main() -> Result<()> {
     env_logger::init();
 
+    // First figure out the current execution method
+    // This could be one of:
+    // 1. Direct runner binary
+    // 2. symlink to runner
+    // 3. shebang (TODO)
+
+    // Find the executable name directly from args.
     let mut args = env::args();
 
     let path: PathBuf = args
         .next()
         .context("Could not figure binary name")?
         .into();
-
-    let invoked_binname = path
+ 
+    let invoked_binname: String = path
         .file_name()
         .context("Could not get filename")?
         .to_string_lossy()
-        .to_string();
+        .into();
 
+    debug!("Executable name: {invoked_binname}");
 
-    debug!("Invoked bin is the following: {invoked_binname}");
-
-    let mut command: Command = Command::new(&invoked_binname)
-        .version("1.0");
+    let mut command: Command = Command::new(&invoked_binname);
 
     let promptname = if invoked_binname == BIN_NAME {
         // Not running: via symlink, first positional argument is the prompt name
@@ -49,86 +53,41 @@ fn main() -> Result<()> {
             .context("Could not determine prompt name")?
 
     } else {
+        // if the executable name differs from BIN_NAME, then this might be symlink
+        // TODO: check!
         invoked_binname
     };
-    
     debug!("Prompt name: {promptname}");
 
+    let promptfile_path: PathBuf = promptfile_locator::find(&promptname)
+        .context("Could not find promptfile with name: {promptname}")?;
 
+    debug!("Loading {}", promptfile_path.display());
+    let dotprompt: DotPrompt = DotPrompt::try_from(fs::read_to_string(&promptfile_path)?)?;
 
-    let dotprompt: DotPrompt = match promptfile_locator::find(&promptname) {
-        Some(path) => {
-            debug!("Loading config from {}", path.display());
-            let content = fs::read_to_string(path)?;
-            DotPrompt::try_from(content)?
-        },
-        None => bail!("No config")
-    };
+    debug!("Loaded {}", promptfile_path.display());
 
-    // Vec<Arg>::try_from(dotprompt);
     let args: Vec<Arg> = Vec::try_from(&dotprompt).context(
-        "Could not create arguments"
+        "Could not generate arguments"
     )?;
 
     for arg in args {
        command = command.arg(arg);
     }
 
-    let matches = command.get_matches();
+    let matches:ArgMatches = command.get_matches();
 
-
-    let inputschema = dotprompt.input_schema();
-    let mut handlebar_maps: HashMap<String, String> = HashMap::new();
-    for (_, ele) in inputschema {
-        let value = if ele.data_type == "boolean" {
-            match matches.get_one::<bool>(&ele.key) {
-                Some(value) => {
-                    value.to_string()
-                },
-                None => {
-                    String::from("")
-                }
-            }
-        } else if ele.data_type == "string" {
-            if ele.positional {
-                match matches.get_many::<String>(&ele.key) {
-                    Some(value) => {
-                        value.cloned().collect::<Vec<_>>().join(" ")
-                    },
-                    None => {
-                        String::from("")
-                    }
-                }
-            } else {
-                match matches.get_one::<String>(&ele.key) {
-                    Some(value) => {
-                        value.to_string()
-                    },
-                    None => {
-                        String::from("")
-                    }
-                }
-            }
-        } else {
-            bail!("Unsupported data type {} for {}", &ele.data_type, &ele.key);
-        };
-        handlebar_maps.insert(ele.key.to_string(), value);
-    }
+    let mut extra_args: HashMap<String, String> = HashMap::new();
 
     if dotprompt.template_needs_stdin() {
         let mut buffer = String::new();
         io::stdin()
             .read_to_string(&mut buffer)
             .context("Failed to read stdin")?;
-        handlebar_maps.insert(String::from("STDIN"), buffer);
+        extra_args.insert(String::from("STDIN"), buffer);
     }
-
-    let mut hbs = Handlebars::new();
-    hbs.register_template_string("prompt", &dotprompt.template)
-        .unwrap();
-
-    let output = hbs.render("prompt", &handlebar_maps)
-        .context("Failed to parse template")?;
+    
+    let output: String = dotprompt.render(&matches, &extra_args)?;
 
     debug!("{output}");
 

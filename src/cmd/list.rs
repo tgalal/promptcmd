@@ -1,5 +1,4 @@
 use clap::{Parser};
-use log::{debug};
 use anyhow::{ Result};
 use crate::config::promptfile_locator;
 use prettytable::{row, Table};
@@ -44,10 +43,10 @@ pub fn exec(
 
 fn exec_for_prompts(
     long: bool,
-    enabled: bool,
-    disabled: bool,
-    fullpath: bool,
-    commands: bool
+    _enabled: bool,
+    _disabled: bool,
+    _fullpath: bool,
+    _commands: bool
 ) -> Result<()> {
     // 1. Get all prompts, search all paths
     let paths = promptfile_locator::search_paths(None);
@@ -72,7 +71,6 @@ fn exec_for_prompts(
     }
 
     let promptnames: Vec<&str> = promptfiles.iter().filter_map(|item| item.file_stem()?.to_str()).collect();
-    let promptpaths: Vec<String> = promptfiles.iter().map(|item| item.display().to_string()).collect();
 
     if long {
         
@@ -102,8 +100,8 @@ fn exec_for_prompts(
 }
 
 fn exec_for_commands(
-    long: bool,
-    fullpath: bool,
+    _long: bool,
+    _fullpath: bool,
 ) -> Result<()> {
     Ok(())
 }

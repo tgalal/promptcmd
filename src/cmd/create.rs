@@ -1,6 +1,5 @@
 use clap::{Parser};
 use std::fs;
-use log::{debug};
 use anyhow::{bail, Context, Result};
 use edit;
 
@@ -27,7 +26,7 @@ pub struct CreateCmd {
     pub promptname: String,
 }
 
-pub fn exec(promptname: &String, enable_prompt: bool) -> Result<()> {
+pub fn exec(promptname: &str, enable_prompt: bool) -> Result<()> {
 
     match promptfile_locator::find(promptname) {
         Some(path) => {

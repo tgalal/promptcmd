@@ -1,8 +1,6 @@
 use anyhow::Result;
 use aibox::cmd;
 use clap::{Parser, Subcommand};
-use log::{info, warn, error, debug};
-use env_logger;
 
 
 #[derive(Parser)]
@@ -39,6 +37,9 @@ enum Commands {
  
     #[clap(about = "Print promptfile contents")]
     Cat(cmd::cat::CatCmd),
+ 
+    #[clap(about = "Run promptfile")]
+    Run(cmd::run::RunCmd),
 }
 
 fn main() -> Result<()> {
@@ -57,5 +58,6 @@ fn main() -> Result<()> {
             cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands
         ),
         Commands::Cat(cmd) => cmd::cat::exec(&cmd.promptname),
+        Commands::Run(cmd) => cmd::run::exec(&cmd.promptname, cmd.dryrun)
     }
 }

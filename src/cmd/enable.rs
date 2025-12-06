@@ -15,7 +15,7 @@ pub struct EnableCmd {
     pub promptname: String,
 }
 
-pub fn exec(promptname: &String) -> Result<()> {
+pub fn exec(promptname: &str) -> Result<()> {
     let symlink_path = bin_locator::path(promptname).context("Could not determine link path")?;
 
     debug!("symlink path: {}", symlink_path.display());
@@ -41,7 +41,7 @@ pub fn exec(promptname: &String) -> Result<()> {
             symlink_file(targetbin, symlink_path)
         },
         None => {
-            let paths : Vec<String>= promptfile_locator::search_paths(Some(&promptname))
+            let paths : Vec<String>= promptfile_locator::search_paths(Some(promptname))
                 .iter().map(|path| path.display().to_string()).collect();
 
             bail!("Could not find an existing prompt file, searched:\n{}\nConsider creating a new one?", paths.join("\n"))

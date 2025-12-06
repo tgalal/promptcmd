@@ -9,7 +9,7 @@ use handlebars::{Handlebars, RenderError, TemplateError};
 pub enum DotPromptArgsError {
     #[error("Failed to generate arguments from schema, reason: {0}")]
     ArgsFromDotPromptError(String),
-    #[error("Unsupported data type {key}, {data_type}")]
+    #[error("Unsupported data type: {data_type} for key: {key}")]
     UnsupportedDataType {
         key: String,
         data_type: String

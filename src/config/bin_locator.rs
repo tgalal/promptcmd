@@ -22,7 +22,7 @@ pub fn path(bin: &str) -> Option<PathBuf> {
     search_paths(Some(bin)).first().cloned()
 }
 
-pub fn search(bin: &str) -> Option<PathBuf> {
+pub fn find(bin: &str) -> Option<PathBuf> {
     search_paths(Some(bin))
         .into_iter()
         .find(|path| path.exists() && path.is_file()

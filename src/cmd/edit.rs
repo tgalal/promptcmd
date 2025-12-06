@@ -4,7 +4,7 @@ use log::{debug};
 use anyhow::{bail, Result};
 use edit;
 
-use crate::config::locator;
+use crate::config::promptfile_locator;
 
 #[derive(Parser)]
 pub struct EditCmd {
@@ -16,7 +16,7 @@ pub fn exec(cmd: EditCmd) -> Result<()> {
     let promptname = cmd.promptname;
 
 
-    match locator::find_promptfile(&promptname) {
+    match promptfile_locator::find(&promptname) {
         Some(path) => {
             println!("Editing {}", path.display());
             let content = fs::read_to_string(&path)?;
@@ -29,7 +29,7 @@ pub fn exec(cmd: EditCmd) -> Result<()> {
             }
         },
         None => {
-            let paths : Vec<String>= locator::get_promptfile_paths(&promptname)
+            let paths : Vec<String>= promptfile_locator::search_paths(Some(&promptname))
                 .iter().map(|path| path.display().to_string()).collect();
 
             bail!("Could not create an existing prompt file, searched:\n{}\nConsider creating a new one?", paths.join("\n"))

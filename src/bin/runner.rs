@@ -13,9 +13,9 @@ use llm::{
     chat::{ChatMessage, ChatRole},
 };
 
-use aibox::config::locator;
-use aibox::dotprompt::{self, Frontmatter};
-use log::{info, warn, error, debug};
+use aibox::config::promptfile_locator;
+use aibox::dotprompt::{Frontmatter};
+use log::{error, debug};
 use env_logger;
 
 const BIN_NAME: &str = "promptbox";
@@ -57,7 +57,7 @@ fn main() -> Result<()> {
 
 
 
-    let dotprompt: DotPrompt = match locator::find_promptfile(&promptname) {
+    let dotprompt: DotPrompt = match promptfile_locator::find(&promptname) {
         Some(path) => {
             debug!("Loading config from {}", path.display());
             let content = fs::read_to_string(path)?;

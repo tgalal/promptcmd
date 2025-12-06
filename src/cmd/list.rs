@@ -1,7 +1,7 @@
 use clap::{Parser};
 use log::{debug};
 use anyhow::{ Result};
-use crate::config::locator;
+use crate::config::promptfile_locator;
 use prettytable::{row, Table};
 use prettytable::format;
 use std::fs;
@@ -50,7 +50,7 @@ fn exec_for_prompts(
     commands: bool
 ) -> Result<()> {
     // 1. Get all prompts, search all paths
-    let paths = locator::get_prompt_search_dirs();
+    let paths = promptfile_locator::search_paths(None);
 
     let mut promptfiles = Vec::new();
 

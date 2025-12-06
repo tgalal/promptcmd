@@ -5,7 +5,7 @@ use symlink::symlink_file;
 use anyhow::{bail, Context, Result};
 
 use crate::config::bin_locator;
-use crate::config::locator;
+use crate::config::promptfile_locator;
 
 #[derive(Parser)]
 pub struct EnableCmd {
@@ -35,13 +35,13 @@ pub fn exec(promptname: &String) -> Result<()> {
         bail!("Could not locate target bin");
     }
 
-    let res = match locator::find_promptfile(promptname) {
+    let res = match promptfile_locator::find(promptname) {
         Some(path) => {
             println!("Enabling {}", path.display());
             symlink_file(targetbin, symlink_path)
         },
         None => {
-            let paths : Vec<String>= locator::get_promptfile_paths(&promptname)
+            let paths : Vec<String>= promptfile_locator::search_paths(Some(&promptname))
                 .iter().map(|path| path.display().to_string()).collect();
 
             bail!("Could not find an existing prompt file, searched:\n{}\nConsider creating a new one?", paths.join("\n"))

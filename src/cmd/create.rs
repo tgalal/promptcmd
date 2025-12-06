@@ -1,10 +1,10 @@
 use clap::{Parser};
 use std::fs;
 use log::{debug};
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use edit;
 
-use crate::{cmd::enable, config::locator};
+use crate::{cmd::enable, config::promptfile_locator};
 
 const TEMPL: &str = r#"---
 model: MODEL
@@ -29,12 +29,14 @@ pub struct CreateCmd {
 
 pub fn exec(promptname: &String, enable_prompt: bool) -> Result<()> {
 
-    match locator::find_promptfile(promptname) {
+    match promptfile_locator::find(promptname) {
         Some(path) => {
             bail!("Prompt file already exists: {}", path.display());
         },
         None => {
-            let path = locator::get_user_promptfile_path(promptname)?;
+            let path = promptfile_locator::find(promptname).context(
+                "Could not locate promptfile"
+            )?;
 
             let edited = edit::edit(TEMPL)?;
 

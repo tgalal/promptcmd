@@ -60,7 +60,7 @@ fn main() -> Result<()> {
     debug!("Prompt name: {promptname}");
 
     let promptfile_path: PathBuf = promptfile_locator::find(&promptname)
-        .context("Could not find promptfile with name: {promptname}")?;
+        .context("Could not find promptfile")?;
 
     debug!("Loading {}", promptfile_path.display());
     let dotprompt: DotPrompt = DotPrompt::try_from(fs::read_to_string(&promptfile_path)?)?;

@@ -69,9 +69,16 @@ pub fn path(promptname: &str) -> Option<PathBuf> {
     search_paths(Some(promptname)).first().cloned()
 }
 
-pub fn find(promptname: &str) -> Option<PathBuf> {
-    search_paths(Some(promptname))
-        .into_iter()
-        .find(|path| path.exists() && path.is_file()
-        )
+pub fn find(promptname_or_path: &str) -> Option<PathBuf> {
+    let promptpath: PathBuf = promptname_or_path.into();
+
+    if promptpath.exists() {
+        Some(promptpath)
+    } else {
+        let promptname = promptname_or_path;
+        search_paths(Some(promptname))
+            .into_iter()
+            .find(|path| path.exists() && path.is_file()
+            )
+    }
 }

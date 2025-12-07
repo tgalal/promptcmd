@@ -64,8 +64,16 @@ impl TryFrom<String> for DotPrompt {
     type Error = ParseDotPromptError;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        // Trim left whitespace so files that start with BOM/newlines are handled
-        let s = s.trim_start().to_string();
+        // Skip all lines starting with '#'
+        let s = s.trim_start().lines()
+            .skip_while(
+                |line| {
+                    let trimmed = line.trim();
+                    trimmed.starts_with("#") || trimmed.is_empty()
+                }
+            )
+            .collect::<Vec<_>>()
+            .join("\n");
 
         // Expect frontmatter to start with `---`
         if !s.starts_with("---") {

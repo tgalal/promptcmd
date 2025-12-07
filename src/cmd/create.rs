@@ -33,7 +33,7 @@ pub fn exec(promptname: &str, enable_prompt: bool) -> Result<()> {
             bail!("Prompt file already exists: {}", path.display());
         },
         None => {
-            let path = promptfile_locator::find(promptname).context(
+            let path = promptfile_locator::path(promptname).context(
                 "Could not locate promptfile"
             )?;
 

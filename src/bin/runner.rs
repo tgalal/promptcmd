@@ -1,6 +1,6 @@
 use aibox::dotprompt::DotPrompt;
 use aibox::dotprompt::render::Render;
-use aibox::config::{appconfig, appconfig_locator};
+use aibox::config::{appconfig, appconfig_locator, providers};
 use aibox::config::appconfig::{AppConfig};
 use clap::{Arg, ArgMatches, Command};
 use std::{env};
@@ -100,21 +100,29 @@ fn main() -> Result<()> {
         .temperature(0.7) // Control response randomness (0.0-1.0)
         .stream(false);  // Disable streaming responses
 
-    llm_builder = match appconfig.resolve_provider(&model_info.provider) {
-        appconfig::ProviderVariant::Ollama(ollamaconf) => {
+    llm_builder = match appconfig.providers.resolve(&model_info.provider) {
+        providers::ProviderVariant::Ollama(ollamaconf) => {
             debug!("Working with the following ollama conf: {}", toml::to_string(ollamaconf).unwrap());
             llm_builder.backend(LLMBackend::Ollama)
                .base_url(&ollamaconf.endpoint)
-                .max_tokens(ollamaconf.max_tokens(&appconfig))
-                .stream(ollamaconf.stream(&appconfig))
-                .temperature(ollamaconf.temperature(&appconfig))
+                .max_tokens(ollamaconf.max_tokens(&appconfig.providers))
+                .stream(ollamaconf.stream(&appconfig.providers))
+                .temperature(ollamaconf.temperature(&appconfig.providers))
         },
-        appconfig::ProviderVariant::OpenAi(openaiconf) => {
-            println!("Working with the following openai conf: {}", toml::to_string(openaiconf).unwrap());
+        providers::ProviderVariant::OpenAi(openaiconf) => {
+            debug!("Working with the following openai conf: {}", toml::to_string(openaiconf).unwrap());
             bail!("OpenAI not yet supported")
 
         },
-        appconfig::ProviderVariant::None => {
+        providers::ProviderVariant::Anthropic(anthropicconf) => {
+            debug!("Working with the following anthropicconf conf: {}", toml::to_string(anthropicconf).unwrap());
+            llm_builder.backend(LLMBackend::Anthropic)
+            .api_key(&anthropicconf.api_key)
+            .max_tokens(anthropicconf.max_tokens(&appconfig.providers))
+            .stream(anthropicconf.stream(&appconfig.providers))
+            .temperature(anthropicconf.temperature(&appconfig.providers))
+        }
+        providers::ProviderVariant::None => {
             bail!("No configuration found for the selected provider")
         }
     };

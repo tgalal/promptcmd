@@ -1,5 +1,7 @@
 use aibox::dotprompt::DotPrompt;
 use aibox::dotprompt::render::Render;
+use aibox::config::{appconfig, appconfig_locator};
+use aibox::config::appconfig::{AppConfig};
 use clap::{Arg, ArgMatches, Command};
 use std::{env};
 use anyhow::{bail, Context, Result};
@@ -21,11 +23,10 @@ const BIN_NAME: &str = "promptbox";
 fn main() -> Result<()> {
     env_logger::init();
 
-    // First figure out the current execution method
-    // This could be one of:
-    // 1. Direct runner binary
-    // 2. symlink to runner
-    // 3. shebang (TODO)
+    // Load config
+    let appconfig_path = appconfig_locator::path().context("No config found")?;
+    debug!("Loading configuration from {}",appconfig_path.display());
+    let appconfig: AppConfig = AppConfig::try_from(&fs::read_to_string(&appconfig_path)?)?;
 
     // Find the executable name directly from args.
     let mut args = env::args();
@@ -93,22 +94,33 @@ fn main() -> Result<()> {
 
     let model_info = dotprompt.model_info().context("Failed to parse model")?;
 
-    let (backend, base_url) = if model_info.provider == "ollama" {
-        let baseurl = std::env::var("OLLAMA_HOST").context("Provider is ollama but OLLAMA_HOST not set")?;
-        (LLMBackend::Ollama, baseurl)
-    } else {
-        bail!("Unsupported provider: {}", model_info.provider)
-    };
-
-    // Ollama Example
-        // Initialize and configure the LLM client
-    let llm = LLMBuilder::new()
-        .backend(backend) // Use Ollama as the LLM backend
-        .base_url(base_url) // Set the Ollama server URL
-        .model(&model_info.model_name) // Use the Mistral model
+    let mut llm_builder= LLMBuilder::new()
+        .model(&model_info.model_name)
         .max_tokens(1000) // Set maximum response length
         .temperature(0.7) // Control response randomness (0.0-1.0)
-        .stream(false) // Disable streaming responses
+        .stream(false);  // Disable streaming responses
+
+    llm_builder = match appconfig.resolve_provider(&model_info.provider) {
+        appconfig::ProviderVariant::Ollama(ollamaconf) => {
+            debug!("Working with the following ollama conf: {}", toml::to_string(ollamaconf).unwrap());
+            llm_builder.backend(LLMBackend::Ollama)
+               .base_url(&ollamaconf.endpoint)
+                .max_tokens(ollamaconf.max_tokens(&appconfig))
+                .stream(ollamaconf.stream(&appconfig))
+                .temperature(ollamaconf.temperature(&appconfig))
+        },
+        appconfig::ProviderVariant::OpenAi(openaiconf) => {
+            println!("Working with the following openai conf: {}", toml::to_string(openaiconf).unwrap());
+            bail!("OpenAI not yet supported")
+
+        },
+        appconfig::ProviderVariant::None => {
+            bail!("No configuration found for the selected provider")
+        }
+    };
+    println!("{}", toml::to_string(&appconfig).unwrap());
+
+    let llm = llm_builder
         .build()
         .expect("Failed to build LLM model");
 
@@ -127,6 +139,5 @@ fn main() -> Result<()> {
     }
     
     Ok(())
-
 
 }

@@ -14,7 +14,12 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum ProviderError {
     #[error("Error Creating LLM Backend")]
-    CreateLLMClientError(#[from] LLMError)
+    CreateLLMClientError(#[from] LLMError),
+
+    #[error("Missing required configuration key {name}")]
+    MissingRequiredConfiguration {
+        name: String,
+    },
 }
 
 pub trait ToLLMProvider {
@@ -24,19 +29,19 @@ pub trait ToLLMProvider {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Providers {
 
-    temperature: Option<f32>,
-    system: Option<String>,
-    stream: Option<bool>,
-    max_tokens: Option<u32>,
+    pub temperature: Option<f32>,
+    pub system: Option<String>,
+    pub stream: Option<bool>,
+    pub max_tokens: Option<u32>,
 
     #[serde(default)]
-    ollama: ollama::OllamaProviders,
+    pub ollama: ollama::OllamaProviders,
 
     #[serde(default)]
-    openai: openai::OpenAIProviders,
+    pub openai: openai::OpenAIProviders,
  
     #[serde(default)]
-    anthropic: anthropic::AnthropicProviders
+    pub anthropic: anthropic::AnthropicProviders
 }
 
 pub enum ProviderVariant<'a> {

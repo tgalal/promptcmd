@@ -27,3 +27,6 @@ symlink = "0.1.0"
 prettytable = "0.10.0"
 toml = "0.9.8"
 thiserror = "2.0.17"
+
+[dev-dependencies]
+tempfile = "3.8"

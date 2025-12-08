@@ -1,7 +1,8 @@
+use llm::builder::LLMBuilder;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::config::providers;
+use crate::config::providers::{self, ToLLMProvider};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AnthropicProviders {
@@ -47,5 +48,19 @@ impl AnthropicConfig {
                 providers.max_tokens
             )
         ).unwrap_or(providers::DEFAULT_MAX_TOKENS)
+    }
+}
+
+impl ToLLMProvider for AnthropicConfig {
+    fn llm_provider(&self,
+        llmbuilder: LLMBuilder,
+        providers: &providers::Providers) -> Result<Box< dyn llm::LLMProvider>, providers::ProviderError> {
+            let builder = llmbuilder.backend(llm::builder::LLMBackend::Anthropic)
+                .api_key(&self.api_key)
+                .max_tokens(self.max_tokens(providers))
+                .stream(self.stream(providers))
+                .temperature(self.temperature(providers));
+            
+        Ok(builder.build()?)
     }
 }

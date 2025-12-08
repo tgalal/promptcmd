@@ -1,4 +1,6 @@
+use llm::builder::LLMBuilder;
 use serde::{Serialize, Deserialize};
+use crate::config::providers::{self, ToLLMProvider};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct OpenAIProviders {
@@ -19,4 +21,15 @@ pub struct OpenAIConfig {
 
     #[serde(default)]
     pub endpoint: String
+}
+
+impl ToLLMProvider for OpenAIConfig {
+    fn llm_provider(&self,
+        llmbuilder: LLMBuilder,
+        providers: &providers::Providers) -> Result<Box< dyn llm::LLMProvider>, providers::ProviderError> {
+            let builder = llmbuilder.backend(llm::builder::LLMBackend::OpenAI)
+                .base_url(&self.endpoint);
+            
+        Ok(builder.build()?)
+    }
 }

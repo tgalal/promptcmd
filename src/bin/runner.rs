@@ -1,3 +1,4 @@
+use aibox::config::providers::ToLLMProvider;
 use aibox::dotprompt::DotPrompt;
 use aibox::dotprompt::render::Render;
 use aibox::config::{appconfig, appconfig_locator, providers};
@@ -94,43 +95,24 @@ fn main() -> Result<()> {
 
     let model_info = dotprompt.model_info().context("Failed to parse model")?;
 
-    let mut llm_builder= LLMBuilder::new()
-        .model(&model_info.model_name)
-        .max_tokens(1000) // Set maximum response length
-        .temperature(0.7) // Control response randomness (0.0-1.0)
-        .stream(false);  // Disable streaming responses
+    let llmbuilder= LLMBuilder::new()
+        .model(&model_info.model_name);
 
-    llm_builder = match appconfig.providers.resolve(&model_info.provider) {
-        providers::ProviderVariant::Ollama(ollamaconf) => {
-            debug!("Working with the following ollama conf: {}", toml::to_string(ollamaconf).unwrap());
-            llm_builder.backend(LLMBackend::Ollama)
-               .base_url(&ollamaconf.endpoint)
-                .max_tokens(ollamaconf.max_tokens(&appconfig.providers))
-                .stream(ollamaconf.stream(&appconfig.providers))
-                .temperature(ollamaconf.temperature(&appconfig.providers))
-        },
-        providers::ProviderVariant::OpenAi(openaiconf) => {
-            debug!("Working with the following openai conf: {}", toml::to_string(openaiconf).unwrap());
+    let provider_config: &dyn ToLLMProvider=  match appconfig.providers.resolve(&model_info.provider) {
+        providers::ProviderVariant::Ollama(conf) => conf,
+        providers::ProviderVariant::Anthropic(conf) => conf,
+        providers::ProviderVariant::OpenAi(conf) => {
             bail!("OpenAI not yet supported")
 
         },
-        providers::ProviderVariant::Anthropic(anthropicconf) => {
-            debug!("Working with the following anthropicconf conf: {}", toml::to_string(anthropicconf).unwrap());
-            llm_builder.backend(LLMBackend::Anthropic)
-            .api_key(&anthropicconf.api_key)
-            .max_tokens(anthropicconf.max_tokens(&appconfig.providers))
-            .stream(anthropicconf.stream(&appconfig.providers))
-            .temperature(anthropicconf.temperature(&appconfig.providers))
-        }
         providers::ProviderVariant::None => {
             bail!("No configuration found for the selected provider")
         }
     };
-    println!("{}", toml::to_string(&appconfig).unwrap());
+    let llm = provider_config.llm_provider(llmbuilder, &appconfig.providers)
+        .expect("Failed to build LLMProvider");
 
-    let llm = llm_builder
-        .build()
-        .expect("Failed to build LLM model");
+    debug!("{}", toml::to_string(&appconfig).unwrap());
 
     // Prepare conversation history with example messages
     let messages = vec![

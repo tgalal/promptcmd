@@ -2,12 +2,24 @@ pub mod anthropic;
 pub mod ollama;
 pub mod openai;
 
+use llm::{builder::LLMBuilder, error::LLMError, LLMProvider};
 use serde::{Serialize, Deserialize};
 
 const DEFAULT_MAX_TOKENS:u32 = 1000;
 const DEFAULT_STREAM:bool = false;
 const DEFAULT_TEMPERATURE:f32 = 0.7;
 
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum ProviderError {
+    #[error("Error Creating LLM Backend")]
+    CreateLLMClientError(#[from] LLMError)
+}
+
+pub trait ToLLMProvider {
+    fn llm_provider(&self, llmbuilder: LLMBuilder, providers: &Providers) -> Result<Box< dyn LLMProvider>, ProviderError>;
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Providers {

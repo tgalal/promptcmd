@@ -178,3 +178,345 @@ impl DotPrompt {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_basic_dotprompt() {
+        let content = r#"---
+model: anthropic/claude-3-5-sonnet-20241022
+input:
+  schema:
+    message: string, The message to translate
+output:
+  format: text
+---
+Translate this: {{message}}"#;
+
+        let result = DotPrompt::try_from(content.to_string());
+        assert!(result.is_ok(), "Should parse valid dotprompt");
+
+        let dotprompt = result.unwrap();
+        assert_eq!(dotprompt.frontmatter.model, "anthropic/claude-3-5-sonnet-20241022");
+        assert_eq!(dotprompt.template, "Translate this: {{message}}");
+        assert_eq!(dotprompt.frontmatter.output.format, "text");
+    }
+
+    #[test]
+    fn test_parse_with_comments() {
+        let content = r#"# This is a comment
+# Another comment
+
+---
+model: ollama/llama3
+input:
+  schema:
+    query: string
+output:
+  format: text
+---
+Query: {{query}}"#;
+
+        let result = DotPrompt::try_from(content.to_string());
+        assert!(result.is_ok(), "Should skip comments and parse successfully");
+
+        let dotprompt = result.unwrap();
+        assert_eq!(dotprompt.frontmatter.model, "ollama/llama3");
+    }
+
+    #[test]
+    fn test_parse_without_frontmatter_delimiter() {
+        let content = r#"model: test/model
+output:
+  format: text"#;
+
+        let result = DotPrompt::try_from(content.to_string());
+        assert!(result.is_err(), "Should fail without frontmatter delimiter");
+
+        if let Err(e) = result {
+            assert!(e.0.contains("frontmatter delimiter"));
+        }
+    }
+
+    #[test]
+    fn test_parse_invalid_yaml() {
+        let content = r#"---
+model: test
+this is not valid yaml: [
+output:
+  format: text
+---
+Template"#;
+
+        let result = DotPrompt::try_from(content.to_string());
+        assert!(result.is_err(), "Should fail on invalid YAML");
+
+        if let Err(e) = result {
+            assert!(e.0.contains("invalid YAML"));
+        }
+    }
+
+    #[test]
+    fn test_parse_missing_template() {
+        let content = r#"---
+model: test/model
+output:
+  format: text
+---"#;
+
+        let result = DotPrompt::try_from(content.to_string());
+        // This should actually succeed with an empty template
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().template, "");
+    }
+
+    #[test]
+    fn test_input_schema_required_field() {
+        let content = r#"---
+model: test/model
+input:
+  schema:
+    name: string, User's name
+output:
+  format: text
+---
+Hello {{name}}"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let schema = dotprompt.input_schema();
+
+        assert_eq!(schema.len(), 1);
+        let name_field = schema.get("name").unwrap();
+        assert_eq!(name_field.key, "name");
+        assert_eq!(name_field.data_type, "string");
+        assert_eq!(name_field.description, " User's name");
+        assert!(name_field.required, "Should be required by default");
+        assert!(!name_field.positional, "Should not be positional by default");
+    }
+
+    #[test]
+    fn test_input_schema_optional_field() {
+        let content = r#"---
+model: test/model
+input:
+  schema:
+    "age?": string, Optional age
+output:
+  format: text
+---
+Age: {{age}}"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let schema = dotprompt.input_schema();
+
+        let age_field = schema.get("age").unwrap();
+        assert_eq!(age_field.key, "age");
+        assert!(!age_field.required, "Should be optional");
+        assert!(!age_field.positional);
+    }
+
+    #[test]
+    fn test_input_schema_positional_field() {
+        let content = r#"---
+model: test/model
+input:
+  schema:
+    "files!": string, Files to process
+output:
+  format: text
+---
+Files: {{files}}"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let schema = dotprompt.input_schema();
+
+        let files_field = schema.get("files").unwrap();
+        assert_eq!(files_field.key, "files");
+        assert!(files_field.required, "Should be required");
+        assert!(files_field.positional, "Should be positional");
+    }
+
+    #[test]
+    fn test_input_schema_optional_positional() {
+        let content = r#"---
+model: test/model
+input:
+  schema:
+    args?!: string, Optional positional args
+output:
+  format: text
+---
+Args: {{args}}"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let schema = dotprompt.input_schema();
+
+        let args_field = schema.get("args").unwrap();
+        assert_eq!(args_field.key, "args");
+        assert!(!args_field.required, "Should be optional");
+        assert!(args_field.positional, "Should be positional");
+    }
+
+    #[test]
+    fn test_input_schema_optional_positional_reverse() {
+        let content = r#"---
+model: test/model
+input:
+  schema:
+    args!?: string, Optional positional args (reverse syntax)
+output:
+  format: text
+---
+Args: {{args}}"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let schema = dotprompt.input_schema();
+
+        let args_field = schema.get("args").unwrap();
+        assert_eq!(args_field.key, "args");
+        assert!(!args_field.required, "Should be optional");
+        assert!(args_field.positional, "Should be positional");
+    }
+
+    #[test]
+    fn test_input_schema_no_input() {
+        let content = r#"---
+model: test/model
+output:
+  format: text
+---
+No input needed"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let schema = dotprompt.input_schema();
+
+        assert_eq!(schema.len(), 0, "Should return empty schema");
+    }
+
+    #[test]
+    fn test_input_schema_multiple_fields() {
+        let content = r#"---
+model: test/model
+input:
+  schema:
+    name: string, User name
+    age?: string, User age
+    files!: string, Files to process
+    verbose?: boolean, Verbose output
+output:
+  format: text
+---
+Template"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let schema = dotprompt.input_schema();
+
+        assert_eq!(schema.len(), 4);
+        assert!(schema.contains_key("name"));
+        assert!(schema.contains_key("age"));
+        assert!(schema.contains_key("files"));
+        assert!(schema.contains_key("verbose"));
+    }
+
+    #[test]
+    fn test_template_needs_stdin_true() {
+        let content = r#"---
+model: test/model
+output:
+  format: text
+---
+Process this: {{STDIN}}"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        assert!(dotprompt.template_needs_stdin());
+    }
+
+    #[test]
+    fn test_template_needs_stdin_false() {
+        let content = r#"---
+model: test/model
+output:
+  format: text
+---
+No stdin needed"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        assert!(!dotprompt.template_needs_stdin());
+    }
+
+    #[test]
+    fn test_model_info_parsing() {
+        let content = r#"---
+model: anthropic/claude-3-5-sonnet-20241022
+output:
+  format: text
+---
+Template"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let model_info = dotprompt.model_info();
+
+        assert!(model_info.is_ok());
+        let info = model_info.unwrap();
+        assert_eq!(info.provider, "anthropic");
+        assert_eq!(info.model_name, "claude-3-5-sonnet-20241022");
+    }
+
+    #[test]
+    fn test_model_info_invalid_format() {
+        let content = r#"---
+model: invalid-model-format
+output:
+  format: text
+---
+Template"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let model_info = dotprompt.model_info();
+
+        assert!(model_info.is_err(), "Should fail on invalid model format");
+    }
+
+    #[test]
+    fn test_schema_without_description() {
+        let content = r#"---
+model: test/model
+input:
+  schema:
+    name: string
+output:
+  format: text
+---
+Template"#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let schema = dotprompt.input_schema();
+
+        let name_field = schema.get("name").unwrap();
+        assert_eq!(name_field.data_type, "string");
+        assert_eq!(name_field.description, "");
+    }
+
+    #[test]
+    fn test_complex_template() {
+        let content = r#"---
+model: test/model
+input:
+  schema:
+    name: string
+    language: string
+output:
+  format: text
+---
+Hello {{name}}!
+Please translate to {{language}}.
+Multiple lines supported."#;
+
+        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        assert!(dotprompt.template.contains("Hello {{name}}"));
+        assert!(dotprompt.template.contains("{{language}}"));
+        assert!(dotprompt.template.contains("Multiple lines"));
+    }
+}
+

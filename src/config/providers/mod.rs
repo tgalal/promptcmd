@@ -1,6 +1,7 @@
 pub mod anthropic;
 pub mod ollama;
 pub mod openai;
+pub mod google;
 
 use llm::{builder::LLMBuilder, error::LLMError, LLMProvider};
 use serde::{Serialize, Deserialize};
@@ -41,13 +42,17 @@ pub struct Providers {
     pub openai: openai::OpenAIProviders,
  
     #[serde(default)]
-    pub anthropic: anthropic::AnthropicProviders
+    pub anthropic: anthropic::AnthropicProviders,
+ 
+    #[serde(default)]
+    pub google: google::GoogleProviders
 }
 
 pub enum ProviderVariant<'a> {
     Ollama(&'a ollama::OllamaConfig),
     OpenAi(&'a openai::OpenAIConfig),
     Anthropic(&'a anthropic::AnthropicConfig),
+    Google(&'a google::GoogleConfig),
     None
 }
 
@@ -58,7 +63,10 @@ impl Providers {
             return ProviderVariant::Ollama(&self.ollama.config)
         } else if name == "anthropic" {
             return ProviderVariant::Anthropic(&self.anthropic.config)
+        } else if name == "google" {
+            return ProviderVariant::Google(&self.google.config)
         }
+
 
         // search throughout all providers
         if let Some(conf) = self.ollama.named.get(name) {
@@ -71,6 +79,10 @@ impl Providers {
 
         if let Some(conf) = self.anthropic.named.get(name) {
             return ProviderVariant::Anthropic(conf);
+        }
+
+        if let Some(conf) = self.google.named.get(name) {
+            return ProviderVariant::Google(conf);
         }
 
         ProviderVariant::None

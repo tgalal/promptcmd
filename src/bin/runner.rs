@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::io::{self, Read};
 use tokio::runtime::Runtime;
 use llm::{
-    builder::{LLMBackend, LLMBuilder},
+    builder::{LLMBuilder},
     chat::{ChatMessage},
 };
 
@@ -101,6 +101,7 @@ fn main() -> Result<()> {
     let provider_config: &dyn ToLLMProvider=  match appconfig.providers.resolve(&model_info.provider) {
         providers::ProviderVariant::Ollama(conf) => conf,
         providers::ProviderVariant::Anthropic(conf) => conf,
+        providers::ProviderVariant::Google(conf) => conf,
         providers::ProviderVariant::OpenAi(conf) => {
             bail!("OpenAI not yet supported")
 

@@ -1,9 +1,10 @@
 use aibox::config::providers::ToLLMProvider;
 use aibox::dotprompt::DotPrompt;
 use aibox::dotprompt::render::Render;
-use aibox::config::{appconfig, appconfig_locator, providers};
+use aibox::config::{appconfig_locator, providers};
 use aibox::config::appconfig::{AppConfig};
 use clap::{Arg, ArgMatches, Command};
+use llm::chat::StructuredOutputFormat;
 use std::{env};
 use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
@@ -61,11 +62,13 @@ fn main() -> Result<()> {
     };
     debug!("Prompt name: {promptname}");
 
-    let promptfile_path: PathBuf = promptfile_locator::find(&promptname)
+    let promptfile_path: PathBuf = promptfile_locator::find(promptname.as_str())
         .context("Could not find promptfile")?;
 
     debug!("Loading {}", promptfile_path.display());
     let dotprompt: DotPrompt = DotPrompt::try_from(fs::read_to_string(&promptfile_path)?)?;
+
+    debug!("Output Tool: {}", dotprompt.output_to_extract_structured_json(&promptname.as_str()));
 
     debug!("Loaded {}", promptfile_path.display());
 
@@ -95,8 +98,15 @@ fn main() -> Result<()> {
 
     let model_info = dotprompt.model_info().context("Failed to parse model")?;
 
-    let llmbuilder= LLMBuilder::new()
+
+    let mut llmbuilder= LLMBuilder::new()
         .model(&model_info.model_name);
+
+    if dotprompt.output_format() == "json" {
+        let output_schema: StructuredOutputFormat = serde_json::from_str(
+            dotprompt.output_to_extract_structured_json(promptname.as_str()).as_str())?;
+        llmbuilder = llmbuilder.schema(output_schema);
+    }
 
     let provider_config: &dyn ToLLMProvider=  match appconfig.providers.resolve(&model_info.provider) {
         providers::ProviderVariant::Ollama(conf) => conf,

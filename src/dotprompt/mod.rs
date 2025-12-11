@@ -2,11 +2,12 @@ pub mod args;
 pub mod render;
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap};
 use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt;
 use anyhow::{Context, Result};
+use serde_json::json;
 
 pub struct ModelInfo {
     pub model_name: String,
@@ -17,11 +18,11 @@ pub struct ModelInfo {
 pub struct Frontmatter {
     pub model: String,
     pub input: Option<Input>,
-    pub output: Output
+    pub output: Option<Output>
 }
 
 #[derive(Debug)]
-pub struct InputSchemaElement {
+pub struct SchemaElement {
     pub key: String,
     pub data_type:  String,
     pub description: String,
@@ -46,7 +47,6 @@ pub struct DotPrompt {
     pub template: String
 }
 
-/// A simple parser error type for TryFrom
 #[derive(Debug)]
 pub struct ParseDotPromptError(pub String);
 
@@ -56,10 +56,8 @@ impl fmt::Display for ParseDotPromptError {
     }
 }
 
-
 impl Error for ParseDotPromptError {}
 
-/// TryFrom<String> implements the actual parsing from raw text -> DotPrompt
 impl TryFrom<String> for DotPrompt {
     type Error = ParseDotPromptError;
 
@@ -124,8 +122,92 @@ impl DotPrompt {
         })
     }
 
-    pub fn input_schema(&self) -> HashMap<String, InputSchemaElement> {
-        let mut result: HashMap<String, InputSchemaElement> = HashMap::new();
+    pub fn output_format(&self) -> String {
+        if let Some(ref output) = self.frontmatter.output {
+            return output.format.clone();
+        }
+
+        String::from("text")
+    }
+
+    pub fn output_to_extract_structured_json(&self, name: &str) -> String {
+        let output_schema = self.output_schema();
+        let mut properties: HashMap<String, serde_json::Value> = HashMap::new();
+        let mut required: Vec<String> = Vec::new();
+
+        for (_, element) in output_schema {
+            let json_data_type: &str = if element.data_type == "number" {
+                "number"
+            } else if element.data_type == "boolean" {
+                "boolean"
+            } else {
+                "string"
+            };
+            let json_value = json!({
+                "type": json_data_type,
+                "description": element.description
+            });
+            properties.insert(element.key.clone(), json_value);
+
+            if element.required {
+                required.push(element.key.clone());
+            }
+        }
+        let result2 = json!({
+            "name": name,
+            "schema": {
+                "type": "object",
+                "properties": properties,
+                "required": required
+            }
+        });
+
+        result2.to_string()
+    }
+
+    pub fn output_schema(&self) -> HashMap<String, SchemaElement> {
+        let mut result: HashMap<String, SchemaElement> = HashMap::new();
+
+        let schema = match &self.frontmatter.output {
+            Some(output) => {
+                &output.schema
+            }
+            None => {
+                return result;
+            }
+        };
+
+        if let Some(schema) = schema {
+            for (key, value) in schema {
+                let mut key_chars = key.chars();
+
+                let required = if key.ends_with("?") {
+                    key_chars.next_back();
+                    false
+                } else {
+                    true
+                };
+
+                let sanitized_key = key_chars.as_str();
+
+                let (data_type, description) = value.split_once(",")
+                    .unwrap_or((value, ""));
+
+                let input_schema_element = SchemaElement {
+                    key: sanitized_key.to_string(),
+                    required,
+                    description: description.to_string(),
+                    data_type: data_type.to_string(),
+                    positional: false
+                };
+                result.insert(sanitized_key.to_string(), input_schema_element);
+            }
+        }
+        result
+    }
+
+    pub fn input_schema(&self) -> HashMap<String, SchemaElement> {
+        let mut result: HashMap<String, SchemaElement> = HashMap::new();
 
         let input = &self.frontmatter.input;
 
@@ -164,7 +246,7 @@ impl DotPrompt {
                 let (data_type, description) = value.split_once(",")
                     .unwrap_or((value, ""));
 
-                let input_schema_element = InputSchemaElement {
+                let input_schema_element = SchemaElement {
                     key: sanitized_key.to_string(),
                     required,
                     description: description.to_string(),
@@ -200,7 +282,7 @@ Translate this: {{message}}"#;
         let dotprompt = result.unwrap();
         assert_eq!(dotprompt.frontmatter.model, "anthropic/claude-3-5-sonnet-20241022");
         assert_eq!(dotprompt.template, "Translate this: {{message}}");
-        assert_eq!(dotprompt.frontmatter.output.format, "text");
+        assert_eq!(dotprompt.frontmatter.output.unwrap().format, "text");
     }
 
     #[test]

@@ -25,6 +25,7 @@ dependencies = [
  "log",
  "prettytable",
  "serde",
+ "serde_json",
  "serde_yaml",
  "symlink",
  "tempfile",

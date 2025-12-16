@@ -1,8 +1,9 @@
 use std::path::{PathBuf};
 use std::env;
 
+use crate::config::APP_NAME;
+
 const PROMPTFILES_NAMESPACE: &str = "prompts.d";
-const APP_NAME: &str = "aibox";
 
 /*
 * Returns list of search paths for promptfiles.

@@ -27,7 +27,7 @@ fn main() -> Result<()> {
 
     // Load config
     let appconfig_path = appconfig_locator::path().context("No config found")?;
-    debug!("Loading configuration from {}",appconfig_path.display());
+    debug!("Config Path: {}",appconfig_path.display());
     let appconfig: AppConfig = AppConfig::try_from(&fs::read_to_string(&appconfig_path)?)?;
 
     // Find the executable name directly from args.
@@ -65,12 +65,8 @@ fn main() -> Result<()> {
     let promptfile_path: PathBuf = promptfile_locator::find(promptname.as_str())
         .context("Could not find promptfile")?;
 
-    debug!("Loading {}", promptfile_path.display());
+    debug!("Promptfile path: {}", promptfile_path.display());
     let dotprompt: DotPrompt = DotPrompt::try_from(fs::read_to_string(&promptfile_path)?)?;
-
-    debug!("Output Tool: {}", dotprompt.output_to_extract_structured_json(&promptname.as_str()));
-
-    debug!("Loaded {}", promptfile_path.display());
 
     let args: Vec<Arg> = Vec::try_from(&dotprompt).context(
         "Could not generate arguments"
@@ -97,8 +93,6 @@ fn main() -> Result<()> {
     debug!("{output}");
 
     let model_info = dotprompt.model_info().context("Failed to parse model")?;
-
-
     let mut llmbuilder= LLMBuilder::new()
         .model(&model_info.model_name);
 
@@ -112,7 +106,7 @@ fn main() -> Result<()> {
         providers::ProviderVariant::Ollama(conf) => conf,
         providers::ProviderVariant::Anthropic(conf) => conf,
         providers::ProviderVariant::Google(conf) => conf,
-        providers::ProviderVariant::OpenAi(conf) => {
+        providers::ProviderVariant::OpenAi(_) => {
             bail!("OpenAI not yet supported")
 
         },
@@ -122,8 +116,6 @@ fn main() -> Result<()> {
     };
     let llm = provider_config.llm_provider(llmbuilder, &appconfig.providers)
         .expect("Failed to build LLMProvider");
-
-    debug!("{}", toml::to_string(&appconfig).unwrap());
 
     // Prepare conversation history with example messages
     let messages = vec![

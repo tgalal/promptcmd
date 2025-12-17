@@ -1,8 +1,8 @@
-use aibox::config::providers::ToLLMProvider;
-use aibox::dotprompt::DotPrompt;
-use aibox::dotprompt::render::Render;
-use aibox::config::{appconfig_locator, providers};
-use aibox::config::appconfig::{AppConfig};
+use promptcmd::config::providers::ToLLMProvider;
+use promptcmd::dotprompt::DotPrompt;
+use promptcmd::dotprompt::render::Render;
+use promptcmd::config::{appconfig_locator, providers, promptfile_locator};
+use promptcmd::config::appconfig::{AppConfig};
 use clap::{Arg, ArgMatches, Command};
 use llm::chat::StructuredOutputFormat;
 use std::{env};
@@ -17,7 +17,6 @@ use llm::{
     chat::{ChatMessage},
 };
 
-use aibox::config::promptfile_locator;
 use log::{error, debug};
 
 const BIN_NAME: &str = "promptbox";

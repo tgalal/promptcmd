@@ -1,6 +1,6 @@
 use anyhow::Result;
-use aibox::cmd;
-use aibox::config;
+use promptcmd::cmd;
+use promptcmd::config;
 use clap::{Parser, Subcommand};
 
 

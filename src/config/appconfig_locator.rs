@@ -1,7 +1,8 @@
 use std::path::{PathBuf};
 use std::env;
 
-const APP_NAME: &str = "aibox";
+use crate::config::APP_NAME;
+
 const CONFIG_NAME: &str="config.toml";
 
 /*

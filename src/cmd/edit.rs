@@ -28,10 +28,10 @@ pub fn exec(cmd: EditCmd) -> Result<()> {
             }
         },
         None => {
-            let paths : Vec<String>= promptfile_locator::search_paths(Some(&promptname))
+            let paths : Vec<String>= promptfile_locator::search_paths(Some(&promptname))?
                 .iter().map(|path| path.display().to_string()).collect();
 
-            bail!("Could not create an existing prompt file, searched:\n{}\nConsider creating a new one?", paths.join("\n"))
+            bail!("Could not find an existing prompt file, searched:\n{}\nConsider creating a new one?", paths.join("\n"))
         }
     };
     Ok(())

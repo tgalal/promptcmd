@@ -49,7 +49,7 @@ fn exec_for_prompts(
     _commands: bool
 ) -> Result<()> {
     // 1. Get all prompts, search all paths
-    let paths = promptfile_locator::search_paths(None);
+    let paths = promptfile_locator::search_paths(None)?;
 
     let mut promptfiles = Vec::new();
 

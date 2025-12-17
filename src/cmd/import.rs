@@ -1,0 +1,63 @@
+use std::{path::PathBuf, str::FromStr};
+use crate::{cmd::enable as enable_cmd, config::promptfile_locator};
+use std::fs;
+
+use clap::{Parser};
+use anyhow::{bail, Context, Result};
+use clap_stdin::FileOrStdin;
+use log::{error, debug};
+
+
+#[derive(Parser)]
+pub struct ImportCmd {
+    #[arg(short, long, help="Prompt name")]
+    pub promptname: Option<String>,
+    #[arg(short, long, help="Prompt name")]
+    pub enable: Option<bool>,
+    pub promptfile: FileOrStdin,
+}
+
+/**
+* If promptname given, will always use
+* If promptfile given but not promptname, will use filename from promptfile (if .prompt)
+* If stdin, will require promptname
+*/
+pub fn exec(promptname: Option<String>, promptfile: FileOrStdin, enable: Option<bool>) -> Result<()> {
+    let enable = enable.unwrap_or(false);
+    let filename = promptfile.filename();
+
+    debug!("Filename: {filename}");
+
+    let promptname = if let Some(promptname) = promptname {
+        promptname
+    } else if filename.ends_with(".prompt") {
+        debug!("Determining prompt name from the given file path");
+        PathBuf::from_str(filename).unwrap().file_stem().context("Error")?.to_string_lossy().to_string()
+    } else {
+        bail!("Could not determine prompt name. Either specify promptname or import from a .prompt file to determine name.");
+    };
+
+    debug!("Prompt name: {promptname}");
+
+    let contents = promptfile.contents()?;
+    let fullpath = promptfile_locator::path(&promptname).context(
+        "Could not determine an import destination for prompt."
+    )?;
+
+    debug!("Import destination: {}", fullpath.display());
+
+    if fullpath.exists() {
+        bail!("Import destination {} already exists", fullpath.display());
+    }
+
+    fs::write(&fullpath, contents)?;
+    debug!("Imported {promptname}");
+
+    if enable {
+        debug!("Enabling {promptname}");
+        enable_cmd::exec(&promptname)?;
+    } else {
+        debug!("Not enabling {promptname}");
+    }
+    Ok(())
+}

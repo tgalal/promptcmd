@@ -15,7 +15,7 @@ pub fn exec(cmd: DisableCmd) -> Result<()> {
     let promptname = cmd.promptname;
 
 
-    let symlink_path = bin_locator::path(&promptname).context("Could not determine link path")?;
+    let symlink_path = bin_locator::path(Some(&promptname)).context("Could not determine link path")?;
 
     debug!("symlink path: {}", symlink_path.display());
 

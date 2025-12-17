@@ -1,5 +1,6 @@
 use anyhow::Result;
 use aibox::cmd;
+use aibox::config;
 use clap::{Parser, Subcommand};
 
 
@@ -40,10 +41,15 @@ enum Commands {
  
     #[clap(about = "Run promptfile")]
     Run(cmd::run::RunCmd),
+
+    #[clap(about = "Import promptfile")]
+    Import(cmd::import::ImportCmd),
 }
 
 fn main() -> Result<()> {
     env_logger::init();
+    config::bootstrap_directories()?;
+
     let cli = Cli::parse();
     match cli.command {
         Commands::Edit(cmd) => cmd::edit::exec(cmd),
@@ -58,6 +64,7 @@ fn main() -> Result<()> {
             cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands
         ),
         Commands::Cat(cmd) => cmd::cat::exec(&cmd.promptname),
-        Commands::Run(cmd) => cmd::run::exec(&cmd.promptname, cmd.dryrun)
+        Commands::Run(cmd) => cmd::run::exec(&cmd.promptname, cmd.dryrun),
+        Commands::Import(cmd) => cmd::import::exec(cmd.promptname, cmd.promptfile, cmd.enable)
     }
 }

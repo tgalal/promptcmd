@@ -1,32 +1,48 @@
 use std::path::{PathBuf};
+use thiserror::Error;
+
+use crate::config::{prompt_install_dir, ConfigError};
+
+
+#[derive(Error, Debug)]
+pub enum BinLocatorError {
+    #[error("Could not create directory")]
+    CreateBinDirFailed(#[from] std::io::Error),
+
+    #[error("Could locate bin directory")]
+    LocateBinDirFailed
+}
 
 /*
 * Returns list of search paths executables/symlinks.
 * If bin is specified, will join it to the search paths.
 */
-pub fn search_paths(bin: Option<&str>) -> Vec<PathBuf> {
+pub fn search_paths(bin: Option<&str>) -> Result<Vec<PathBuf>, ConfigError> {
     let mut paths = Vec::new();
 
-    if let Some(exec_dir) = dirs::executable_dir() {
-        paths.push(exec_dir)
-    } 
+    paths.push(prompt_install_dir()?);
 
     if let Some(bin) = bin {
-        paths.iter().map(|path| path.join(bin)).collect()
+        Ok(paths.iter().map(|path| path.join(bin)).collect())
     } else {
-        paths
+        Ok(paths)
     }
 }
 
-pub fn path(bin: &str) -> Option<PathBuf> {
-    search_paths(Some(bin)).first().cloned()
+pub fn path(bin: Option<&str>) -> Result<PathBuf, ConfigError> {
+    let paths = search_paths(bin)?;
+    paths.first().ok_or(
+        ConfigError::StorageDirectoryNotAvailable
+    ).cloned()
 }
 
 pub fn find(bin: &str) -> Option<PathBuf> {
-    search_paths(Some(bin))
-        .into_iter()
-        .find(|path| path.exists() && path.is_file()
-        )
+    if let Ok(paths) = search_paths(Some(bin)) {
+        paths.into_iter()
+        .find(|path| path.exists() && path.is_file())
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -39,7 +55,7 @@ mod tests {
 
         // Should return at least one path on most systems
         assert!(
-            !paths.is_empty(),
+            !paths.unwrap().is_empty(),
             "Should return executable directories"
         );
     }
@@ -47,7 +63,7 @@ mod tests {
     #[test]
     fn test_search_paths_with_bin() {
         let bin_name = "test-binary";
-        let paths = search_paths(Some(bin_name));
+        let paths = search_paths(Some(bin_name)).unwrap();
 
         // If there are paths, they should all end with the bin name
         for path in paths {
@@ -63,12 +79,12 @@ mod tests {
     #[test]
     fn test_path_returns_first_search_path() {
         let bin_name = "test-binary";
-        let search_paths_result = search_paths(Some(bin_name));
-        let path_result = path(bin_name);
+        let search_paths_result = search_paths(Some(bin_name)).unwrap();
+        let path_result = path(Some(bin_name)).unwrap();
 
         assert_eq!(
             path_result,
-            search_paths_result.first().cloned(),
+            search_paths_result.first().cloned().unwrap(),
             "path() should return the first search path"
         );
     }

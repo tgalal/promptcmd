@@ -20,8 +20,7 @@ pub struct GoogleConfig {
     system: Option<String>,
     stream: Option<bool>,
     max_tokens: Option<u32>,
-
-    pub api_key: String
+    api_key: String
 }
 
 impl GoogleConfig {

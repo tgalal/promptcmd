@@ -20,13 +20,13 @@ pub struct OpenAIConfig {
     max_tokens: Option<u32>,
 
     #[serde(default)]
-    pub endpoint: String
+    endpoint: String
 }
 
 impl ToLLMProvider for OpenAIConfig {
     fn llm_provider(&self,
         llmbuilder: LLMBuilder,
-        providers: &providers::Providers) -> Result<Box< dyn llm::LLMProvider>, providers::ProviderError> {
+        _: &providers::Providers) -> Result<Box< dyn llm::LLMProvider>, providers::ProviderError> {
             let builder = llmbuilder.backend(llm::builder::LLMBackend::OpenAI)
                 .base_url(&self.endpoint);
             

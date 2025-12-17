@@ -24,10 +24,15 @@ const BIN_NAME: &str = "promptcmd";
 fn main() -> Result<()> {
     env_logger::init();
 
-    // Load config
-    let appconfig_path = appconfig_locator::path().context("No config found")?;
-    debug!("Config Path: {}",appconfig_path.display());
-    let appconfig: AppConfig = AppConfig::try_from(&fs::read_to_string(&appconfig_path)?)?;
+
+    let appconfig = if let Some(appconfig_path) = appconfig_locator::path() {
+        debug!("Config Path: {}",appconfig_path.display());
+        AppConfig::try_from(
+            &fs::read_to_string(&appconfig_path)?
+        )?
+    } else {
+        AppConfig::default()
+    };
 
     // Find the executable name directly from args.
     let mut args = env::args();

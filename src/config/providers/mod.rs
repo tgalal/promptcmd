@@ -12,6 +12,9 @@ const DEFAULT_TEMPERATURE:f32 = 0.7;
 
 use thiserror::Error;
 
+use crate::config::providers::{anthropic::{AnthropicProviders}, google::{GoogleProviders},
+    ollama::{OllamaProviders}, openai::{OpenAIProviders}};
+
 #[derive(Error, Debug)]
 pub enum ProviderError {
     #[error("Error Creating LLM Backend")]
@@ -31,7 +34,6 @@ pub trait ToLLMProvider {
 pub struct Providers {
 
     pub temperature: Option<f32>,
-    pub system: Option<String>,
     pub stream: Option<bool>,
     pub max_tokens: Option<u32>,
 
@@ -56,7 +58,22 @@ pub enum ProviderVariant<'a> {
     None
 }
 
+impl Default for Providers {
+    fn default() -> Self {
+        Providers {
+            temperature: Some(DEFAULT_TEMPERATURE),
+            stream: Some(DEFAULT_STREAM),
+            max_tokens: Some(DEFAULT_MAX_TOKENS),
+            ollama: OllamaProviders::default(),
+            openai: OpenAIProviders::default(),
+            anthropic: AnthropicProviders::default(),
+            google: GoogleProviders::default()
+        }
+    }
+}
+
 impl Providers {
+
     pub fn resolve<'a>(&'a self, name: &str) -> ProviderVariant<'a> {
         // Direct, top level search
         if name == "ollama" {

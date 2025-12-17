@@ -5,10 +5,8 @@ use toml::de::Error as TomlError;
 use thiserror::Error;
 use crate::config::providers;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AppConfig {
-    default_model: String,
-    editor: String,
     pub providers: providers::Providers,
 }
 
@@ -34,9 +32,6 @@ mod tests {
     #[test]
     fn test_parse_basic_config() {
         let toml_content = r#"
-            default_model = "claude-3-5-sonnet-20241022"
-            editor = "vim"
-
             [providers.anthropic]
             api_key = "test-key-123"
         "#;
@@ -45,8 +40,6 @@ mod tests {
         assert!(config.is_ok(), "Should parse valid TOML");
 
         let config = config.unwrap();
-        assert_eq!(config.default_model, "claude-3-5-sonnet-20241022");
-        assert_eq!(config.editor, "vim");
         assert_eq!(config.providers.anthropic.config.api_key, "test-key-123");
     }
 

@@ -3,6 +3,7 @@ pub mod ollama;
 pub mod openai;
 pub mod google;
 pub mod openrouter;
+use log::{error, debug};
 
 use llm::{builder::LLMBuilder, error::LLMError, LLMProvider};
 use serde::{Serialize, Deserialize};
@@ -24,6 +25,11 @@ pub enum ProviderError {
     #[error("Missing required configuration key {name}")]
     MissingRequiredConfiguration {
         name: String,
+    },
+
+    #[error("Configuration error: {desc}")]
+    ConfigurationError {
+        desc: String,
     },
 }
 
@@ -90,8 +96,9 @@ impl Providers {
             return ProviderVariant::Google(&self.google.config)
         } else if name == "openrouter" {
             return ProviderVariant::OpenRouter(&self.openrouter.config)
+        } else if name == "openai" {
+            return ProviderVariant::OpenAi(&self.openai.config)
         }
-
 
         // search throughout all providers
         if let Some(conf) = self.ollama.named.get(name) {

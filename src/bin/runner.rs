@@ -111,13 +111,10 @@ fn main() -> Result<()> {
         providers::ProviderVariant::Ollama(conf) => conf,
         providers::ProviderVariant::Anthropic(conf) => conf,
         providers::ProviderVariant::Google(conf) => conf,
-        providers::ProviderVariant::OpenAi(_) => {
-            bail!("OpenAI not yet supported")
-
-        },
+        providers::ProviderVariant::OpenAi(conf) => conf,
         providers::ProviderVariant::OpenRouter(conf) => conf,
         providers::ProviderVariant::None => {
-            bail!("No configuration found for the selected provider")
+            bail!("No configuration found for the selected provider: {}", model_info.provider);
         }
     };
 

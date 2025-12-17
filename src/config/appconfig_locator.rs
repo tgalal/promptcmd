@@ -1,5 +1,4 @@
 use std::path::{PathBuf};
-use std::env;
 
 use crate::config::APP_NAME;
 

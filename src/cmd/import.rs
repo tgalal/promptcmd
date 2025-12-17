@@ -6,7 +6,7 @@ use std::fs;
 use clap::{Parser};
 use anyhow::{bail, Context, Result};
 use clap_stdin::FileOrStdin;
-use log::{error, debug};
+use log::{debug};
 
 
 #[derive(Parser)]

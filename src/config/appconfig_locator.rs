@@ -12,17 +12,12 @@ const CONFIG_NAME: &str="config.toml";
 pub fn search_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
-    // 1. Current directory
-    if let Ok(pwd) = env::current_dir() {
-        paths.push(pwd.join(CONFIG_NAME));
-    }
-
-    // 2. User config directory
+    // 1. User config directory
     if let Some(config_dir) = dirs::config_dir() {
         paths.push(config_dir.join(APP_NAME).join(CONFIG_NAME));
     }
 
-    // 3. System config directory (platform-specific)
+    // 2. System config directory (platform-specific)
     #[cfg(target_os = "linux")]
     {
         paths.push(PathBuf::from("/etc").join(APP_NAME).join(CONFIG_NAME));
@@ -49,7 +44,9 @@ pub fn search_paths() -> Vec<PathBuf> {
 }
 
 pub fn path() -> Option<PathBuf> {
-    search_paths().first().cloned()
+    search_paths().iter().find(|item| {
+        item.exists()
+    }).cloned()
 }
 
 #[cfg(test)]

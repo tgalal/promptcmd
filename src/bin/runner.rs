@@ -95,6 +95,9 @@ fn main() -> Result<()> {
     debug!("{output}");
 
     let model_info = dotprompt.model_info().context("Failed to parse model")?;
+
+    debug!("Model Provider: {}, Model Name: {}", &model_info.provider, &model_info.model_name);
+
     let mut llmbuilder= LLMBuilder::new()
         .model(&model_info.model_name);
 
@@ -112,14 +115,14 @@ fn main() -> Result<()> {
             bail!("OpenAI not yet supported")
 
         },
+        providers::ProviderVariant::OpenRouter(conf) => conf,
         providers::ProviderVariant::None => {
             bail!("No configuration found for the selected provider")
         }
     };
-    let llm = provider_config.llm_provider(llmbuilder, &appconfig.providers)
-        .expect("Failed to build LLMProvider");
 
-    // Prepare conversation history with example messages
+    let llm = provider_config.llm_provider(llmbuilder, &appconfig.providers)?;
+
     let messages = vec![
         ChatMessage::user()
             .content(output)

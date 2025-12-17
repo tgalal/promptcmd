@@ -2,6 +2,7 @@ pub mod anthropic;
 pub mod ollama;
 pub mod openai;
 pub mod google;
+pub mod openrouter;
 
 use llm::{builder::LLMBuilder, error::LLMError, LLMProvider};
 use serde::{Serialize, Deserialize};
@@ -12,8 +13,8 @@ const DEFAULT_TEMPERATURE:f32 = 0.7;
 
 use thiserror::Error;
 
-use crate::config::providers::{anthropic::{AnthropicProviders}, google::{GoogleProviders},
-    ollama::{OllamaProviders}, openai::{OpenAIProviders}};
+use crate::config::providers::{anthropic::AnthropicProviders, google::GoogleProviders,
+    ollama::OllamaProviders, openai::OpenAIProviders, openrouter::OpenRouterProviders};
 
 #[derive(Error, Debug)]
 pub enum ProviderError {
@@ -47,7 +48,10 @@ pub struct Providers {
     pub anthropic: anthropic::AnthropicProviders,
  
     #[serde(default)]
-    pub google: google::GoogleProviders
+    pub google: google::GoogleProviders,
+
+    #[serde(default)]
+    pub openrouter: openrouter::OpenRouterProviders,
 }
 
 pub enum ProviderVariant<'a> {
@@ -55,6 +59,7 @@ pub enum ProviderVariant<'a> {
     OpenAi(&'a openai::OpenAIConfig),
     Anthropic(&'a anthropic::AnthropicConfig),
     Google(&'a google::GoogleConfig),
+    OpenRouter(&'a openrouter::OpenRouterConfig),
     None
 }
 
@@ -67,7 +72,8 @@ impl Default for Providers {
             ollama: OllamaProviders::default(),
             openai: OpenAIProviders::default(),
             anthropic: AnthropicProviders::default(),
-            google: GoogleProviders::default()
+            google: GoogleProviders::default(),
+            openrouter: OpenRouterProviders::default(),
         }
     }
 }
@@ -82,6 +88,8 @@ impl Providers {
             return ProviderVariant::Anthropic(&self.anthropic.config)
         } else if name == "google" {
             return ProviderVariant::Google(&self.google.config)
+        } else if name == "openrouter" {
+            return ProviderVariant::OpenRouter(&self.openrouter.config)
         }
 
 
@@ -100,6 +108,10 @@ impl Providers {
 
         if let Some(conf) = self.google.named.get(name) {
             return ProviderVariant::Google(conf);
+        }
+
+        if let Some(conf) = self.openrouter.named.get(name) {
+            return ProviderVariant::OpenRouter(conf);
         }
 
         ProviderVariant::None

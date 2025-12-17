@@ -1,7 +1,7 @@
 use promptcmd::config::providers::ToLLMProvider;
 use promptcmd::dotprompt::DotPrompt;
 use promptcmd::dotprompt::render::Render;
-use promptcmd::config::{appconfig_locator, providers, promptfile_locator};
+use promptcmd::config::{self, appconfig_locator, promptfile_locator, providers};
 use promptcmd::config::appconfig::{AppConfig};
 use clap::{Arg, ArgMatches, Command};
 use llm::chat::StructuredOutputFormat;
@@ -18,8 +18,6 @@ use llm::{
 };
 
 use log::{error, debug};
-
-const BIN_NAME: &str = "promptcmd";
 
 fn main() -> Result<()> {
     env_logger::init();
@@ -52,7 +50,7 @@ fn main() -> Result<()> {
 
     let mut command: Command = Command::new(&invoked_binname);
 
-    let promptname = if invoked_binname == BIN_NAME {
+    let promptname = if invoked_binname == config::RUNNER_BIN_NAME {
         // Not running: via symlink, first positional argument is the prompt name
         command = command.arg(Arg::new("promptname"));
         args

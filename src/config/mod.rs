@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
+pub const RUNNER_BIN_NAME: &str = "promptcmd";
 pub const APP_NAME: &str = "promptcmd";
 pub const PROMPTS_STORAGE_DIR: &str = "prompts.d";
 pub const PROMPTS_INSTALL_DIR: &str = "bin";

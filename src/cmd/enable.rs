@@ -6,6 +6,7 @@ use anyhow::{bail, Context, Result};
 
 use crate::config::bin_locator;
 use crate::config::promptfile_locator;
+use crate::config::RUNNER_BIN_NAME;
 
 #[derive(Parser)]
 pub struct EnableCmd {
@@ -31,7 +32,7 @@ pub fn exec(promptname: &str) -> Result<()> {
 
     let targetbin = currbin_path.parent()
         .context("Could not determine parent of current bin")?
-        .join("promptbox");
+        .join(RUNNER_BIN_NAME);
 
     if !targetbin.exists() {
         bail!("Could not locate target bin");

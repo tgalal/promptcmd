@@ -36,3 +36,8 @@ clap-stdin = "0.8.0"
 
 [dev-dependencies]
 tempfile = "3.8"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

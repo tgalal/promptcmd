@@ -12,7 +12,7 @@ name = "promptctl"
 path = "src/bin/ctl.rs"
 
 [[bin]]
-name = "promptbox"
+name = "promptcmd"
 path = "src/bin/runner.rs"
 
 [dependencies]

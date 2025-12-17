@@ -19,7 +19,7 @@ use llm::{
 
 use log::{error, debug};
 
-const BIN_NAME: &str = "promptbox";
+const BIN_NAME: &str = "promptcmd";
 
 fn main() -> Result<()> {
     env_logger::init();

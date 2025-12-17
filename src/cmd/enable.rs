@@ -22,6 +22,7 @@ pub fn exec(promptname: &str) -> Result<()> {
     debug!("symlink path: {}", symlink_path.display());
 
     if symlink_path.exists() {
+        println!("{} already exists", &symlink_path.display());
         return Ok(());
     }
 
@@ -38,8 +39,8 @@ pub fn exec(promptname: &str) -> Result<()> {
 
     let res = match promptfile_locator::find(promptname) {
         Some(path) => {
-            println!("Enabling {}", path.display());
-            symlink_file(targetbin, symlink_path)
+            debug!("Enabling {}", path.display());
+            symlink_file(targetbin, &symlink_path)
         },
         None => {
             let paths : Vec<String>= promptfile_locator::search_paths(Some(promptname))?
@@ -48,5 +49,9 @@ pub fn exec(promptname: &str) -> Result<()> {
             bail!("Could not find an existing prompt file, searched:\n{}\nConsider creating a new one?", paths.join("\n"))
         }
     };
+    if res.is_ok() {
+        println!("Created {}", &symlink_path.display());
+    }
     res.map_err(|e| anyhow::anyhow!("Failed to create symlink: {e}"))
+
 }

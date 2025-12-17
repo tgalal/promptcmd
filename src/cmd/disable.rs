@@ -14,7 +14,6 @@ pub struct DisableCmd {
 pub fn exec(cmd: DisableCmd) -> Result<()> {
     let promptname = cmd.promptname;
 
-
     let symlink_path = bin_locator::path(Some(&promptname)).context("Could not determine link path")?;
 
     debug!("symlink path: {}", symlink_path.display());
@@ -22,7 +21,13 @@ pub fn exec(cmd: DisableCmd) -> Result<()> {
     if !symlink_path.exists() {
         return Ok(());
     }
-    println!("Disabling {}", symlink_path.display());
-    remove_symlink_file(symlink_path).map_err(|err| anyhow::anyhow!("{err}"))
+
+    let res = remove_symlink_file(&symlink_path);
+
+    if res.is_ok() {
+        println!("Removed {}", &symlink_path.display());
+    }
+
+    res.map_err(|err| anyhow::anyhow!("{err}"))
 
 }

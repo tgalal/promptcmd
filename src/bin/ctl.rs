@@ -65,6 +65,11 @@ fn main() -> Result<()> {
         ),
         Commands::Cat(cmd) => cmd::cat::exec(&cmd.promptname),
         Commands::Run(cmd) => cmd::run::exec(&cmd.promptname, cmd.dryrun),
-        Commands::Import(cmd) => cmd::import::exec(cmd.promptname, cmd.promptfile, cmd.enable)
+        Commands::Import(cmd) => cmd::import::exec(
+            cmd.promptname,
+            cmd.promptfile,
+            cmd.enable,
+            cmd.force,
+        )
     }
 }

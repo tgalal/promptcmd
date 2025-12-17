@@ -66,7 +66,7 @@ fn main() -> Result<()> {
         .context("Could not find promptfile")?;
 
     debug!("Promptfile path: {}", promptfile_path.display());
-    let dotprompt: DotPrompt = DotPrompt::try_from(fs::read_to_string(&promptfile_path)?)?;
+    let dotprompt: DotPrompt = DotPrompt::try_from(fs::read_to_string(&promptfile_path)?.as_str())?;
 
     let args: Vec<Arg> = Vec::try_from(&dotprompt).context(
         "Could not generate arguments"

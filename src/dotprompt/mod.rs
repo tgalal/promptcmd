@@ -58,10 +58,10 @@ impl fmt::Display for ParseDotPromptError {
 
 impl Error for ParseDotPromptError {}
 
-impl TryFrom<String> for DotPrompt {
+impl TryFrom<&str> for DotPrompt {
     type Error = ParseDotPromptError;
 
-    fn try_from(s: String) -> Result<Self, Self::Error> {
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
         // Skip all lines starting with '#'
         let s = s.trim_start().lines()
             .skip_while(
@@ -276,7 +276,7 @@ output:
 ---
 Translate this: {{message}}"#;
 
-        let result = DotPrompt::try_from(content.to_string());
+        let result = DotPrompt::try_from(content);
         assert!(result.is_ok(), "Should parse valid dotprompt");
 
         let dotprompt = result.unwrap();
@@ -300,7 +300,7 @@ output:
 ---
 Query: {{query}}"#;
 
-        let result = DotPrompt::try_from(content.to_string());
+        let result = DotPrompt::try_from(content);
         assert!(result.is_ok(), "Should skip comments and parse successfully");
 
         let dotprompt = result.unwrap();
@@ -313,7 +313,7 @@ Query: {{query}}"#;
 output:
   format: text"#;
 
-        let result = DotPrompt::try_from(content.to_string());
+        let result = DotPrompt::try_from(content);
         assert!(result.is_err(), "Should fail without frontmatter delimiter");
 
         if let Err(e) = result {
@@ -331,7 +331,7 @@ output:
 ---
 Template"#;
 
-        let result = DotPrompt::try_from(content.to_string());
+        let result = DotPrompt::try_from(content);
         assert!(result.is_err(), "Should fail on invalid YAML");
 
         if let Err(e) = result {
@@ -347,7 +347,7 @@ output:
   format: text
 ---"#;
 
-        let result = DotPrompt::try_from(content.to_string());
+        let result = DotPrompt::try_from(content);
         // This should actually succeed with an empty template
         assert!(result.is_ok());
         assert_eq!(result.unwrap().template, "");
@@ -365,7 +365,7 @@ output:
 ---
 Hello {{name}}"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         let schema = dotprompt.input_schema();
 
         assert_eq!(schema.len(), 1);
@@ -389,7 +389,7 @@ output:
 ---
 Age: {{age}}"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         let schema = dotprompt.input_schema();
 
         let age_field = schema.get("age").unwrap();
@@ -410,7 +410,7 @@ output:
 ---
 Files: {{files}}"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         let schema = dotprompt.input_schema();
 
         let files_field = schema.get("files").unwrap();
@@ -431,7 +431,7 @@ output:
 ---
 Args: {{args}}"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         let schema = dotprompt.input_schema();
 
         let args_field = schema.get("args").unwrap();
@@ -452,7 +452,7 @@ output:
 ---
 Args: {{args}}"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         let schema = dotprompt.input_schema();
 
         let args_field = schema.get("args").unwrap();
@@ -470,7 +470,7 @@ output:
 ---
 No input needed"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         let schema = dotprompt.input_schema();
 
         assert_eq!(schema.len(), 0, "Should return empty schema");
@@ -491,7 +491,7 @@ output:
 ---
 Template"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         let schema = dotprompt.input_schema();
 
         assert_eq!(schema.len(), 4);
@@ -510,7 +510,7 @@ output:
 ---
 Process this: {{STDIN}}"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         assert!(dotprompt.template_needs_stdin());
     }
 
@@ -523,7 +523,7 @@ output:
 ---
 No stdin needed"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         assert!(!dotprompt.template_needs_stdin());
     }
 
@@ -536,7 +536,7 @@ output:
 ---
 Template"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         let model_info = dotprompt.model_info();
 
         assert!(model_info.is_ok());
@@ -554,7 +554,7 @@ output:
 ---
 Template"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         let model_info = dotprompt.model_info();
 
         assert!(model_info.is_err(), "Should fail on invalid model format");
@@ -572,7 +572,7 @@ output:
 ---
 Template"#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         let schema = dotprompt.input_schema();
 
         let name_field = schema.get("name").unwrap();
@@ -595,7 +595,7 @@ Hello {{name}}!
 Please translate to {{language}}.
 Multiple lines supported."#;
 
-        let dotprompt = DotPrompt::try_from(content.to_string()).unwrap();
+        let dotprompt = DotPrompt::try_from(content).unwrap();
         assert!(dotprompt.template.contains("Hello {{name}}"));
         assert!(dotprompt.template.contains("{{language}}"));
         assert!(dotprompt.template.contains("Multiple lines"));

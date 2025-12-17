@@ -125,7 +125,7 @@ mod tests {
     use clap::Command;
 
     fn create_test_dotprompt(content: &str) -> DotPrompt {
-        DotPrompt::try_from(content.to_string()).unwrap()
+        DotPrompt::try_from(content).unwrap()
     }
 
     #[test]

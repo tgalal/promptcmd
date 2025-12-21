@@ -28,7 +28,7 @@ pub struct OpenAIConfig {
 
 impl OpenAIConfig {
     pub fn api_key(&self, providers: &providers::Providers) -> Option<String> {
-        return if let Some(ref api_key) = self.endpoint {
+        if let Some(ref api_key) = self.api_key {
             Some(api_key.to_string())
         } else if let Some(ref api_key) = providers.openai.config.api_key {
             Some(api_key.to_string())
@@ -38,7 +38,7 @@ impl OpenAIConfig {
     }
 
     pub fn endpoint(&self, providers: &providers::Providers) -> Option<String> {
-        return if let Some(ref endpoint) = self.endpoint {
+        if let Some(ref endpoint) = self.endpoint {
             Some(endpoint.to_string())
         } else if let Some(ref endpoint) = providers.openai.config.endpoint {
             Some(endpoint.to_string())

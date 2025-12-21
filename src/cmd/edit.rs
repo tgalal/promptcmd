@@ -3,6 +3,7 @@ use std::fs;
 use anyhow::{bail, Result};
 use edit;
 
+use crate::cmd::create::{validate_and_write, WriteResult};
 use crate::config::promptfile_locator;
 
 #[derive(Parser)]
@@ -14,17 +15,29 @@ pub struct EditCmd {
 pub fn exec(cmd: EditCmd) -> Result<()> {
     let promptname = cmd.promptname;
 
-
     match promptfile_locator::find(&promptname) {
         Some(path) => {
-            println!("Editing {}", path.display());
             let content = fs::read_to_string(&path)?;
-            let edited = edit::edit(&content)?;
-            if content != edited {
-                fs::write(&path, &edited)?;
-                println!("Saved {}", path.display());
-            } else {
-                println!("No changes");
+            let mut edited = content.clone();
+            println!("Editing {}", path.display());
+            loop {
+                edited = edit::edit(&edited)?;
+                if content != edited {
+                    match validate_and_write(edited.as_str(), &path)? {
+                        WriteResult::Validated | WriteResult::Written=> {
+                            println!("Saved {}", path.display());
+                            break;
+                        }
+                        WriteResult::Aborted => {
+                            println!("Editing aborted, no changes were saved");
+                            break;
+                        }
+                        WriteResult::Edit => {}
+                    }
+                } else {
+                    println!("No changes");
+                    break;
+                }
             }
         },
         None => {

@@ -2,8 +2,10 @@ use clap::{Parser};
 use std::fs;
 use anyhow::{bail, Context, Result};
 use edit;
+use std::path::PathBuf;
+use std::io::{self, Write};
 
-use crate::{cmd::enable, config::promptfile_locator};
+use crate::{cmd::enable, config::promptfile_locator, dotprompt::DotPrompt};
 
 const TEMPL: &str = r#"---
 model: MODEL
@@ -26,6 +28,46 @@ pub struct CreateCmd {
     pub promptname: String,
 }
 
+pub enum WriteResult {
+    Validated,
+    Written,
+    Aborted,
+    Edit
+}
+
+pub fn validate_and_write(promptdata: &str, path: &PathBuf) -> Result<WriteResult>{
+    match DotPrompt::try_from(promptdata) {
+        Ok(_) => {
+            fs::write(path, promptdata)?;
+            Ok(WriteResult::Validated)
+        }
+        Err(err) => {
+            println!("{}", err);
+            loop {
+                print!("Save anyway? [Y]es/[N]o/[E]dit: ");
+                io::stdout().flush()?;
+                let mut input = String::new();
+                io::stdin().read_line(&mut input).unwrap();
+                match input.trim().chars().next() {
+                    Some('Y' | 'y') => {
+                        fs::write(path, promptdata)?;
+                        return Ok(WriteResult::Written);
+                    },
+                    Some('N' | 'n') => {
+                        return Ok(WriteResult::Aborted);
+                    },
+                    Some('E' | 'e') => {
+                        return Ok(WriteResult::Edit);
+                    },
+                    _ => {
+                        println!("Invalid input");
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub fn exec(promptname: &str, enable_prompt: bool) -> Result<()> {
 
     match promptfile_locator::find(promptname) {
@@ -37,16 +79,38 @@ pub fn exec(promptname: &str, enable_prompt: bool) -> Result<()> {
                 "Could not locate promptfile"
             )?;
 
-            let edited = edit::edit(TEMPL)?;
+            let mut edited = TEMPL.to_string();
+            loop {
+                edited = edit::edit(edited)?;
+                if TEMPL != edited {
+                    match validate_and_write(edited.as_str(), &path)? {
+                        WriteResult::Validated => {
+                            println!("Saved {}", path.display());
+                            if enable_prompt {
+                                return enable::exec(promptname);
+                            }
+                            break;
+                        }
 
-            if TEMPL != edited {
-                fs::write(&path, &edited)?;
-                println!("Saved {}", path.display());
-                if enable_prompt {
-                    return enable::exec(promptname);
+                        WriteResult::Written => {
+                            println!("Saved {}", path.display());
+                            if enable_prompt {
+                                println!("Not enabling due to errors");
+                            }
+                            break;
+                        }
+
+                        WriteResult::Aborted => {
+                            println!("No changes, did not save");
+                            break;
+                        }
+
+                        WriteResult::Edit => {}
+                    }
+                } else {
+                    println!("No changes, did not save");
+                    break;
                 }
-            } else {
-                println!("No changes, did not save");
             }
         }
     };

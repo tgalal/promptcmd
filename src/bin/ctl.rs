@@ -1,6 +1,8 @@
 use anyhow::Result;
 use promptcmd::cmd;
 use promptcmd::config;
+use std::fs;
+use log::debug;
 use clap::{Parser, Subcommand};
 
 
@@ -50,13 +52,22 @@ fn main() -> Result<()> {
     env_logger::init();
     config::bootstrap_directories()?;
 
+    let appconfig = if let Some(appconfig_path) = config::appconfig_locator::path() {
+        debug!("Config Path: {}",appconfig_path.display());
+        config::appconfig::AppConfig::try_from(
+            &fs::read_to_string(&appconfig_path)?
+        )?
+    } else {
+        config::appconfig::AppConfig::default()
+    };
+
     let cli = Cli::parse();
     match cli.command {
-        Commands::Edit(cmd) => cmd::edit::exec(cmd),
+        Commands::Edit(cmd) => cmd::edit::exec(&appconfig, cmd),
         Commands::Enable(cmd) => cmd::enable::exec(&cmd.promptname),
         Commands::Disable(cmd) => cmd::disable::exec(cmd),
-        Commands::Create(cmd) => cmd::create::exec(&cmd.promptname, cmd.now),
-        Commands::New(cmd) => cmd::create::exec(&cmd.promptname, cmd.now),
+        Commands::Create(cmd) => cmd::create::exec(&appconfig, &cmd.promptname, cmd.now, cmd.force),
+        Commands::New(cmd) => cmd::create::exec(&appconfig, &cmd.promptname, cmd.now, cmd.force),
         Commands::Ls(cmd) => cmd::list::exec(
             cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands
         ),

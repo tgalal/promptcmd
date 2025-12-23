@@ -4,15 +4,19 @@ use anyhow::{bail, Result};
 use edit;
 
 use crate::cmd::create::{validate_and_write, WriteResult};
+use crate::config::appconfig::AppConfig;
 use crate::config::promptfile_locator;
 
 #[derive(Parser)]
 pub struct EditCmd {
+    #[arg(short, long, default_value_t=false)]
+    pub force: bool,
+
     #[arg()]
     promptname: String,
 }
 
-pub fn exec(cmd: EditCmd) -> Result<()> {
+pub fn exec(appconfig: &AppConfig, cmd: EditCmd) -> Result<()> {
     let promptname = cmd.promptname;
 
     match promptfile_locator::find(&promptname) {
@@ -23,8 +27,8 @@ pub fn exec(cmd: EditCmd) -> Result<()> {
             loop {
                 edited = edit::edit(&edited)?;
                 if content != edited {
-                    match validate_and_write(edited.as_str(), &path)? {
-                        WriteResult::Validated | WriteResult::Written=> {
+                    match validate_and_write(appconfig, edited.as_str(), &path, cmd.force)? {
+                        WriteResult::Validated(_)| WriteResult::Written=> {
                             println!("Saved {}", path.display());
                             break;
                         }

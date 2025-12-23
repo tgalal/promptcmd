@@ -66,11 +66,12 @@ impl ToLLMProvider for AnthropicConfig {
     fn llm_provider(&self,
         llmbuilder: LLMBuilder,
         providers: &providers::Providers) -> Result<Box< dyn llm::LLMProvider>, providers::ProviderError> {
-            let api_key = self.api_key(providers);
 
+            let api_key = self.api_key(providers);
             if api_key.is_none() {
                 return Err(ProviderError::ConfigurationError { desc: String::from("Anthropic provider requires api_key.") })
             }
+
             let builder = llmbuilder.backend(llm::builder::LLMBackend::Anthropic)
                 .api_key(api_key.unwrap())
                 .max_tokens(self.max_tokens(providers))

@@ -2,6 +2,7 @@ use llm::builder::LLMBuilder;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::config::providers::ProviderError;
 use crate::config::providers::{self, ToLLMProvider};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -20,10 +21,20 @@ pub struct GoogleConfig {
     system: Option<String>,
     stream: Option<bool>,
     max_tokens: Option<u32>,
-    api_key: String
+    api_key: Option<String>
 }
 
 impl GoogleConfig {
+    pub fn api_key(&self, providers: &providers::Providers) -> Option<String> {
+        if let Some(ref api_key) = self.api_key {
+            Some(api_key.to_string())
+        } else if let Some(ref api_key) = providers.google.config.api_key {
+            Some(api_key.to_string())
+        }  else {
+            None
+        }
+    }
+
     pub fn temperature(&self, providers: &providers::Providers) -> f32 {
         self.temperature.or(
             providers.google.config.temperature.or(
@@ -53,8 +64,13 @@ impl ToLLMProvider for GoogleConfig {
     fn llm_provider(&self,
         llmbuilder: LLMBuilder,
         providers: &providers::Providers) -> Result<Box< dyn llm::LLMProvider>, providers::ProviderError> {
+            let api_key = self.api_key(providers);
+            if api_key.is_none() {
+                return Err(ProviderError::ConfigurationError { desc: String::from("Google provider requires api_key.") })
+            }
+
             let builder = llmbuilder.backend(llm::builder::LLMBackend::Google)
-                .api_key(&self.api_key)
+                .api_key(api_key.unwrap())
                 .max_tokens(self.max_tokens(providers))
                 .stream(self.stream(providers))
                 .temperature(self.temperature(providers));

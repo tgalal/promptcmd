@@ -40,7 +40,7 @@ mod tests {
         assert!(config.is_ok(), "Should parse valid TOML");
 
         let config = config.unwrap();
-        assert_eq!(config.providers.anthropic.config.api_key, "test-key-123");
+        assert_eq!(config.providers.anthropic.config.api_key(&config.providers).unwrap(), "test-key-123");
     }
 
     #[test]

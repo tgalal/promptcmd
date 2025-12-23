@@ -80,7 +80,7 @@ pub fn exec_prompt(dotprompt: &DotPrompt, appconfig: &AppConfig, matches: &ArgMa
         llmbuilder = llmbuilder.schema(output_schema);
     }
 
-    let provider_config: &dyn ToLLMProvider=  match appconfig.providers.resolve(&model_info.provider) {
+    let provider_config: &dyn ToLLMProvider =  match appconfig.providers.resolve(&model_info.provider) {
         providers::ProviderVariant::Ollama(conf) => conf,
         providers::ProviderVariant::Anthropic(conf) => conf,
         providers::ProviderVariant::Google(conf) => conf,

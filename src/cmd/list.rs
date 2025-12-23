@@ -1,9 +1,9 @@
 use clap::{Parser};
 use anyhow::{ Result};
-use crate::config::promptfile_locator;
 use prettytable::{row, Table};
 use prettytable::format;
 use std::fs;
+use crate::config::{appconfig_locator, promptfile_locator};
 
 
 #[derive(Parser)]
@@ -25,6 +25,10 @@ pub struct ListCmd {
  
     #[arg(short, long)]
     pub commands: bool,
+
+    /// List lookup paths for configuration files
+    #[arg(long)]
+    pub config: bool,
 }
 
 pub fn exec(
@@ -32,13 +36,23 @@ pub fn exec(
     enabled: bool,
     disabled: bool,
     fullpath: bool,
-    commands: bool
+    commands: bool,
+    config: bool
 ) -> Result<()> {
-    if commands {
+    if config {
+        exec_for_config()
+    } else if commands {
         exec_for_commands(long, fullpath)
     } else {
-        exec_for_prompts(long, enabled, disabled, fullpath, commands)
+        exec_for_prompts(long, enabled, disabled, fullpath, commands, config)
     }
+}
+
+fn exec_for_config() -> Result<()> {
+    let paths : Vec<String>= appconfig_locator::search_paths()
+        .iter().map(|path| path.display().to_string()).collect();
+    println!("{}", paths.join("\n"));
+    Ok(())
 }
 
 fn exec_for_prompts(
@@ -46,9 +60,9 @@ fn exec_for_prompts(
     _enabled: bool,
     _disabled: bool,
     _fullpath: bool,
-    _commands: bool
+    _commands: bool,
+    _config: bool
 ) -> Result<()> {
-    // 1. Get all prompts, search all paths
     let paths = promptfile_locator::search_paths(None)?;
 
     let mut promptfiles = Vec::new();

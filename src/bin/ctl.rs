@@ -69,10 +69,10 @@ fn main() -> Result<()> {
         Commands::Create(cmd) => cmd::create::exec(&appconfig, &cmd.promptname, cmd.now, cmd.force),
         Commands::New(cmd) => cmd::create::exec(&appconfig, &cmd.promptname, cmd.now, cmd.force),
         Commands::Ls(cmd) => cmd::list::exec(
-            cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands
+            cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands, cmd.config
         ),
         Commands::List(cmd) => cmd::list::exec(
-            cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands
+            cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands, cmd.config
         ),
         Commands::Cat(cmd) => cmd::cat::exec(&cmd.promptname),
         Commands::Run(cmd) => cmd::run::exec(&cmd.promptname, cmd.dryrun, cmd.prompt_args),

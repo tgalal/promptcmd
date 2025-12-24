@@ -1,14 +1,13 @@
 use clap::{Parser};
-use std::fs;
-use anyhow::{bail, Context, Result};
-use std::path::PathBuf;
+use anyhow::{bail, Result};
 use std::io::{self, Write};
 
 use crate::cmd::{self, templates};
 use crate::config::appconfig::AppConfig;
 use crate::config::providers::{ProviderVariant};
 use crate::dotprompt::ParseDotPromptError;
-use crate::{config::promptfile_locator, dotprompt::DotPrompt};
+use crate::storage::PromptFilesStorage;
+use crate::{dotprompt::DotPrompt};
 
 #[derive(Parser)]
 pub struct CreateCmd {
@@ -23,13 +22,14 @@ pub struct CreateCmd {
 }
 
 pub enum WriteResult {
-    Validated(DotPrompt),
-    Written,
+    Validated(DotPrompt, String),
+    Written(String),
     Aborted,
     Edit
 }
 
-pub fn validate_and_write(appconfig: &AppConfig, promptdata: &str, path: &PathBuf, force_write: bool) -> Result<WriteResult> {
+pub fn validate_and_write(storage: &mut impl PromptFilesStorage, appconfig: &AppConfig,
+    promptname: &str, promptdata: &str, force_write: bool) -> Result<WriteResult> {
 
     let validation_result = match DotPrompt::try_from(promptdata) {
         Ok(dotprompt) => {
@@ -47,15 +47,15 @@ pub fn validate_and_write(appconfig: &AppConfig, promptdata: &str, path: &PathBu
 
     match validation_result {
         Ok(dotprompt) => {
-            fs::write(path, promptdata)?;
-            Ok(WriteResult::Validated(dotprompt))
+            let path = storage.store(promptname, promptdata.as_bytes())?;
+            Ok(WriteResult::Validated(dotprompt, path))
         }
         Err(err) => {
             println!("{}", err);
 
             if force_write {
-                fs::write(path, promptdata)?;
-                return Ok(WriteResult::Written);
+                let path = storage.store(promptname, promptdata.as_bytes())?;
+                return Ok(WriteResult::Written(path));
             }
 
             loop {
@@ -65,8 +65,8 @@ pub fn validate_and_write(appconfig: &AppConfig, promptdata: &str, path: &PathBu
                 io::stdin().read_line(&mut input).unwrap();
                 match input.trim().chars().next() {
                     Some('Y' | 'y') => {
-                        fs::write(path, promptdata)?;
-                        return Ok(WriteResult::Written);
+                        let path = storage.store(promptname, promptdata.as_bytes())?;
+                        return Ok(WriteResult::Written(path));
                     },
                     Some('N' | 'n') => {
                         return Ok(WriteResult::Aborted);
@@ -83,72 +83,67 @@ pub fn validate_and_write(appconfig: &AppConfig, promptdata: &str, path: &PathBu
     }
 }
 
-pub fn exec(appconfig: &AppConfig, promptname: &str, enable_prompt: bool, force_write: bool) -> Result<()> {
+pub fn exec(storage: &mut impl PromptFilesStorage, appconfig: &AppConfig, promptname: &str,
+    enable_prompt: bool, force_write: bool) -> Result<()> {
 
-    match promptfile_locator::find(promptname) {
-        Some(path) => {
-            bail!("Prompt file already exists: {}", path.display());
-        },
-        None => {
-            let path = promptfile_locator::path(promptname).context(
-                "Could not locate promptfile"
-            )?;
+    if let Some(path) = storage.exists(promptname) {
+        bail!("Prompt file already exists: {path}");
+    }
 
-            let mut edited = templates::PROMPTFILE.to_string();
-            loop {
-                edited = edit::edit(edited)?;
+    let mut edited = templates::PROMPTFILE.to_string();
+    loop {
+        edited = edit::edit(edited)?;
 
-                match validate_and_write(appconfig, edited.as_str(), &path, force_write)? {
-                    // Validated means written without errors.
-                    // In this case:
-                    // - we also enable it (if `enable`` is true)
-                    // - we give out user help if provider has no available configuration
-                    WriteResult::Validated(dotprompt) => {
-                        println!("Saved {}", path.display());
-                        if enable_prompt {
-                            cmd::enable::exec(promptname)?;
-                        }
-
-                        let model_info = dotprompt.model_info()?;
-                        match appconfig.providers.resolve(&model_info.provider) {
-                            ProviderVariant::Anthropic(conf) => {
-                                if conf.api_key(&appconfig.providers).is_none() {
-                                    println!("{}", templates::ONBOARDING_ANTHROPIC);
-                                }
-                            },
-                            ProviderVariant::OpenAi(conf) => {
-                                if conf.api_key(&appconfig.providers).is_none() {
-                                    println!("{}", templates::ONBOARDING_OPENAI);
-                                }
-                            },
-                            ProviderVariant::Google(conf) => {
-                                if conf.api_key(&appconfig.providers).is_none() {
-                                    println!("{}", templates::ONBOARDING_GOOGLE);
-                                }
-                            },
-                            _ => {}
-                        }
-                        break;
-                    }
-                    // Written means there were errors, but the user forced writing the file.
-                    // In this case we don't enable the prompt automatically, even if requested.
-                    WriteResult::Written => {
-                        println!("Saved {}", path.display());
-                        if enable_prompt {
-                            println!("Not enabling due to errors");
-                        }
-                        break;
-                    }
-                    // User aborted writing
-                    WriteResult::Aborted => {
-                        println!("No changes, did not save");
-                        break;
-                    }
-                    // User choose to re-edit, thus will not break the loop
-                    WriteResult::Edit => {}
+        match validate_and_write(storage, appconfig, promptname, edited.as_str(), force_write)? {
+            // Validated means written without errors.
+            // In this case:
+            // - we also enable it (if `enable`` is true)
+            // - we give out user help if provider has no available configuration
+            WriteResult::Validated(dotprompt, path) => {
+                println!("Saved {}", path);
+                if enable_prompt {
+                    cmd::enable::exec(storage, promptname)?;
                 }
+
+                let model_info = dotprompt.model_info()?;
+                match appconfig.providers.resolve(&model_info.provider) {
+                    ProviderVariant::Anthropic(conf) => {
+                        if conf.api_key(&appconfig.providers).is_none() {
+                            println!("{}", templates::ONBOARDING_ANTHROPIC);
+                        }
+                    },
+                    ProviderVariant::OpenAi(conf) => {
+                        if conf.api_key(&appconfig.providers).is_none() {
+                            println!("{}", templates::ONBOARDING_OPENAI);
+                        }
+                    },
+                    ProviderVariant::Google(conf) => {
+                        if conf.api_key(&appconfig.providers).is_none() {
+                            println!("{}", templates::ONBOARDING_GOOGLE);
+                        }
+                    },
+                    _ => {}
+                }
+                break;
             }
+            // Written means there were errors, but the user forced writing the file.
+            // In this case we don't enable the prompt automatically, even if requested.
+            WriteResult::Written(path) => {
+                println!("Saved {}", path);
+                if enable_prompt {
+                    println!("Not enabling due to errors");
+                }
+                break;
+            }
+            // User aborted writing
+            WriteResult::Aborted => {
+                println!("No changes, did not save");
+                break;
+            }
+            // User choose to re-edit, thus will not break the loop
+            WriteResult::Edit => {}
         }
-    };
+    }
+
     Ok(())
 }

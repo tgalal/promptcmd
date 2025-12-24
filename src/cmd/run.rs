@@ -9,14 +9,14 @@ use llm::{
     chat::{ChatMessage},
 };
 use llm::chat::StructuredOutputFormat;
-use std::path::PathBuf;
 use tokio::runtime::Runtime;
 use crate::config::appconfig::{AppConfig};
-use crate::config::{promptfile_locator, providers};
+use crate::config::{providers};
 use crate::dotprompt::DotPrompt;
 use crate::dotprompt::render::Render;
 use crate::config::providers::ToLLMProvider;
 use crate::config::{appconfig_locator,};
+use crate::storage::PromptFilesStorage;
 use std::fs;
 
 #[derive(Parser)]
@@ -109,7 +109,7 @@ pub fn exec_prompt(dotprompt: &DotPrompt, appconfig: &AppConfig, matches: &ArgMa
     Ok(())
 }
 
-pub fn exec(promptname: &str, _: bool, rest: Vec<String>) -> Result<()> {
+pub fn exec(prompt_storage: &impl PromptFilesStorage, promptname: &str, _: bool, rest: Vec<String>) -> Result<()> {
     let appconfig = if let Some(appconfig_path) = appconfig_locator::path() {
         debug!("Config Path: {}",appconfig_path.display());
         AppConfig::try_from(
@@ -121,12 +121,14 @@ pub fn exec(promptname: &str, _: bool, rest: Vec<String>) -> Result<()> {
 
     debug!("Prompt name: {promptname}");
 
-    let promptfile_path: PathBuf = promptfile_locator::find(promptname)
-        .context("Could not find promptfile")?;
+    prompt_storage.exists(promptname).context("Could not find promptfile")?;
 
-    debug!("Promptfile path: {}", promptfile_path.display());
+    let (path, promptfile_content) = prompt_storage.load(promptname)?;
 
-    let dotprompt: DotPrompt = DotPrompt::try_from(fs::read_to_string(&promptfile_path)?.as_str())?;
+    debug!("Promptfile path: {path}");
+
+    let promptfile_strcontent = String::from_utf8_lossy(&promptfile_content).into_owned();
+    let dotprompt: DotPrompt = DotPrompt::try_from(promptfile_strcontent.as_str())?;
 
     let mut command: Command = Command::new(promptname.to_string());
 

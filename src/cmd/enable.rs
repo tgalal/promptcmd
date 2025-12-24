@@ -5,8 +5,8 @@ use symlink::symlink_file;
 use anyhow::{bail, Context, Result};
 
 use crate::config::bin_locator;
-use crate::config::promptfile_locator;
 use crate::config::RUNNER_BIN_NAME;
+use crate::storage::PromptFilesStorage;
 
 #[derive(Parser)]
 pub struct EnableCmd {
@@ -16,7 +16,7 @@ pub struct EnableCmd {
     pub promptname: String,
 }
 
-pub fn exec(promptname: &str) -> Result<()> {
+pub fn exec(storage: &impl PromptFilesStorage, promptname: &str) -> Result<()> {
 
     let symlink_path = bin_locator::path(Some(promptname)).context("Could not determine link path")?;
 
@@ -38,21 +38,21 @@ pub fn exec(promptname: &str) -> Result<()> {
         bail!("Could not locate target bin");
     }
 
-    let res = match promptfile_locator::find(promptname) {
-        Some(path) => {
-            debug!("Enabling {}", path.display());
-            symlink_file(targetbin, &symlink_path)
-        },
-        None => {
-            let paths : Vec<String>= promptfile_locator::search_paths(Some(promptname))?
-                .iter().map(|path| path.display().to_string()).collect();
+    if let Some(path) = storage.exists(promptname) {
+        debug!("Enabling {path}");
 
-            bail!("Could not find an existing prompt file, searched:\n{}\nConsider creating a new one?", paths.join("\n"))
+        let res = symlink_file(targetbin, &symlink_path)
+            .map_err(|e| anyhow::anyhow!("Failed to create symlink: {e}"));
+
+        if res.is_ok() {
+            println!("Created {}", &symlink_path.display());
+        } else {
+            return res;
         }
-    };
-    if res.is_ok() {
-        println!("Created {}", &symlink_path.display());
-    }
-    res.map_err(|e| anyhow::anyhow!("Failed to create symlink: {e}"))
 
+    } else {
+        bail!("Could not find an existing prompt file");
+    }
+
+    Ok(())
 }

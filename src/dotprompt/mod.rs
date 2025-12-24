@@ -14,7 +14,7 @@ pub struct ModelInfo {
     pub provider: String
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Frontmatter {
     pub model: String,
     pub input: Option<Input>,
@@ -30,18 +30,18 @@ pub struct SchemaElement {
     pub positional: bool
 } 
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Input {
     pub schema: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Output {
     pub format: String,
     pub schema: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DotPrompt {
     pub frontmatter: Frontmatter,
     pub template: String

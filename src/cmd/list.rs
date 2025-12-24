@@ -2,8 +2,8 @@ use clap::{Parser};
 use anyhow::{ Result};
 use prettytable::{row, Table};
 use prettytable::format;
-use std::fs;
-use crate::config::{appconfig_locator, promptfile_locator};
+use crate::config::{appconfig_locator};
+use crate::storage::{PromptFilesStorage};
 
 
 #[derive(Parser)]
@@ -32,6 +32,7 @@ pub struct ListCmd {
 }
 
 pub fn exec(
+    storage: &impl PromptFilesStorage,
     long: bool,
     enabled: bool,
     disabled: bool,
@@ -44,7 +45,7 @@ pub fn exec(
     } else if commands {
         exec_for_commands(long, fullpath)
     } else {
-        exec_for_prompts(long, enabled, disabled, fullpath, commands, config)
+        exec_for_prompts(storage, long, enabled, disabled, fullpath, commands, config)
     }
 }
 
@@ -56,6 +57,7 @@ fn exec_for_config() -> Result<()> {
 }
 
 fn exec_for_prompts(
+    storage: &impl PromptFilesStorage,
     long: bool,
     _enabled: bool,
     _disabled: bool,
@@ -63,50 +65,26 @@ fn exec_for_prompts(
     _commands: bool,
     _config: bool
 ) -> Result<()> {
-    let paths = promptfile_locator::search_paths(None)?;
 
-    let mut promptfiles = Vec::new();
-
-    for path in paths {
-        if path.exists() {
-            for entry in fs::read_dir(path)? {
-                let entry = entry?;
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(e) = path.extension() {
-                        if e == "prompt" {
-                            promptfiles.push(path);
-                        }
-                    }
-                }
-
-            }
-        }
-    }
-
-    let promptnames: Vec<&str> = promptfiles.iter().filter_map(|item| item.file_stem()?.to_str()).collect();
+    let prompts = storage.list()?;
 
     if long {
         
-        let outputline: Vec<(String, String)> = promptfiles.iter().filter_map(|item| {
-            item.file_stem().map(|promptname| {
-                (promptname.to_string_lossy().into_owned(), item.display().to_string()) 
-            })
-        }).collect();
-
         let mut table = Table::new(); 
         let format = format::FormatBuilder::new()
             .padding(0, 5)
             .build();
         table.set_format(format);
 
-        for line in outputline {
-            table.add_row(row![line.0, line.1]);
+        for (identifier, path) in prompts {
+            table.add_row(row![identifier, path]);
         }
+
         table.printstd();
 
     } else {
-        println!("{}", promptnames.join(" "));
+        let joined = prompts.keys().cloned().collect::<Vec<_>>().join(" ");
+        println!("{joined}");
     }
 
     Ok(())

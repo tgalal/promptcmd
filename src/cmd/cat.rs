@@ -1,7 +1,6 @@
 use clap::{Parser};
 use anyhow::{Result, bail};
-use std::fs;
-use crate::config::promptfile_locator;
+use crate::{storage::PromptFilesStorage};
 
 
 #[derive(Parser)]
@@ -10,15 +9,15 @@ pub struct CatCmd {
     pub promptname: String,
 }
 
-pub fn exec(promptname: &str) -> Result<()> {
-    if let Some(promptfile_path) = promptfile_locator::find(promptname) {
-        if let Ok(promptdata) = fs::read_to_string(&promptfile_path) {
-            println!("{promptdata}");
-        } else {
-            bail!("Could not read file {}", promptfile_path.display());
-        }
-    } else {
-        bail!("Could not find a prompt with the name {promptname}");
+pub fn exec(storage: &impl PromptFilesStorage,  promptname: &str) -> Result<()> {
+
+    if storage.exists(promptname).is_none() {
+        bail!("Could not find a prompt with the name \"{promptname}\"");
     }
+
+    let promptdata = storage.load(promptname)?.1;
+    let printable = String::from_utf8_lossy(&promptdata);
+    println!("{printable}");
+
     Ok(())
 }

@@ -1,11 +1,10 @@
 use clap::{Parser};
-use std::fs;
 use anyhow::{bail, Result};
 use edit;
 
 use crate::cmd::create::{validate_and_write, WriteResult};
 use crate::config::appconfig::AppConfig;
-use crate::config::promptfile_locator;
+use crate::storage::PromptFilesStorage;
 
 #[derive(Parser)]
 pub struct EditCmd {
@@ -16,40 +15,38 @@ pub struct EditCmd {
     promptname: String,
 }
 
-pub fn exec(appconfig: &AppConfig, cmd: EditCmd) -> Result<()> {
+pub fn exec(storage: &mut impl PromptFilesStorage, appconfig: &AppConfig, cmd: EditCmd) -> Result<()> {
     let promptname = cmd.promptname;
 
-    match promptfile_locator::find(&promptname) {
-        Some(path) => {
-            let content = fs::read_to_string(&path)?;
-            let mut edited = content.clone();
-            println!("Editing {}", path.display());
-            loop {
-                edited = edit::edit(&edited)?;
-                if content != edited {
-                    match validate_and_write(appconfig, edited.as_str(), &path, cmd.force)? {
-                        WriteResult::Validated(_)| WriteResult::Written=> {
-                            println!("Saved {}", path.display());
-                            break;
-                        }
-                        WriteResult::Aborted => {
-                            println!("Editing aborted, no changes were saved");
-                            break;
-                        }
-                        WriteResult::Edit => {}
-                    }
-                } else {
-                    println!("No changes");
-                    break;
-                }
-            }
-        },
-        None => {
-            let paths : Vec<String>= promptfile_locator::search_paths(Some(&promptname))?
-                .iter().map(|path| path.display().to_string()).collect();
+    if storage.exists(&promptname).is_some() {
+        let (path, content) = storage.load(&promptname)?;
+        let content = String::from_utf8_lossy(&content).into_owned();
+        let mut edited = content.clone();
+        println!("Editing {path}");
+        loop {
+            edited = edit::edit(&edited)?;
+            if content != edited {
+                match validate_and_write(storage, appconfig, &promptname,
+                    edited.as_str(), cmd.force)? {
 
-            bail!("Could not find an existing prompt file, searched:\n{}\nConsider creating a new one?", paths.join("\n"))
+                    WriteResult::Validated(_, path) | WriteResult::Written(path)=> {
+                        println!("Saved {path}");
+                        break;
+                    }
+                    WriteResult::Aborted => {
+                        println!("Editing aborted, no changes were saved");
+                        break;
+                    }
+                    WriteResult::Edit => {}
+                }
+            } else {
+                println!("No changes");
+                break;
+            }
         }
-    };
+    } else {
+        bail!("Could not find prompt file");
+    }
+
     Ok(())
 }

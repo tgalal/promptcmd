@@ -1,7 +1,7 @@
 use std::{path::PathBuf, str::FromStr};
-use crate::{cmd::enable as enable_cmd, config::promptfile_locator};
+use crate::storage::PromptFilesStorage;
+use crate::{cmd::enable as enable_cmd};
 use crate::dotprompt::DotPrompt;
-use std::fs;
 
 use clap::{Parser};
 use anyhow::{bail, Context, Result};
@@ -28,7 +28,9 @@ pub struct ImportCmd {
 * If promptfile given but not promptname, will use filename from promptfile (if .prompt)
 * If stdin, will require promptname
 */
-pub fn exec(promptname: Option<String>, promptfile: FileOrStdin, enable: bool, force: bool) -> Result<()> {
+pub fn exec(storage: &mut impl PromptFilesStorage, promptname: Option<String>,
+    promptfile: FileOrStdin, enable: bool, force: bool) -> Result<()> {
+
     let filename = promptfile.filename();
 
     debug!("Filename: {filename}");
@@ -44,18 +46,13 @@ pub fn exec(promptname: Option<String>, promptfile: FileOrStdin, enable: bool, f
 
     debug!("Prompt name: {promptname}");
 
-    let contents = &promptfile.contents()?;
-    let fullpath = promptfile_locator::path(&promptname).context(
-        "Could not determine an import destination for prompt."
-    )?;
+    let contents = promptfile.contents()?;
 
-    debug!("Import destination: {}", fullpath.display());
-
-    if fullpath.exists() {
+    if let Some(path) = storage.exists(&promptname) {
         if force {
-            println!("Overwriting existing file at {}", fullpath.display());
+            println!("Overwriting existing file at {path}");
         } else {
-            println!("{} already exists, use -f/--force to overwrite", fullpath.display());
+            println!("{path} already exists, use -f/--force to overwrite");
             return Ok(())
         }
     }
@@ -64,12 +61,13 @@ pub fn exec(promptname: Option<String>, promptfile: FileOrStdin, enable: bool, f
     // DotPrompt::try_from(fs::read_to_string(&fullpath)?)?;
     DotPrompt::try_from(contents.as_str())?;
 
-    fs::write(&fullpath, contents)?;
-    debug!("Imported {promptname}");
+    let path = storage.store(&promptname, contents.as_bytes())?;
+
+    debug!("Imported {promptname} to {path}");
 
     if enable {
         debug!("Enabling {promptname}");
-        enable_cmd::exec(&promptname)?;
+        enable_cmd::exec(storage, &promptname)?;
     } else {
         debug!("Not enabling {promptname}");
     }

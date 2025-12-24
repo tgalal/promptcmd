@@ -1,6 +1,7 @@
 use anyhow::Result;
 use promptcmd::cmd;
 use promptcmd::config;
+use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use std::fs;
 use log::debug;
 use clap::{Parser, Subcommand};
@@ -52,6 +53,11 @@ fn main() -> Result<()> {
     env_logger::init();
     config::bootstrap_directories()?;
 
+    let mut prompts_storage = FileSystemPromptFilesStorage::new(
+        config::prompt_storage_dir()?
+    );
+
+
     let appconfig = if let Some(appconfig_path) = config::appconfig_locator::path() {
         debug!("Config Path: {}",appconfig_path.display());
         config::appconfig::AppConfig::try_from(
@@ -63,20 +69,21 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     match cli.command {
-        Commands::Edit(cmd) => cmd::edit::exec(&appconfig, cmd),
-        Commands::Enable(cmd) => cmd::enable::exec(&cmd.promptname),
+        Commands::Edit(cmd) => cmd::edit::exec(&mut prompts_storage, &appconfig, cmd),
+        Commands::Enable(cmd) => cmd::enable::exec(&prompts_storage, &cmd.promptname),
         Commands::Disable(cmd) => cmd::disable::exec(cmd),
-        Commands::Create(cmd) => cmd::create::exec(&appconfig, &cmd.promptname, cmd.now, cmd.force),
-        Commands::New(cmd) => cmd::create::exec(&appconfig, &cmd.promptname, cmd.now, cmd.force),
+        Commands::Create(cmd) => cmd::create::exec(&mut prompts_storage, &appconfig, &cmd.promptname, cmd.now, cmd.force),
+        Commands::New(cmd) => cmd::create::exec(&mut prompts_storage, &appconfig, &cmd.promptname, cmd.now, cmd.force),
         Commands::Ls(cmd) => cmd::list::exec(
-            cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands, cmd.config
+            &prompts_storage,   cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands, cmd.config,
         ),
         Commands::List(cmd) => cmd::list::exec(
-            cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands, cmd.config
+            &prompts_storage, cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands, cmd.config
         ),
-        Commands::Cat(cmd) => cmd::cat::exec(&cmd.promptname),
-        Commands::Run(cmd) => cmd::run::exec(&cmd.promptname, cmd.dryrun, cmd.prompt_args),
+        Commands::Cat(cmd) => cmd::cat::exec(&prompts_storage, &cmd.promptname),
+        Commands::Run(cmd) => cmd::run::exec(&prompts_storage, &cmd.promptname, cmd.dryrun, cmd.prompt_args),
         Commands::Import(cmd) => cmd::import::exec(
+            &mut prompts_storage,
             cmd.promptname,
             cmd.promptfile,
             cmd.enable,

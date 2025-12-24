@@ -1,10 +1,12 @@
-use promptcmd::config::{self, appconfig_locator, promptfile_locator};
+use promptcmd::config::{self, appconfig_locator};
 use promptcmd::config::appconfig::{AppConfig};
 use promptcmd::dotprompt::DotPrompt;
 use promptcmd::cmd::run;
+use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use clap::{Arg, Command};
+use promptcmd::storage::PromptFilesStorage;
 use std::{env};
-use anyhow::{ Context, Result};
+use anyhow::{Context, Result, bail};
 use std::path::PathBuf;
 use std::fs;
 use log::{ debug};
@@ -13,6 +15,9 @@ use log::{ debug};
 fn main() -> Result<()> {
     env_logger::init();
 
+    let prompts_storage = FileSystemPromptFilesStorage::new(
+        config::prompt_storage_dir()?
+    );
 
     let appconfig = if let Some(appconfig_path) = appconfig_locator::path() {
         debug!("Config Path: {}",appconfig_path.display());
@@ -56,16 +61,21 @@ fn main() -> Result<()> {
     /////
     debug!("Prompt name: {promptname}");
 
-    let promptfile_path: PathBuf = promptfile_locator::find(&promptname)
-        .context("Could not find promptfile")?;
 
-    debug!("Promptfile path: {}", promptfile_path.display());
+    if let Some(path) = prompts_storage.exists(&promptname) {
+        debug!("Promptfile path: {path}");
 
-    let dotprompt: DotPrompt = DotPrompt::try_from(fs::read_to_string(&promptfile_path)?.as_str())?;
+        let (_, promptdata) = prompts_storage.load(&promptname)?;
+        let promptdata_str = String::from_utf8_lossy(&promptdata).into_owned();
 
-    command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;
+        let dotprompt: DotPrompt = DotPrompt::try_from(promptdata_str.as_str())?;
 
-    let matches = command.get_matches();
+        command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;
 
-    run::exec_prompt(&dotprompt, &appconfig, &matches)
+        let matches = command.get_matches();
+
+        run::exec_prompt(&dotprompt, &appconfig, &matches)
+    } else {
+        bail!("Could not find prompt file")
+    }
 }

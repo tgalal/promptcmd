@@ -15,7 +15,10 @@ pub struct EditCmd {
     promptname: String,
 }
 
-pub fn exec(storage: &mut impl PromptFilesStorage, appconfig: &AppConfig, cmd: EditCmd) -> Result<()> {
+pub fn exec(
+    inp: &mut impl std::io::BufRead, out: &mut impl std::io::Write,
+    storage: &mut impl PromptFilesStorage, appconfig: &AppConfig, cmd: EditCmd) -> Result<()> {
+
     let promptname = cmd.promptname;
 
     if storage.exists(&promptname).is_some() {
@@ -26,11 +29,13 @@ pub fn exec(storage: &mut impl PromptFilesStorage, appconfig: &AppConfig, cmd: E
         loop {
             edited = edit::edit(&edited)?;
             if content != edited {
-                match validate_and_write(storage, appconfig, &promptname,
+                match validate_and_write(
+                    inp,
+                    storage, appconfig, &promptname,
                     edited.as_str(), cmd.force)? {
 
                     WriteResult::Validated(_, path) | WriteResult::Written(path)=> {
-                        println!("Saved {path}");
+                        writeln!(out, "Saved {path}")?;
                         break;
                     }
                     WriteResult::Aborted => {

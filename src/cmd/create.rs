@@ -2,7 +2,7 @@ use clap::{Parser};
 use anyhow::{bail, Result};
 use std::io::{self, Write};
 
-use crate::cmd::{self, templates};
+use crate::cmd::{self, templates, TextEditor};
 use crate::config::appconfig::AppConfig;
 use crate::config::providers::{ProviderVariant};
 use crate::dotprompt::ParseDotPromptError;
@@ -28,7 +28,9 @@ pub enum WriteResult {
     Edit
 }
 
-pub fn validate_and_write(storage: &mut impl PromptFilesStorage, appconfig: &AppConfig,
+pub fn validate_and_write(
+    inp: &mut impl std::io::BufRead,
+    storage: &mut impl PromptFilesStorage, appconfig: &AppConfig,
     promptname: &str, promptdata: &str, force_write: bool) -> Result<WriteResult> {
 
     let validation_result = match DotPrompt::try_from(promptdata) {
@@ -52,6 +54,7 @@ pub fn validate_and_write(storage: &mut impl PromptFilesStorage, appconfig: &App
         }
         Err(err) => {
             println!("{}", err);
+            let mut retries = 0;
 
             if force_write {
                 let path = storage.store(promptname, promptdata.as_bytes())?;
@@ -62,7 +65,7 @@ pub fn validate_and_write(storage: &mut impl PromptFilesStorage, appconfig: &App
                 print!("Save anyway? [Y]es/[N]o/[E]dit: ");
                 io::stdout().flush()?;
                 let mut input = String::new();
-                io::stdin().read_line(&mut input).unwrap();
+                inp.read_line(&mut input).unwrap();
                 match input.trim().chars().next() {
                     Some('Y' | 'y') => {
                         let path = storage.store(promptname, promptdata.as_bytes())?;
@@ -76,6 +79,10 @@ pub fn validate_and_write(storage: &mut impl PromptFilesStorage, appconfig: &App
                     },
                     _ => {
                         println!("Invalid input");
+                        retries += 1;
+                        if retries > 5 {
+                            return Ok(WriteResult::Aborted);
+                        }
                     }
                 }
             }
@@ -83,7 +90,11 @@ pub fn validate_and_write(storage: &mut impl PromptFilesStorage, appconfig: &App
     }
 }
 
-pub fn exec(storage: &mut impl PromptFilesStorage, appconfig: &AppConfig, promptname: &str,
+pub fn exec(
+    inp: &mut impl std::io::BufRead,
+    out: &mut impl std::io::Write,
+    storage: &mut impl PromptFilesStorage,
+    editor: &impl TextEditor, appconfig: &AppConfig, promptname: &str,
     enable_prompt: bool, force_write: bool) -> Result<()> {
 
     if let Some(path) = storage.exists(promptname) {
@@ -92,15 +103,15 @@ pub fn exec(storage: &mut impl PromptFilesStorage, appconfig: &AppConfig, prompt
 
     let mut edited = templates::PROMPTFILE.to_string();
     loop {
-        edited = edit::edit(edited)?;
+        edited = editor.edit(&edited)?;
 
-        match validate_and_write(storage, appconfig, promptname, edited.as_str(), force_write)? {
+        match validate_and_write(inp, storage, appconfig, promptname, edited.as_str(), force_write)? {
             // Validated means written without errors.
             // In this case:
             // - we also enable it (if `enable`` is true)
             // - we give out user help if provider has no available configuration
             WriteResult::Validated(dotprompt, path) => {
-                println!("Saved {}", path);
+                writeln!(out, "Saved {}", path)?;
                 if enable_prompt {
                     cmd::enable::exec(storage, promptname)?;
                 }
@@ -109,17 +120,17 @@ pub fn exec(storage: &mut impl PromptFilesStorage, appconfig: &AppConfig, prompt
                 match appconfig.providers.resolve(&model_info.provider) {
                     ProviderVariant::Anthropic(conf) => {
                         if conf.api_key(&appconfig.providers).is_none() {
-                            println!("{}", templates::ONBOARDING_ANTHROPIC);
+                            writeln!(out, "{}", templates::ONBOARDING_ANTHROPIC)?;
                         }
                     },
                     ProviderVariant::OpenAi(conf) => {
                         if conf.api_key(&appconfig.providers).is_none() {
-                            println!("{}", templates::ONBOARDING_OPENAI);
+                            writeln!(out, "{}", templates::ONBOARDING_OPENAI)?;
                         }
                     },
                     ProviderVariant::Google(conf) => {
                         if conf.api_key(&appconfig.providers).is_none() {
-                            println!("{}", templates::ONBOARDING_GOOGLE);
+                            writeln!(out, "{}", templates::ONBOARDING_GOOGLE)?;
                         }
                     },
                     _ => {}
@@ -129,15 +140,15 @@ pub fn exec(storage: &mut impl PromptFilesStorage, appconfig: &AppConfig, prompt
             // Written means there were errors, but the user forced writing the file.
             // In this case we don't enable the prompt automatically, even if requested.
             WriteResult::Written(path) => {
-                println!("Saved {}", path);
+                writeln!(out, "Saved {}", path)?;
                 if enable_prompt {
-                    println!("Not enabling due to errors");
+                    writeln!(out, "Not enabling due to errors")?;
                 }
                 break;
             }
             // User aborted writing
             WriteResult::Aborted => {
-                println!("No changes, did not save");
+                writeln!(out, "No changes, did not save")?;
                 break;
             }
             // User choose to re-edit, thus will not break the loop
@@ -146,4 +157,67 @@ pub fn exec(storage: &mut impl PromptFilesStorage, appconfig: &AppConfig, prompt
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{cmd::{self, NoOpTextEditor, TextEditor}, config::appconfig::AppConfig, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
+
+    const PROMPTFILE_1: &str = r#"
+---
+model: ollama/gpt-oss:20b
+input:
+  schema:
+    message: string, Message
+output:
+  format: text
+---
+Basic Prompt Here: {{message}}
+"#;
+
+    // scenarios:
+    // - Write success (validated)
+    // - Forced Write
+    // - Re-edit
+    // - Abort
+    
+    struct TestingTextEditor {
+        user_input: String
+    }
+
+    impl TestingTextEditor {
+        pub fn set_user_input(&mut self, data: &str) {
+            self.user_input = data.to_string().clone();
+        }
+    }
+
+    impl TextEditor for TestingTextEditor {
+        fn edit(&self, _: &str) -> Result<String, cmd::TextEditorError> {
+            Ok(self.user_input.clone())
+        }
+    }
+
+    #[test]
+    fn test_basic_promptfile () {
+        let mut storage = InMemoryPromptFilesStorage::new();
+        let mut output: Vec<u8> = Vec::new();
+        let input = b"";            
+        let appconfig = AppConfig::default();
+        let editor: TestingTextEditor = TestingTextEditor {
+            user_input: PROMPTFILE_1.to_string()
+        };
+
+        let promptname = "translate";
+
+        cmd::create::exec(
+            &mut &input[..],
+            &mut std::io::stderr(), &mut storage, &editor, &appconfig, promptname, false, false).unwrap();
+
+        let actual_promptdata = storage.load(promptname).unwrap().1;
+
+        assert_eq!(
+            PROMPTFILE_1, 
+            String::from_utf8_lossy(&actual_promptdata)
+        );
+    }
 }

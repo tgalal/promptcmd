@@ -3,8 +3,16 @@ use std::{collections::HashMap};
 use crate::storage::{PromptFilesStorage, PromptFilesStorageError};
 
 
-struct InMemoryPromptFilesStorage {
+pub struct InMemoryPromptFilesStorage {
     storage: HashMap<String, Vec<u8>>
+}
+
+impl InMemoryPromptFilesStorage {
+    pub fn new() -> Self {
+        InMemoryPromptFilesStorage {
+           storage: HashMap::new()
+        }
+    }
 }
 
 

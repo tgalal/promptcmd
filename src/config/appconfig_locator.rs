@@ -120,10 +120,10 @@ mod tests {
         let paths = search_paths();
 
         let has_etc_path = paths.iter().any(|p| {
-            p.to_string_lossy().contains("/etc/aibox")
+            p.to_string_lossy().contains("/etc/promptcmd")
         });
 
-        assert!(has_etc_path, "Should include /etc/aibox path on Linux");
+        assert!(has_etc_path, "Should include /etc/promptcmd path on Linux");
     }
 
     #[cfg(target_os = "macos")]

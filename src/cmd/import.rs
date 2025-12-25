@@ -1,4 +1,5 @@
 use std::{path::PathBuf, str::FromStr};
+use crate::installer::DotPromptInstaller;
 use crate::storage::PromptFilesStorage;
 use crate::{cmd::enable as enable_cmd};
 use crate::dotprompt::DotPrompt;
@@ -28,8 +29,13 @@ pub struct ImportCmd {
 * If promptfile given but not promptname, will use filename from promptfile (if .prompt)
 * If stdin, will require promptname
 */
-pub fn exec(storage: &mut impl PromptFilesStorage, promptname: Option<String>,
-    promptfile: FileOrStdin, enable: bool, force: bool) -> Result<()> {
+pub fn exec(
+    storage: &mut impl PromptFilesStorage,
+    installer: &mut impl DotPromptInstaller,
+    promptname: Option<String>,
+    promptfile: FileOrStdin,
+    enable: bool,
+    force: bool) -> Result<()> {
 
     let filename = promptfile.filename();
 
@@ -67,7 +73,7 @@ pub fn exec(storage: &mut impl PromptFilesStorage, promptname: Option<String>,
 
     if enable {
         debug!("Enabling {promptname}");
-        enable_cmd::exec(storage, &promptname)?;
+        enable_cmd::exec(storage, installer, &promptname)?;
     } else {
         debug!("Not enabling {promptname}");
     }

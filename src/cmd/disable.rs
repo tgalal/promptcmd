@@ -1,9 +1,7 @@
 use clap::{Parser};
-use log::{debug};
-use symlink::remove_symlink_file;
 use anyhow::{Context, Result};
 
-use crate::config::bin_locator;
+use crate::{installer::DotPromptInstaller};
 
 #[derive(Parser)]
 pub struct DisableCmd {
@@ -11,23 +9,16 @@ pub struct DisableCmd {
     promptname: String,
 }
 
-pub fn exec(cmd: DisableCmd) -> Result<()> {
+pub fn exec(
+    installer: &mut impl DotPromptInstaller,
+    cmd: DisableCmd) -> Result<()> {
+
     let promptname = cmd.promptname;
 
-    let symlink_path = bin_locator::path(Some(&promptname)).context("Could not determine link path")?;
+    if let Some(path) = installer.is_installed(&promptname) {
+        installer.uninstall(&promptname).context("Failed to uninstalled prompt")?;
+        println!("Removed {path}");
+    } 
 
-    debug!("symlink path: {}", symlink_path.display());
-
-    if !symlink_path.exists() {
-        return Ok(());
-    }
-
-    let res = remove_symlink_file(&symlink_path);
-
-    if res.is_ok() {
-        println!("Removed {}", &symlink_path.display());
-    }
-
-    res.map_err(|err| anyhow::anyhow!("{err}"))
-
+    Ok(())
 }

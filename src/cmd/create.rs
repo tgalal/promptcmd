@@ -6,6 +6,7 @@ use crate::cmd::{self, templates, TextEditor};
 use crate::config::appconfig::AppConfig;
 use crate::config::providers::{ProviderVariant};
 use crate::dotprompt::ParseDotPromptError;
+use crate::installer::DotPromptInstaller;
 use crate::storage::PromptFilesStorage;
 use crate::{dotprompt::DotPrompt};
 
@@ -94,8 +95,12 @@ pub fn exec(
     inp: &mut impl std::io::BufRead,
     out: &mut impl std::io::Write,
     storage: &mut impl PromptFilesStorage,
-    editor: &impl TextEditor, appconfig: &AppConfig, promptname: &str,
-    enable_prompt: bool, force_write: bool) -> Result<()> {
+    installer: &mut impl DotPromptInstaller,
+    editor: &impl TextEditor,
+    appconfig: &AppConfig,
+    promptname: &str,
+    enable_prompt: bool,
+    force_write: bool) -> Result<()> {
 
     if let Some(path) = storage.exists(promptname) {
         bail!("Prompt file already exists: {path}");
@@ -113,7 +118,7 @@ pub fn exec(
             WriteResult::Validated(dotprompt, path) => {
                 writeln!(out, "Saved {}", path)?;
                 if enable_prompt {
-                    cmd::enable::exec(storage, promptname)?;
+                    cmd::enable::exec(storage, installer, promptname)?;
                 }
 
                 let model_info = dotprompt.model_info()?;
@@ -161,7 +166,7 @@ pub fn exec(
 
 #[cfg(test)]
 mod tests {
-    use crate::{cmd::{self, NoOpTextEditor, TextEditor}, config::appconfig::AppConfig, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
+    use crate::{cmd::{self, NoOpTextEditor, TextEditor}, config::appconfig::AppConfig, installer::tests::InMemoryInstaller, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
 
     const PROMPTFILE_BASIC_VALID: &str = r#"
 ---
@@ -218,6 +223,7 @@ Basic Prompt Here: {{message}}
 
     struct TestState {
         storage: InMemoryPromptFilesStorage,
+        installer: InMemoryInstaller,
         config: AppConfig,
         inp: Vec<u8>,
         out: Vec<u8>,
@@ -227,6 +233,7 @@ Basic Prompt Here: {{message}}
     fn setup(inpdata: &[u8]) -> TestState {
         TestState {
             storage: InMemoryPromptFilesStorage::new(),
+            installer: InMemoryInstaller::default(),
             config: AppConfig::default(),
             inp: inpdata.to_vec(),
             out: Vec::new(),
@@ -245,6 +252,7 @@ Basic Prompt Here: {{message}}
             &mut &state.inp[..],
             &mut std::io::stderr(),
             &mut state.storage,
+            &mut state.installer,
             &state.editor,
             &state.config,
             promptname,
@@ -270,6 +278,7 @@ Basic Prompt Here: {{message}}
             &mut &state.inp[..],
             &mut state.out,
             &mut state.storage,
+            &mut state.installer,
             &state.editor,
             &state.config,
             promptname,
@@ -290,6 +299,7 @@ Basic Prompt Here: {{message}}
             &mut &state.inp[..],
             &mut state.out,
             &mut state.storage,
+            &mut state.installer,
             &state.editor,
             &state.config,
             promptname,
@@ -315,6 +325,7 @@ Basic Prompt Here: {{message}}
             &mut &state.inp[..],
             &mut state.out,
             &mut state.storage,
+            &mut state.installer,
             &state.editor,
             &state.config,
             promptname,

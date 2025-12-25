@@ -1,5 +1,6 @@
 pub mod args;
 pub mod render;
+pub mod installer;
 
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap};

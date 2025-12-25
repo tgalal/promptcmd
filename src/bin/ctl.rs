@@ -1,11 +1,14 @@
 use anyhow::Result;
 use promptcmd::cmd;
 use promptcmd::cmd::BasicTextEditor;
-use promptcmd::config;
+use promptcmd::config::{self, RUNNER_BIN_NAME};
+use std::env;
+use promptcmd::installer::symlink::SymlinkInstaller;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use std::fs;
 use log::debug;
 use clap::{Parser, Subcommand};
+use anyhow::Context;
 
 
 #[derive(Parser)]
@@ -58,8 +61,18 @@ fn main() -> Result<()> {
         config::prompt_storage_dir()?
     );
 
-    let editor = BasicTextEditor {};
+    let target_bin = env::current_exe()
+        .context("Could not determine current bin")?
+        .parent()
+        .context("Could not determine parent of current bin")?
+        .join(RUNNER_BIN_NAME);
 
+    let mut installer = SymlinkInstaller::new(
+        target_bin,
+        config::prompt_install_dir()?
+    );
+
+    let editor = BasicTextEditor {};
 
     let appconfig = if let Some(appconfig_path) = config::appconfig_locator::path() {
         debug!("Config Path: {}",appconfig_path.display());
@@ -80,17 +93,17 @@ fn main() -> Result<()> {
             &mut handle, &mut stdout,
             &mut prompts_storage, &appconfig, cmd),
 
-        Commands::Enable(cmd) => cmd::enable::exec(&prompts_storage, &cmd.promptname),
-        Commands::Disable(cmd) => cmd::disable::exec(cmd),
+        Commands::Enable(cmd) => cmd::enable::exec(&prompts_storage, &mut installer,  &cmd.promptname),
+        Commands::Disable(cmd) => cmd::disable::exec(&mut installer, cmd),
 
         Commands::Create(cmd) => cmd::create::exec(
             &mut handle, &mut stdout,
-            &mut prompts_storage, &editor,
+            &mut prompts_storage,  &mut installer, &editor,
             &appconfig, &cmd.promptname, cmd.now, cmd.force),
 
         Commands::New(cmd) => cmd::create::exec(
             &mut handle, &mut stdout,
-            &mut prompts_storage, &editor,
+            &mut prompts_storage, &mut installer, &editor,
             &appconfig, &cmd.promptname, cmd.now, cmd.force),
 
         Commands::Ls(cmd) => cmd::list::exec(
@@ -106,6 +119,7 @@ fn main() -> Result<()> {
 
         Commands::Import(cmd) => cmd::import::exec(
             &mut prompts_storage,
+            &mut installer, 
             cmd.promptname,
             cmd.promptfile,
             cmd.enable,

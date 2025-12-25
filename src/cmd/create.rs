@@ -13,7 +13,7 @@ use crate::{dotprompt::DotPrompt};
 #[derive(Parser)]
 pub struct CreateCmd {
     #[arg(short, long, default_value_t=true)]
-    pub now: bool,
+    pub enable: bool,
 
     #[arg(short, long, default_value_t=false)]
     pub force: bool,
@@ -98,11 +98,10 @@ pub fn exec(
     installer: &mut impl DotPromptInstaller,
     editor: &impl TextEditor,
     appconfig: &AppConfig,
-    promptname: &str,
-    enable_prompt: bool,
-    force_write: bool) -> Result<()> {
+    cmd: CreateCmd,
+    ) -> Result<()> {
 
-    if let Some(path) = storage.exists(promptname) {
+    if let Some(path) = storage.exists(&cmd.promptname) {
         bail!("Prompt file already exists: {path}");
     }
 
@@ -110,15 +109,15 @@ pub fn exec(
     loop {
         edited = editor.edit(&edited)?;
 
-        match validate_and_write(inp, storage, appconfig, promptname, edited.as_str(), force_write)? {
+        match validate_and_write(inp, storage, appconfig, &cmd.promptname, edited.as_str(), cmd.force)? {
             // Validated means written without errors.
             // In this case:
             // - we also enable it (if `enable`` is true)
             // - we give out user help if provider has no available configuration
             WriteResult::Validated(dotprompt, path) => {
                 writeln!(out, "Saved {}", path)?;
-                if enable_prompt {
-                    cmd::enable::exec(storage, installer, promptname)?;
+                if cmd.enable {
+                    cmd::enable::exec(storage, installer, &cmd.promptname)?;
                 }
 
                 let model_info = dotprompt.model_info()?;
@@ -146,7 +145,7 @@ pub fn exec(
             // In this case we don't enable the prompt automatically, even if requested.
             WriteResult::Written(path) => {
                 writeln!(out, "Saved {}", path)?;
-                if enable_prompt {
+                if cmd.enable {
                     writeln!(out, "Not enabling due to errors")?;
                 }
                 break;
@@ -166,7 +165,7 @@ pub fn exec(
 
 #[cfg(test)]
 mod tests {
-    use crate::{cmd::{self, TextEditor}, config::appconfig::AppConfig, installer::{tests::InMemoryInstaller, DotPromptInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
+    use crate::{cmd::{self, create::CreateCmd, TextEditor}, config::appconfig::AppConfig, installer::{tests::InMemoryInstaller, DotPromptInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
 
     const PROMPTFILE_BASIC_VALID: &str = r#"
 ---
@@ -198,17 +197,11 @@ Basic Prompt Here: {{message}}
     // - Re-edit
     // - Abort
     
+    #[derive(Default)]
     struct TestingTextEditor {
         user_input: String
     }
 
-    impl Default for TestingTextEditor {
-        fn default() -> Self {
-            Self {
-                user_input: String::from("")
-            }
-        }
-    }
     impl TestingTextEditor {
         pub fn set_user_input(&mut self, data: &str) {
             self.user_input = data.to_string().clone();
@@ -255,9 +248,11 @@ Basic Prompt Here: {{message}}
             &mut state.installer,
             &state.editor,
             &state.config,
-            promptname,
-            true,
-            false).unwrap();
+            CreateCmd {
+                promptname: String::from(promptname),
+                enable: true,
+                force: false
+            }).unwrap();
 
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -285,9 +280,11 @@ Basic Prompt Here: {{message}}
             &mut state.installer,
             &state.editor,
             &state.config,
-            promptname,
-            false,
-            false).unwrap();
+            CreateCmd {
+                promptname: String::from(promptname),
+                enable: false,
+                force: false
+            }).unwrap();
 
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -315,9 +312,11 @@ Basic Prompt Here: {{message}}
             &mut state.installer,
             &state.editor,
             &state.config,
-            promptname,
-            false,
-            false).unwrap();
+            CreateCmd {
+                promptname: String::from(promptname),
+                enable: false,
+                force: false
+            }).unwrap();
 
         assert!(state.storage.load(promptname).is_err());
 
@@ -339,9 +338,11 @@ Basic Prompt Here: {{message}}
             &mut state.installer,
             &state.editor,
             &state.config,
-            promptname,
-            false,
-            false).unwrap();
+            CreateCmd {
+                promptname: String::from(promptname),
+                enable: false,
+                force: false
+            }).unwrap();
 
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -368,9 +369,12 @@ Basic Prompt Here: {{message}}
             &mut state.installer,
             &state.editor,
             &state.config,
-            promptname,
-            false,
-            true).unwrap();
+            CreateCmd {
+                promptname: String::from(promptname),
+                enable: false,
+                force: true
+            }).unwrap();
+
 
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
 

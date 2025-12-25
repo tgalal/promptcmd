@@ -1,5 +1,6 @@
 use anyhow::Result;
 use promptcmd::cmd;
+use promptcmd::cmd::create::CreateCmd;
 use promptcmd::cmd::BasicTextEditor;
 use promptcmd::config::{self, RUNNER_BIN_NAME};
 use std::env;
@@ -90,21 +91,28 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Edit(cmd) => cmd::edit::exec(
-            &mut handle, &mut stdout,
-            &mut prompts_storage, &appconfig, cmd),
+            &mut handle,
+            &mut stdout,
+            &mut prompts_storage,
+            &editor,
+            &appconfig, cmd),
 
         Commands::Enable(cmd) => cmd::enable::exec(&prompts_storage, &mut installer,  &cmd.promptname),
         Commands::Disable(cmd) => cmd::disable::exec(&mut installer, &cmd.promptname),
 
         Commands::Create(cmd) => cmd::create::exec(
-            &mut handle, &mut stdout,
-            &mut prompts_storage,  &mut installer, &editor,
-            &appconfig, &cmd.promptname, cmd.now, cmd.force),
+            &mut handle,
+            &mut stdout,
+            &mut prompts_storage,
+            &mut installer,
+            &editor,
+            &appconfig,
+            cmd),
 
         Commands::New(cmd) => cmd::create::exec(
             &mut handle, &mut stdout,
             &mut prompts_storage, &mut installer, &editor,
-            &appconfig, &cmd.promptname, cmd.now, cmd.force),
+            &appconfig, cmd),
 
         Commands::Ls(cmd) => cmd::list::exec(
             &prompts_storage,   cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands, cmd.config,

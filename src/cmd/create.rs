@@ -163,9 +163,21 @@ pub fn exec(
 mod tests {
     use crate::{cmd::{self, NoOpTextEditor, TextEditor}, config::appconfig::AppConfig, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
 
-    const PROMPTFILE_1: &str = r#"
+    const PROMPTFILE_BASIC_VALID: &str = r#"
 ---
 model: ollama/gpt-oss:20b
+input:
+  schema:
+    message: string, Message
+output:
+  format: text
+---
+Basic Prompt Here: {{message}}
+"#;
+
+    const PROMPTFILE_INVALID_MODEL: &str = r#"
+---
+model: aaaa/gpt-oss:20b
 input:
   schema:
     message: string, Message
@@ -185,6 +197,13 @@ Basic Prompt Here: {{message}}
         user_input: String
     }
 
+    impl Default for TestingTextEditor {
+        fn default() -> Self {
+            Self {
+                user_input: String::from("")
+            }
+        }
+    }
     impl TestingTextEditor {
         pub fn set_user_input(&mut self, data: &str) {
             self.user_input = data.to_string().clone();
@@ -197,26 +216,115 @@ Basic Prompt Here: {{message}}
         }
     }
 
+    struct TestState {
+        storage: InMemoryPromptFilesStorage,
+        config: AppConfig,
+        inp: Vec<u8>,
+        out: Vec<u8>,
+        editor: TestingTextEditor
+    }
+
+    fn setup(inpdata: &[u8]) -> TestState {
+        TestState {
+            storage: InMemoryPromptFilesStorage::new(),
+            config: AppConfig::default(),
+            inp: inpdata.to_vec(),
+            out: Vec::new(),
+            editor: TestingTextEditor::default()
+        }
+    }
+
     #[test]
     fn test_basic_promptfile () {
-        let mut storage = InMemoryPromptFilesStorage::new();
-        let mut output: Vec<u8> = Vec::new();
-        let input = b"";            
-        let appconfig = AppConfig::default();
-        let editor: TestingTextEditor = TestingTextEditor {
-            user_input: PROMPTFILE_1.to_string()
-        };
+        let mut state = setup(b"");
+        state.editor.set_user_input(PROMPTFILE_BASIC_VALID);
 
         let promptname = "translate";
 
         cmd::create::exec(
-            &mut &input[..],
-            &mut std::io::stderr(), &mut storage, &editor, &appconfig, promptname, false, false).unwrap();
+            &mut &state.inp[..],
+            &mut std::io::stderr(),
+            &mut state.storage,
+            &state.editor,
+            &state.config,
+            promptname,
+            false,
+            false).unwrap();
 
-        let actual_promptdata = storage.load(promptname).unwrap().1;
+        let actual_promptdata = state.storage.load(promptname).unwrap().1;
 
         assert_eq!(
-            PROMPTFILE_1, 
+            PROMPTFILE_BASIC_VALID, 
+            actual_promptdata
+        );
+    }
+
+    #[test]
+    fn test_invalid_provider_nosave() {
+        let mut state = setup(b"N\n");
+        state.editor.set_user_input(PROMPTFILE_INVALID_MODEL);
+
+        let promptname = "translate";
+
+        cmd::create::exec(
+            &mut &state.inp[..],
+            &mut state.out,
+            &mut state.storage,
+            &state.editor,
+            &state.config,
+            promptname,
+            false,
+            false).unwrap();
+
+        assert!(state.storage.load(promptname).is_err());
+    }
+
+    #[test]
+    fn test_invalid_provider_force_save_by_input() {
+        let mut state = setup(b"Y\n");
+        state.editor.set_user_input(PROMPTFILE_INVALID_MODEL);
+
+        let promptname = "translate";
+
+        cmd::create::exec(
+            &mut &state.inp[..],
+            &mut state.out,
+            &mut state.storage,
+            &state.editor,
+            &state.config,
+            promptname,
+            false,
+            false).unwrap();
+
+        let actual_promptdata = state.storage.load(promptname).unwrap().1;
+
+        assert_eq!(
+            PROMPTFILE_INVALID_MODEL, 
+            actual_promptdata
+        );
+    }
+
+    #[test]
+    fn test_invalid_provider_force_save_by_argument() {
+        let mut state = setup(b"");
+        state.editor.set_user_input(PROMPTFILE_INVALID_MODEL);
+
+        let promptname = "translate";
+
+        cmd::create::exec(
+            &mut &state.inp[..],
+            &mut state.out,
+            &mut state.storage,
+            &state.editor,
+            &state.config,
+            promptname,
+            false,
+            true).unwrap();
+
+        let actual_promptdata = state.storage.load(promptname).unwrap().1;
+
+        assert_eq!(
+            PROMPTFILE_INVALID_MODEL, 
             actual_promptdata
         );
     }

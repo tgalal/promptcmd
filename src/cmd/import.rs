@@ -1,7 +1,7 @@
 use std::{path::PathBuf, str::FromStr};
+use crate::cmd::enable::EnableCmd;
 use crate::installer::DotPromptInstaller;
 use crate::storage::PromptFilesStorage;
-use crate::{cmd::enable as enable_cmd};
 use crate::dotprompt::DotPrompt;
 
 use clap::{Parser};
@@ -73,7 +73,9 @@ pub fn exec(
 
     if enable {
         debug!("Enabling {promptname}");
-        enable_cmd::exec(storage, installer, &promptname)?;
+        EnableCmd {
+            promptname
+        }.exec(storage, installer)?;
     } else {
         debug!("Not enabling {promptname}");
     }

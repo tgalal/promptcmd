@@ -3,7 +3,6 @@ pub mod ollama;
 pub mod openai;
 pub mod google;
 pub mod openrouter;
-use log::{error, debug};
 
 use llm::{builder::LLMBuilder, error::LLMError, LLMProvider};
 use serde::{Serialize, Deserialize};

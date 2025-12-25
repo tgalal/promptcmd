@@ -2,7 +2,8 @@ use clap::{Parser};
 use anyhow::{bail, Result};
 use std::io::{self, Write};
 
-use crate::cmd::{self, templates, TextEditor};
+use crate::cmd::enable::EnableCmd;
+use crate::cmd::{templates, TextEditor};
 use crate::config::appconfig::AppConfig;
 use crate::config::providers::{ProviderVariant};
 use crate::dotprompt::ParseDotPromptError;
@@ -29,6 +30,82 @@ pub enum WriteResult {
     Edit
 }
 
+impl CreateCmd {
+    pub fn exec(
+        &self,
+        inp: &mut impl std::io::BufRead,
+        out: &mut impl std::io::Write,
+        storage: &mut impl PromptFilesStorage,
+        installer: &mut impl DotPromptInstaller,
+        editor: &impl TextEditor,
+        appconfig: &AppConfig,
+        ) -> Result<()> {
+
+        if let Some(path) = storage.exists(&self.promptname) {
+            bail!("Prompt file already exists: {path}");
+        }
+
+        let mut edited = templates::PROMPTFILE.to_string();
+        loop {
+            edited = editor.edit(&edited)?;
+
+            match validate_and_write(inp, storage, appconfig, &self.promptname, edited.as_str(), self.force)? {
+                // Validated means written without errors.
+                // In this case:
+                // - we also enable it (if `enable`` is true)
+                // - we give out user help if provider has no available configuration
+                WriteResult::Validated(dotprompt, path) => {
+                    writeln!(out, "Saved {}", path)?;
+                    if self.enable {
+                        EnableCmd {
+                            promptname: self.promptname.clone()
+                        }.exec(storage, installer)?;
+                    }
+
+                    let model_info = dotprompt.model_info()?;
+                    match appconfig.providers.resolve(&model_info.provider) {
+                        ProviderVariant::Anthropic(conf) => {
+                            if conf.api_key(&appconfig.providers).is_none() {
+                                writeln!(out, "{}", templates::ONBOARDING_ANTHROPIC)?;
+                            }
+                        },
+                        ProviderVariant::OpenAi(conf) => {
+                            if conf.api_key(&appconfig.providers).is_none() {
+                                writeln!(out, "{}", templates::ONBOARDING_OPENAI)?;
+                            }
+                        },
+                        ProviderVariant::Google(conf) => {
+                            if conf.api_key(&appconfig.providers).is_none() {
+                                writeln!(out, "{}", templates::ONBOARDING_GOOGLE)?;
+                            }
+                        },
+                        _ => {}
+                    }
+                    break;
+                }
+                // Written means there were errors, but the user forced writing the file.
+                // In this case we don't enable the prompt automatically, even if requested.
+                WriteResult::Written(path) => {
+                    writeln!(out, "Saved {}", path)?;
+                    if self.enable {
+                        writeln!(out, "Not enabling due to errors")?;
+                    }
+                    break;
+                }
+                // User aborted writing
+                WriteResult::Aborted => {
+                    writeln!(out, "No changes, did not save")?;
+                    break;
+                }
+                // User choose to re-edit, thus will not break the loop
+                WriteResult::Edit => {}
+            }
+        }
+
+        Ok(())
+    }
+}
+
 pub fn validate_and_write(
     inp: &mut impl std::io::BufRead,
     storage: &mut impl PromptFilesStorage, appconfig: &AppConfig,
@@ -50,7 +127,7 @@ pub fn validate_and_write(
 
     match validation_result {
         Ok(dotprompt) => {
-            let path = storage.store(promptname, &promptdata)?;
+            let path = storage.store(promptname, promptdata)?;
             Ok(WriteResult::Validated(dotprompt, path))
         }
         Err(err) => {
@@ -58,7 +135,7 @@ pub fn validate_and_write(
             let mut retries = 0;
 
             if force_write {
-                let path = storage.store(promptname, &promptdata)?;
+                let path = storage.store(promptname, promptdata)?;
                 return Ok(WriteResult::Written(path));
             }
 
@@ -69,7 +146,7 @@ pub fn validate_and_write(
                 inp.read_line(&mut input).unwrap();
                 match input.trim().chars().next() {
                     Some('Y' | 'y') => {
-                        let path = storage.store(promptname, &promptdata)?;
+                        let path = storage.store(promptname, promptdata)?;
                         return Ok(WriteResult::Written(path));
                     },
                     Some('N' | 'n') => {
@@ -91,77 +168,6 @@ pub fn validate_and_write(
     }
 }
 
-pub fn exec(
-    inp: &mut impl std::io::BufRead,
-    out: &mut impl std::io::Write,
-    storage: &mut impl PromptFilesStorage,
-    installer: &mut impl DotPromptInstaller,
-    editor: &impl TextEditor,
-    appconfig: &AppConfig,
-    cmd: CreateCmd,
-    ) -> Result<()> {
-
-    if let Some(path) = storage.exists(&cmd.promptname) {
-        bail!("Prompt file already exists: {path}");
-    }
-
-    let mut edited = templates::PROMPTFILE.to_string();
-    loop {
-        edited = editor.edit(&edited)?;
-
-        match validate_and_write(inp, storage, appconfig, &cmd.promptname, edited.as_str(), cmd.force)? {
-            // Validated means written without errors.
-            // In this case:
-            // - we also enable it (if `enable`` is true)
-            // - we give out user help if provider has no available configuration
-            WriteResult::Validated(dotprompt, path) => {
-                writeln!(out, "Saved {}", path)?;
-                if cmd.enable {
-                    cmd::enable::exec(storage, installer, &cmd.promptname)?;
-                }
-
-                let model_info = dotprompt.model_info()?;
-                match appconfig.providers.resolve(&model_info.provider) {
-                    ProviderVariant::Anthropic(conf) => {
-                        if conf.api_key(&appconfig.providers).is_none() {
-                            writeln!(out, "{}", templates::ONBOARDING_ANTHROPIC)?;
-                        }
-                    },
-                    ProviderVariant::OpenAi(conf) => {
-                        if conf.api_key(&appconfig.providers).is_none() {
-                            writeln!(out, "{}", templates::ONBOARDING_OPENAI)?;
-                        }
-                    },
-                    ProviderVariant::Google(conf) => {
-                        if conf.api_key(&appconfig.providers).is_none() {
-                            writeln!(out, "{}", templates::ONBOARDING_GOOGLE)?;
-                        }
-                    },
-                    _ => {}
-                }
-                break;
-            }
-            // Written means there were errors, but the user forced writing the file.
-            // In this case we don't enable the prompt automatically, even if requested.
-            WriteResult::Written(path) => {
-                writeln!(out, "Saved {}", path)?;
-                if cmd.enable {
-                    writeln!(out, "Not enabling due to errors")?;
-                }
-                break;
-            }
-            // User aborted writing
-            WriteResult::Aborted => {
-                writeln!(out, "No changes, did not save")?;
-                break;
-            }
-            // User choose to re-edit, thus will not break the loop
-            WriteResult::Edit => {}
-        }
-    }
-
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {
@@ -241,18 +247,18 @@ Basic Prompt Here: {{message}}
 
         let promptname = "translate";
 
-        cmd::create::exec(
-            &mut &state.inp[..],
-            &mut std::io::stderr(),
-            &mut state.storage,
-            &mut state.installer,
-            &state.editor,
-            &state.config,
-            CreateCmd {
-                promptname: String::from(promptname),
-                enable: true,
-                force: false
-            }).unwrap();
+        CreateCmd {
+            promptname: String::from(promptname),
+            enable: true,
+            force: false
+        }.exec(
+                &mut &state.inp[..],
+                &mut std::io::stderr(),
+                &mut state.storage,
+                &mut state.installer,
+                &state.editor,
+                &state.config,
+            ).unwrap();
 
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -273,18 +279,18 @@ Basic Prompt Here: {{message}}
 
         let promptname = "translate";
 
-        cmd::create::exec(
+        CreateCmd {
+            promptname: String::from(promptname),
+            enable: false,
+            force: false
+        }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
             &mut state.storage,
             &mut state.installer,
             &state.editor,
             &state.config,
-            CreateCmd {
-                promptname: String::from(promptname),
-                enable: false,
-                force: false
-            }).unwrap();
+        ).unwrap();
 
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -305,18 +311,18 @@ Basic Prompt Here: {{message}}
 
         let promptname = "translate";
 
-        cmd::create::exec(
+        CreateCmd {
+            promptname: String::from(promptname),
+            enable: false,
+            force: false
+        }.exec(
             &mut &state.inp[..],
             &mut state.out,
             &mut state.storage,
             &mut state.installer,
             &state.editor,
             &state.config,
-            CreateCmd {
-                promptname: String::from(promptname),
-                enable: false,
-                force: false
-            }).unwrap();
+        ).unwrap();
 
         assert!(state.storage.load(promptname).is_err());
 
@@ -331,18 +337,18 @@ Basic Prompt Here: {{message}}
 
         let promptname = "translate";
 
-        cmd::create::exec(
+        CreateCmd {
+            promptname: String::from(promptname),
+            enable: false,
+            force: false
+        }.exec(
             &mut &state.inp[..],
             &mut state.out,
             &mut state.storage,
             &mut state.installer,
             &state.editor,
             &state.config,
-            CreateCmd {
-                promptname: String::from(promptname),
-                enable: false,
-                force: false
-            }).unwrap();
+        ).unwrap();
 
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -362,18 +368,18 @@ Basic Prompt Here: {{message}}
 
         let promptname = "translate";
 
-        cmd::create::exec(
+        CreateCmd {
+            promptname: String::from(promptname),
+            enable: false,
+            force: true
+        }.exec(
             &mut &state.inp[..],
             &mut state.out,
             &mut state.storage,
             &mut state.installer,
             &state.editor,
             &state.config,
-            CreateCmd {
-                promptname: String::from(promptname),
-                enable: false,
-                force: true
-            }).unwrap();
+        ).unwrap();
 
 
         let actual_promptdata = state.storage.load(promptname).unwrap().1;

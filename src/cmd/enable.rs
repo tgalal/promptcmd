@@ -6,38 +6,39 @@ use crate::{installer::DotPromptInstaller, storage::PromptFilesStorage};
 
 #[derive(Parser)]
 pub struct EnableCmd {
-    #[arg(long, default_value_t=false)]
-    pub here: bool,
     #[arg()]
     pub promptname: String,
 }
 
-pub fn exec(
-    storage: &impl PromptFilesStorage,
-    installer: &mut impl DotPromptInstaller,
-    promptname: &str) -> Result<()> {
+impl EnableCmd {
+    pub fn exec(
+        &self,
+        storage: &impl PromptFilesStorage,
+        installer: &mut impl DotPromptInstaller,
+        ) -> Result<()> {
 
-    if let Some(path) = installer.is_installed(promptname) {
-        println!("{} is already installed at {}", promptname, &path);
-        return Ok(());
+        if let Some(path) = installer.is_installed(&self.promptname) {
+            println!("{} is already installed at {}", &self.promptname, &path);
+            return Ok(());
+        }
+
+        if let Some(path) = storage.exists(&self.promptname) {
+            debug!("Enabling {path}");
+
+            let installed_path = installer.install(&self.promptname)?;
+            println!("Created {installed_path}");
+
+        } else {
+            bail!("Could not find an existing prompt file");
+        }
+
+        Ok(())
     }
-
-    if let Some(path) = storage.exists(promptname) {
-        debug!("Enabling {path}");
-
-        let installed_path = installer.install(promptname)?;
-        println!("Created {installed_path}");
-
-    } else {
-        bail!("Could not find an existing prompt file");
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{cmd, installer::{tests::InMemoryInstaller, DotPromptInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
+    use crate::{cmd::{enable::EnableCmd}, installer::{tests::InMemoryInstaller, DotPromptInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
 
     #[derive(Default)]
     struct TestState {
@@ -55,7 +56,11 @@ mod tests {
 
         state.storage.store("myprompt", "promptdata").unwrap();
 
-        assert!(cmd::enable::exec(&state.storage, &mut state.installer, "myprompt").is_ok());
+        let cmd = EnableCmd {
+            promptname: String::from("myprompt")
+        };
+
+        assert!(cmd.exec(&state.storage, &mut state.installer).is_ok());
         assert!(state.installer.is_installed("myprompt").is_some());
     }
 
@@ -63,8 +68,12 @@ mod tests {
     fn test_enable_exists() {
         let mut state = setup();
 
+        let cmd = EnableCmd {
+            promptname: String::from("myprompt")
+        };
+
         state.installer.install("myprompt").unwrap();
 
-        assert!(cmd::enable::exec(&state.storage, &mut state.installer, "myprompt").is_ok());
+        assert!(cmd.exec(&state.storage, &mut state.installer).is_ok());
     }
 }

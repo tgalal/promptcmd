@@ -15,53 +15,55 @@ pub struct EditCmd {
     promptname: String,
 }
 
-pub fn exec(
-    inp: &mut impl std::io::BufRead,
-    out: &mut impl std::io::Write,
-    storage: &mut impl PromptFilesStorage,
-    editor: &impl TextEditor,
-    appconfig: &AppConfig,
-    cmd: EditCmd) -> Result<()> {
+impl EditCmd {
+    pub fn exec(
+        &self,
+        inp: &mut impl std::io::BufRead,
+        out: &mut impl std::io::Write,
+        storage: &mut impl PromptFilesStorage,
+        editor: &impl TextEditor,
+        appconfig: &AppConfig) -> Result<()> {
 
-    let promptname = cmd.promptname;
+        let promptname = &self.promptname;
 
-    if storage.exists(&promptname).is_some() {
-        let (path, content) = storage.load(&promptname)?;
-        let mut edited = content.clone();
-        println!("Editing {path}");
-        loop {
-            edited = editor.edit(&edited)?;
-            if content != edited {
-                match validate_and_write(
-                    inp,
-                    storage, appconfig, &promptname,
-                    edited.as_str(), cmd.force)? {
+        if storage.exists(promptname).is_some() {
+            let (path, content) = storage.load(promptname)?;
+            let mut edited = content.clone();
+            println!("Editing {path}");
+            loop {
+                edited = editor.edit(&edited)?;
+                if content != edited {
+                    match validate_and_write(
+                        inp,
+                        storage, appconfig, promptname,
+                        edited.as_str(), self.force)? {
 
-                    WriteResult::Validated(_, path) | WriteResult::Written(path)=> {
-                        writeln!(out, "Saved {path}")?;
-                        break;
+                        WriteResult::Validated(_, path) | WriteResult::Written(path)=> {
+                            writeln!(out, "Saved {path}")?;
+                            break;
+                        }
+                        WriteResult::Aborted => {
+                            println!("Editing aborted, no changes were saved");
+                            break;
+                        }
+                        WriteResult::Edit => {}
                     }
-                    WriteResult::Aborted => {
-                        println!("Editing aborted, no changes were saved");
-                        break;
-                    }
-                    WriteResult::Edit => {}
+                } else {
+                    println!("No changes");
+                    break;
                 }
-            } else {
-                println!("No changes");
-                break;
             }
+        } else {
+            bail!("Could not find prompt file");
         }
-    } else {
-        bail!("Could not find prompt file");
-    }
 
-    Ok(())
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{cmd::{self, edit::EditCmd, TextEditor}, config::appconfig::AppConfig, installer::{tests::InMemoryInstaller, DotPromptInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
+    use crate::{cmd::{self, edit::EditCmd, TextEditor}, config::appconfig::AppConfig, installer::{tests::InMemoryInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
 
     const PROMPTFILE_BASIC_VALID_1: &str = r#"
 ---
@@ -142,17 +144,15 @@ Basic Prompt Here: {{message}}
         state.storage.store(&promptname, PROMPTFILE_BASIC_VALID_1).unwrap();
         state.editor.set_user_input(PROMPTFILE_BASIC_VALID_1);
 
-
-        cmd::edit::exec(
+        EditCmd {
+            force: false,
+            promptname: promptname.to_string()
+        }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
             &mut state.storage,
             &state.editor,
             &state.config,
-            EditCmd {
-                force: false,
-                promptname: promptname.to_string()
-            }
             ).unwrap();
 
         let actual_promptdata = state.storage.load(&promptname).unwrap().1;
@@ -168,20 +168,18 @@ Basic Prompt Here: {{message}}
         let mut state = setup(b"");
         let promptname = String::from("myprompt");
 
-        cmd::edit::exec(
+        EditCmd {
+            force: false,
+            promptname: promptname.to_string()
+        }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
             &mut state.storage,
             &state.editor,
             &state.config,
-            EditCmd {
-                force: false,
-                promptname: promptname.to_string()
-            }
-            ).unwrap_err();
+        ).unwrap_err();
 
         state.storage.load(&promptname).unwrap_err();
-
     }
 
     #[test]
@@ -192,17 +190,16 @@ Basic Prompt Here: {{message}}
         state.editor.set_user_input(PROMPTFILE_BASIC_VALID_2);
 
 
-        cmd::edit::exec(
+        EditCmd {
+            force: false,
+            promptname: promptname.to_string()
+        }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
             &mut state.storage,
             &state.editor,
             &state.config,
-            EditCmd {
-                force: false,
-                promptname: promptname.to_string()
-            }
-            ).unwrap();
+        ).unwrap();
 
         let actual_promptdata = state.storage.load(&promptname).unwrap().1;
 
@@ -221,17 +218,16 @@ Basic Prompt Here: {{message}}
         state.storage.store(&promptname, PROMPTFILE_BASIC_VALID_1).unwrap();
         state.editor.set_user_input(PROMPTFILE_INVALID_MODEL);
 
-        cmd::edit::exec(
+        EditCmd {
+            force: false,
+            promptname: promptname.clone()
+        }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
             &mut state.storage,
             &state.editor,
             &state.config,
-            EditCmd {
-                force: false,
-                promptname: promptname.clone()
-            }
-            ).unwrap();
+        ).unwrap();
 
         assert_eq!(
             state.storage.load(&promptname).unwrap().1,
@@ -248,17 +244,16 @@ Basic Prompt Here: {{message}}
         state.storage.store(&promptname, PROMPTFILE_BASIC_VALID_1).unwrap();
         state.editor.set_user_input(PROMPTFILE_INVALID_MODEL);
 
-        cmd::edit::exec(
+        EditCmd {
+            force: false,
+            promptname: promptname.clone()
+        }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
             &mut state.storage,
             &state.editor,
             &state.config,
-            EditCmd {
-                force: false,
-                promptname: promptname.clone()
-            }
-            ).unwrap();
+        ).unwrap();
 
         assert_eq!(
             state.storage.load(&promptname).unwrap().1,
@@ -274,17 +269,16 @@ Basic Prompt Here: {{message}}
         state.storage.store(&promptname, PROMPTFILE_BASIC_VALID_1).unwrap();
         state.editor.set_user_input(PROMPTFILE_INVALID_MODEL);
 
-        cmd::edit::exec(
+        EditCmd {
+            force: true,
+            promptname: promptname.clone()
+        }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
             &mut state.storage,
             &state.editor,
             &state.config,
-            EditCmd {
-                force: true,
-                promptname: promptname.clone()
-            }
-            ).unwrap();
+        ).unwrap();
 
         assert_eq!(
             state.storage.load(&promptname).unwrap().1,

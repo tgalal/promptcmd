@@ -1,6 +1,5 @@
 use anyhow::Result;
 use promptcmd::cmd;
-use promptcmd::cmd::create::CreateCmd;
 use promptcmd::cmd::BasicTextEditor;
 use promptcmd::config::{self, RUNNER_BIN_NAME};
 use std::env;
@@ -32,16 +31,10 @@ enum Commands {
     #[clap(about = "Disable a prompt")]
     Disable(cmd::disable::DisableCmd),
 
-    #[clap(about = "Create a new prompt file")]
+    #[clap(about = "Create a new prompt file", visible_alias = "new")]
     Create(cmd::create::CreateCmd),
  
-    #[clap(about = "Create a new prompt file")]
-    New(cmd::create::CreateCmd),
-
-    #[clap(about = "List commands and prompts")]
-    Ls(cmd::list::ListCmd),
-
-    #[clap(about = "List commands and prompts")]
+    #[clap(about = "List commands and prompts", visible_alias = "ls")]
     List(cmd::list::ListCmd),
  
     #[clap(about = "Print promptfile contents")]
@@ -90,39 +83,35 @@ fn main() -> Result<()> {
     let mut stdout = std::io::stdout();
 
     match cli.command {
-        Commands::Edit(cmd) => cmd::edit::exec(
+        Commands::Edit(cmd) => cmd.exec(
             &mut handle,
             &mut stdout,
             &mut prompts_storage,
             &editor,
-            &appconfig, cmd),
+            &appconfig),
 
-        Commands::Enable(cmd) => cmd::enable::exec(&prompts_storage, &mut installer,  &cmd.promptname),
-        Commands::Disable(cmd) => cmd::disable::exec(&mut installer, &cmd.promptname),
+        Commands::Enable(cmd) => cmd.exec(
+            &prompts_storage,
+            &mut installer),
 
-        Commands::Create(cmd) => cmd::create::exec(
+        Commands::Disable(cmd) => cmd.exec(&mut installer),
+
+        Commands::Create(cmd) => cmd.exec(
             &mut handle,
             &mut stdout,
             &mut prompts_storage,
             &mut installer,
             &editor,
-            &appconfig,
-            cmd),
-
-        Commands::New(cmd) => cmd::create::exec(
-            &mut handle, &mut stdout,
-            &mut prompts_storage, &mut installer, &editor,
-            &appconfig, cmd),
-
-        Commands::Ls(cmd) => cmd::list::exec(
-            &prompts_storage,   cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands, cmd.config,
-        ),
+            &appconfig),
 
         Commands::List(cmd) => cmd::list::exec(
             &prompts_storage, cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands, cmd.config
         ),
 
-        Commands::Cat(cmd) => cmd::cat::exec(&prompts_storage, &cmd.promptname, &mut std::io::stdout()),
+        Commands::Cat(cmd) => cmd.exec(
+            &prompts_storage,
+            &mut std::io::stdout()),
+
         Commands::Run(cmd) => cmd::run::exec(&prompts_storage, &cmd.promptname, cmd.dryrun, cmd.prompt_args),
 
         Commands::Import(cmd) => cmd::import::exec(

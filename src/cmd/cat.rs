@@ -11,22 +11,26 @@ pub struct CatCmd {
     pub promptname: String,
 }
 
-pub fn exec(storage: &impl PromptFilesStorage,  promptname: &str, out: &mut impl Write)-> Result<()> {
+impl CatCmd {
 
-    if storage.exists(promptname).is_none() {
-        bail!("Could not find a prompt with the name \"{promptname}\"");
+    pub fn exec(&self, storage: &impl PromptFilesStorage,  out: &mut impl Write)-> Result<()> {
+
+        if storage.exists(&self.promptname).is_none() {
+            bail!("Could not find a prompt with the name \"{}\"", &self.promptname);
+        }
+
+        let promptdata = storage.load(&self.promptname)?.1;
+
+        writeln!(out, "{promptdata}")?;
+
+        Ok(())
     }
-
-    let promptdata = storage.load(promptname)?.1;
-
-    writeln!(out, "{promptdata}")?;
-
-    Ok(())
 }
+
 
 #[cfg(test)]
 mod tests {
-    use crate::cmd;
+    use crate::cmd::cat::CatCmd;
     use crate::storage::promptfiles_mem::InMemoryPromptFilesStorage;
     use crate::{storage::PromptFilesStorage};
 
@@ -36,7 +40,12 @@ mod tests {
         storage.store("aaa", "bbbb").unwrap();
 
         let mut buf = Vec::new();
-        cmd::cat::exec(&storage, "aaa", &mut buf).unwrap();
+
+        let cmd = CatCmd {
+            promptname: String::from("aaa")
+        };
+
+        cmd.exec(&storage, &mut buf).unwrap();
 
         assert_eq!(
             buf,
@@ -50,8 +59,10 @@ mod tests {
 
         let mut buf = Vec::new();
 
-        assert!(
-            cmd::cat::exec(&storage, "aaa", &mut buf).is_err()
-        );
+        let cmd = CatCmd {
+            promptname: String::from("aaa")
+        };
+
+        assert!(cmd.exec(&storage, &mut buf).is_err());
     }
 }

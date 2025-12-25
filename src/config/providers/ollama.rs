@@ -1,4 +1,4 @@
-use llm::{builder::LLMBuilder, LLMProvider};
+use llm::{builder::LLMBuilder};
 use serde::{Serialize, Deserialize};
 use crate::config::providers::{self, ProviderError, ToLLMProvider};
 

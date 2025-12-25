@@ -3,18 +3,10 @@ use std::{collections::HashMap};
 use crate::storage::{PromptFilesStorage, PromptFilesStorageError};
 
 
+#[derive(Default)]
 pub struct InMemoryPromptFilesStorage {
     storage: HashMap<String, String>
 }
-
-impl InMemoryPromptFilesStorage {
-    pub fn new() -> Self {
-        InMemoryPromptFilesStorage {
-           storage: HashMap::new()
-        }
-    }
-}
-
 
 impl PromptFilesStorage for InMemoryPromptFilesStorage {
     fn list(&self) -> Result<HashMap<String, String>, PromptFilesStorageError> {

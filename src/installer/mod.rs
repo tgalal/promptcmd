@@ -40,6 +40,7 @@ pub mod tests {
 
     use crate::installer::{DotPromptInstaller, InstallError, UninstallError};
 
+    #[derive(Default)]
     pub struct InMemoryInstaller {
         installed: HashSet<String>
     }
@@ -65,7 +66,7 @@ pub mod tests {
         }
 
         fn is_installed(&self, name: &str) -> Option<String> {
-            if self.installed.get(name).is_some() {
+            if self.installed.contains(name) {
                 Some(name.to_string())
             } else {
                 None
@@ -74,14 +75,6 @@ pub mod tests {
 
         fn list(&self) -> Result<std::collections::HashMap<String, String>, super::ListError> {
             Ok(self.installed.iter().map(|item| (item.to_string(), item.to_string())).collect())
-        }
-    }
-
-    impl Default for InMemoryInstaller {
-        fn default() -> Self {
-            InMemoryInstaller {
-                installed: HashSet::new()
-            }
         }
     }
 }

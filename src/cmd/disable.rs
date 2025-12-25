@@ -23,20 +23,12 @@ pub fn exec(
 
 #[cfg(test)]
 mod tests {
-    use crate::{cmd, installer::{tests::InMemoryInstaller, DotPromptInstaller, InstallError, UninstallError}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
+    use crate::{cmd, installer::{tests::InMemoryInstaller, DotPromptInstaller, UninstallError}, storage::{promptfiles_mem::InMemoryPromptFilesStorage}};
 
+    #[derive(Default)]
     struct TestState {
         storage: InMemoryPromptFilesStorage,
         installer: InMemoryInstaller
-    }
-
-    impl Default for TestState {
-        fn default() -> Self {
-            Self {
-                storage: InMemoryPromptFilesStorage::new(),
-                installer: InMemoryInstaller::default()
-            }
-        }
     }
 
     fn setup() -> TestState {

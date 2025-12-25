@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn test_exec_ok() {
-        let mut storage = InMemoryPromptFilesStorage::new();
+        let mut storage = InMemoryPromptFilesStorage::default();
         storage.store("aaa", "bbbb").unwrap();
 
         let mut buf = Vec::new();
@@ -46,7 +46,7 @@ mod tests {
 
     #[test]
     fn test_prompt_not_found() {
-        let storage = InMemoryPromptFilesStorage::new();
+        let storage = InMemoryPromptFilesStorage::default();
 
         let mut buf = Vec::new();
 

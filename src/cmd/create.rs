@@ -166,7 +166,7 @@ pub fn exec(
 
 #[cfg(test)]
 mod tests {
-    use crate::{cmd::{self, NoOpTextEditor, TextEditor}, config::appconfig::AppConfig, installer::{tests::InMemoryInstaller, DotPromptInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
+    use crate::{cmd::{self, TextEditor}, config::appconfig::AppConfig, installer::{tests::InMemoryInstaller, DotPromptInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
 
     const PROMPTFILE_BASIC_VALID: &str = r#"
 ---
@@ -232,7 +232,7 @@ Basic Prompt Here: {{message}}
 
     fn setup(inpdata: &[u8]) -> TestState {
         TestState {
-            storage: InMemoryPromptFilesStorage::new(),
+            storage: InMemoryPromptFilesStorage::default(),
             installer: InMemoryInstaller::default(),
             config: AppConfig::default(),
             inp: inpdata.to_vec(),

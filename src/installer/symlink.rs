@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, fs, path::PathBuf};
 use symlink::remove_symlink_file;
 use ::symlink::symlink_file;
 

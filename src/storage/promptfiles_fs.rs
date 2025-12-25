@@ -51,10 +51,12 @@ impl PromptFilesStorage for FileSystemPromptFilesStorage {
 
     fn exists(&self, identifier: &str) -> Option<String> {
         let path = self.resolve(identifier);
+
         if path.exists() {
-            return Some(path.to_string_lossy().into_owned())
+            Some(path.to_string_lossy().into_owned())
+        } else {
+            None
         }
-        return None;
     }
 
     fn store(&mut self, identifier: &str, dotpromptdata: &str) -> Result<String, PromptFilesStorageError> {

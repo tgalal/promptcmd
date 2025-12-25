@@ -31,11 +31,3 @@ impl TextEditor for BasicTextEditor {
         result.map_err(TextEditorError::IoError)
     }
 }
-
-struct NoOpTextEditor;
-
-impl TextEditor for NoOpTextEditor {
-    fn edit(&self, input: &str) -> Result<String, TextEditorError> {
-        Ok(input.to_string())
-    }
-}

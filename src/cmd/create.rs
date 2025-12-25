@@ -166,7 +166,7 @@ pub fn exec(
 
 #[cfg(test)]
 mod tests {
-    use crate::{cmd::{self, NoOpTextEditor, TextEditor}, config::appconfig::AppConfig, installer::tests::InMemoryInstaller, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
+    use crate::{cmd::{self, NoOpTextEditor, TextEditor}, config::appconfig::AppConfig, installer::{tests::InMemoryInstaller, DotPromptInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
 
     const PROMPTFILE_BASIC_VALID: &str = r#"
 ---
@@ -256,15 +256,49 @@ Basic Prompt Here: {{message}}
             &state.editor,
             &state.config,
             promptname,
+            true,
+            false).unwrap();
+
+        let actual_promptdata = state.storage.load(promptname).unwrap().1;
+
+        // Provided prompt data should be stored as is
+        assert_eq!(
+            PROMPTFILE_BASIC_VALID, 
+            actual_promptdata
+        );
+
+        // And should be enabled
+        assert!(state.installer.is_installed(promptname).is_some());
+    }
+
+    #[test]
+    fn test_basic_promptfile_without_enabling () {
+        let mut state = setup(b"");
+        state.editor.set_user_input(PROMPTFILE_BASIC_VALID);
+
+        let promptname = "translate";
+
+        cmd::create::exec(
+            &mut &state.inp[..],
+            &mut std::io::stderr(),
+            &mut state.storage,
+            &mut state.installer,
+            &state.editor,
+            &state.config,
+            promptname,
             false,
             false).unwrap();
 
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
 
+        // Provided prompt data should be stored as is
         assert_eq!(
             PROMPTFILE_BASIC_VALID, 
             actual_promptdata
         );
+
+        // And should not be enabled (enable is false)
+        assert!(state.installer.is_installed(promptname).is_none());
     }
 
     #[test]
@@ -286,6 +320,9 @@ Basic Prompt Here: {{message}}
             false).unwrap();
 
         assert!(state.storage.load(promptname).is_err());
+
+        // And should not be enabled
+        assert!(state.installer.is_installed(promptname).is_none());
     }
 
     #[test]
@@ -312,6 +349,9 @@ Basic Prompt Here: {{message}}
             PROMPTFILE_INVALID_MODEL, 
             actual_promptdata
         );
+
+        // And should not be enabled
+        assert!(state.installer.is_installed(promptname).is_none());
     }
 
     #[test]
@@ -338,5 +378,8 @@ Basic Prompt Here: {{message}}
             PROMPTFILE_INVALID_MODEL, 
             actual_promptdata
         );
+
+        // And should not be enabled
+        assert!(state.installer.is_installed(promptname).is_none());
     }
 }

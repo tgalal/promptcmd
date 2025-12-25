@@ -127,8 +127,7 @@ pub fn exec(prompt_storage: &impl PromptFilesStorage, promptname: &str, _: bool,
 
     debug!("Promptfile path: {path}");
 
-    let promptfile_strcontent = String::from_utf8_lossy(&promptfile_content).into_owned();
-    let dotprompt: DotPrompt = DotPrompt::try_from(promptfile_strcontent.as_str())?;
+    let dotprompt: DotPrompt = DotPrompt::try_from(promptfile_content.as_str())?;
 
     let mut command: Command = Command::new(promptname.to_string());
 

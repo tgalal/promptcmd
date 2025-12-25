@@ -4,7 +4,7 @@ use crate::storage::{PromptFilesStorage, PromptFilesStorageError};
 
 
 pub struct InMemoryPromptFilesStorage {
-    storage: HashMap<String, Vec<u8>>
+    storage: HashMap<String, String>
 }
 
 impl InMemoryPromptFilesStorage {
@@ -29,15 +29,15 @@ impl PromptFilesStorage for InMemoryPromptFilesStorage {
         }
     }
 
-    fn store(&mut self, identifier: &str, dotprompt: &[u8]) -> Result<String, PromptFilesStorageError> {
+    fn store(&mut self, identifier: &str, dotprompt: &str) -> Result<String, PromptFilesStorageError> {
         let key: String = identifier.to_string();
-        let value: Vec<u8> = dotprompt.to_vec().clone();
+        let value: String = dotprompt.to_string();
         self.storage.insert(key, value);
 
         Ok(identifier.to_string())
     }
 
-    fn load(&self, identifier: &str) -> Result<(String, Vec<u8>), PromptFilesStorageError> {
+    fn load(&self, identifier: &str) -> Result<(String, String), PromptFilesStorageError> {
         if let Some(dotprompt) = self.storage.get(identifier) {
             Ok((identifier.to_string(), dotprompt.clone()))
         } else {

@@ -17,6 +17,6 @@ pub enum PromptFilesStorageError {
 pub trait PromptFilesStorage  {
     fn list(&self) -> Result<HashMap<String, String>, PromptFilesStorageError>;
     fn exists(&self, identifier: &str) -> Option<String>;
-    fn store(&mut self, identifier: &str, dotpromptdata: &[u8]) -> Result<String, PromptFilesStorageError>;
-    fn load(&self, identifier: &str) -> Result<(String, Vec<u8>), PromptFilesStorageError>;
+    fn store(&mut self, identifier: &str, dotpromptdata: &str) -> Result<String, PromptFilesStorageError>;
+    fn load(&self, identifier: &str) -> Result<(String, String), PromptFilesStorageError>;
 }

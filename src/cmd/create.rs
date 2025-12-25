@@ -49,7 +49,7 @@ pub fn validate_and_write(
 
     match validation_result {
         Ok(dotprompt) => {
-            let path = storage.store(promptname, promptdata.as_bytes())?;
+            let path = storage.store(promptname, &promptdata)?;
             Ok(WriteResult::Validated(dotprompt, path))
         }
         Err(err) => {
@@ -57,7 +57,7 @@ pub fn validate_and_write(
             let mut retries = 0;
 
             if force_write {
-                let path = storage.store(promptname, promptdata.as_bytes())?;
+                let path = storage.store(promptname, &promptdata)?;
                 return Ok(WriteResult::Written(path));
             }
 
@@ -68,7 +68,7 @@ pub fn validate_and_write(
                 inp.read_line(&mut input).unwrap();
                 match input.trim().chars().next() {
                     Some('Y' | 'y') => {
-                        let path = storage.store(promptname, promptdata.as_bytes())?;
+                        let path = storage.store(promptname, &promptdata)?;
                         return Ok(WriteResult::Written(path));
                     },
                     Some('N' | 'n') => {
@@ -217,7 +217,7 @@ Basic Prompt Here: {{message}}
 
         assert_eq!(
             PROMPTFILE_1, 
-            String::from_utf8_lossy(&actual_promptdata)
+            actual_promptdata
         );
     }
 }

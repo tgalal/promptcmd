@@ -61,7 +61,7 @@ pub fn exec(storage: &mut impl PromptFilesStorage, promptname: Option<String>,
     // DotPrompt::try_from(fs::read_to_string(&fullpath)?)?;
     DotPrompt::try_from(contents.as_str())?;
 
-    let path = storage.store(&promptname, contents.as_bytes())?;
+    let path = storage.store(&promptname, &contents)?;
 
     debug!("Imported {promptname} to {path}");
 

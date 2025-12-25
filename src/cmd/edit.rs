@@ -23,7 +23,6 @@ pub fn exec(
 
     if storage.exists(&promptname).is_some() {
         let (path, content) = storage.load(&promptname)?;
-        let content = String::from_utf8_lossy(&content).into_owned();
         let mut edited = content.clone();
         println!("Editing {path}");
         loop {

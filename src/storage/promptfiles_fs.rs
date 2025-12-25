@@ -57,16 +57,16 @@ impl PromptFilesStorage for FileSystemPromptFilesStorage {
         return None;
     }
 
-    fn store(&mut self, identifier: &str, dotpromptdata: &[u8]) -> Result<String, PromptFilesStorageError> {
+    fn store(&mut self, identifier: &str, dotpromptdata: &str) -> Result<String, PromptFilesStorageError> {
         let filepath = self.resolve(identifier);
         fs::write(&filepath, dotpromptdata)?;
 
         Ok(filepath.to_string_lossy().into_owned())
     }
 
-    fn load(&self, identifier: &str) -> Result<(String, Vec<u8>), PromptFilesStorageError> {
+    fn load(&self, identifier: &str) -> Result<(String, String), PromptFilesStorageError> {
         let filepath = self.resolve(identifier);
-        let data = fs::read(&filepath)?;
+        let data = fs::read_to_string(&filepath)?;
 
         Ok((filepath.to_string_lossy().into_owned(), data))
     }

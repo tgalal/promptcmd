@@ -18,9 +18,8 @@ pub fn exec(storage: &impl PromptFilesStorage,  promptname: &str, out: &mut impl
     }
 
     let promptdata = storage.load(promptname)?.1;
-    let printable = String::from_utf8_lossy(&promptdata);
 
-    writeln!(out, "{printable}")?;
+    writeln!(out, "{promptdata}")?;
 
     Ok(())
 }
@@ -34,7 +33,7 @@ mod tests {
     #[test]
     fn test_exec_ok() {
         let mut storage = InMemoryPromptFilesStorage::new();
-        storage.store("aaa", b"bbbb").unwrap();
+        storage.store("aaa", "bbbb").unwrap();
 
         let mut buf = Vec::new();
         cmd::cat::exec(&storage, "aaa", &mut buf).unwrap();

@@ -66,9 +66,8 @@ fn main() -> Result<()> {
         debug!("Promptfile path: {path}");
 
         let (_, promptdata) = prompts_storage.load(&promptname)?;
-        let promptdata_str = String::from_utf8_lossy(&promptdata).into_owned();
 
-        let dotprompt: DotPrompt = DotPrompt::try_from(promptdata_str.as_str())?;
+        let dotprompt: DotPrompt = DotPrompt::try_from(promptdata.as_str())?;
 
         command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;
 

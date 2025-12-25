@@ -94,7 +94,7 @@ fn main() -> Result<()> {
             &mut prompts_storage, &appconfig, cmd),
 
         Commands::Enable(cmd) => cmd::enable::exec(&prompts_storage, &mut installer,  &cmd.promptname),
-        Commands::Disable(cmd) => cmd::disable::exec(&mut installer, cmd),
+        Commands::Disable(cmd) => cmd::disable::exec(&mut installer, &cmd.promptname),
 
         Commands::Create(cmd) => cmd::create::exec(
             &mut handle, &mut stdout,

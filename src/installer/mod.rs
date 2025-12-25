@@ -58,6 +58,7 @@ pub mod tests {
             if !self.installed.contains(name) {
                 Err(UninstallError::NotInstalled(name.to_string()))
             } else {
+                self.installed.remove(name);
                 Ok(name.to_string())
             }
 

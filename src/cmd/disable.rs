@@ -6,19 +6,61 @@ use crate::{installer::DotPromptInstaller};
 #[derive(Parser)]
 pub struct DisableCmd {
     #[arg()]
-    promptname: String,
+    pub promptname: String,
 }
 
 pub fn exec(
     installer: &mut impl DotPromptInstaller,
-    cmd: DisableCmd) -> Result<()> {
+    promptname: &str) -> Result<()> {
 
-    let promptname = cmd.promptname;
-
-    if let Some(path) = installer.is_installed(&promptname) {
-        installer.uninstall(&promptname).context("Failed to uninstalled prompt")?;
+    if let Some(path) = installer.is_installed(promptname) {
+        installer.uninstall(promptname).context("Failed to uninstalled prompt")?;
         println!("Removed {path}");
     } 
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{cmd, installer::{tests::InMemoryInstaller, DotPromptInstaller, InstallError, UninstallError}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
+
+    struct TestState {
+        storage: InMemoryPromptFilesStorage,
+        installer: InMemoryInstaller
+    }
+
+    impl Default for TestState {
+        fn default() -> Self {
+            Self {
+                storage: InMemoryPromptFilesStorage::new(),
+                installer: InMemoryInstaller::default()
+            }
+        }
+    }
+
+    fn setup() -> TestState {
+        TestState::default()
+    }
+
+    #[test]
+    fn test_disable_success() {
+        let mut state = setup();
+
+        state.installer.install("myprompt").unwrap();
+
+        assert!(cmd::disable::exec(&mut state.installer, "myprompt").is_ok());
+        assert!(state.installer.is_installed("myprompt").is_none());
+    }
+
+    #[test]
+    fn test_already_disable() {
+        let mut state = setup();
+
+        assert!(cmd::disable::exec(&mut state.installer, "myprompt").is_ok());
+
+        let result = state.installer.uninstall("myprompt").unwrap_err();
+
+        assert!(matches!(result, UninstallError::NotInstalled(_)));
+    }
 }

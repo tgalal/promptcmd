@@ -25,6 +25,9 @@ pub enum ConfigError {
 
     #[error("Could not find base prompt directory")]
     BasePromptDirNotAvailable,
+
+    #[error("Could not find data directory")]
+    DataDirNotAvailable,
 }
 
 pub fn base_storage_dir() -> Result<PathBuf, ConfigError>  {
@@ -32,6 +35,14 @@ pub fn base_storage_dir() -> Result<PathBuf, ConfigError>  {
         Ok(config_dir.join(APP_NAME))
     } else {
         Err(ConfigError::BaseConfigDirNotAvailable)
+    }
+}
+
+pub fn data_dir() -> Result<PathBuf, ConfigError> {
+    if let Some(data_dir) = dirs::data_dir() {
+        Ok(data_dir.join(APP_NAME))
+    } else {
+        Err(ConfigError::DataDirNotAvailable)
     }
 }
 
@@ -46,9 +57,11 @@ pub fn prompt_storage_dir() -> Result<PathBuf, ConfigError> {
 pub fn bootstrap_directories() -> Result<(), ConfigError> {
     let prompts_install_dir = prompt_install_dir()?;
     let prompts_storage_dir = prompt_storage_dir()?;
+    let data_dir = data_dir()?;
 
     std::fs::create_dir_all(prompts_storage_dir)?;
     std::fs::create_dir_all(prompts_install_dir)?;
+    std::fs::create_dir_all(data_dir)?;
 
-    Ok(()) 
+    Ok(())
 }

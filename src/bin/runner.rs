@@ -1,7 +1,8 @@
 use promptcmd::config::{self, appconfig_locator};
 use promptcmd::config::appconfig::{AppConfig};
 use promptcmd::dotprompt::DotPrompt;
-use promptcmd::cmd::run;
+use promptcmd::cmd::run::{self, RunCmd};
+use promptcmd::stats::rusqlite_store::RusqliteStore;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use clap::{Arg, Command};
 use promptcmd::storage::PromptFilesStorage;
@@ -19,6 +20,10 @@ fn main() -> Result<()> {
         config::prompt_storage_dir()?
     );
 
+    let mut store = RusqliteStore::new(
+        config::data_dir()?
+    )?;
+
     let appconfig = if let Some(appconfig_path) = appconfig_locator::path() {
         debug!("Config Path: {}",appconfig_path.display());
         AppConfig::try_from(
@@ -35,7 +40,7 @@ fn main() -> Result<()> {
         .next()
         .context("Could not figure binary name")?
         .into();
- 
+
     let invoked_binname: String = path
         .file_name()
         .context("Could not get filename")?
@@ -73,7 +78,23 @@ fn main() -> Result<()> {
 
         let matches = command.get_matches();
 
-        run::exec_prompt(&dotprompt, &appconfig, &matches)
+        let runcmd = RunCmd {
+            promptname,
+            dryrun: false,
+            prompt_args: Vec::new()
+        };
+
+        let stdin = std::io::stdin();
+        let mut handle = stdin.lock();
+        let mut stdout = std::io::stdout();
+
+        runcmd.exec_prompt(
+            &mut handle,
+            &mut stdout,
+            &mut store,
+            &dotprompt,
+            &appconfig,
+            &matches)
     } else {
         bail!("Could not find prompt file")
     }

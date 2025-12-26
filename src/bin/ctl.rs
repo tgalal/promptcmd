@@ -2,6 +2,7 @@ use anyhow::Result;
 use promptcmd::cmd;
 use promptcmd::cmd::BasicTextEditor;
 use promptcmd::config::{self, RUNNER_BIN_NAME};
+use promptcmd::stats::rusqlite_store::RusqliteStore;
 use std::env;
 use promptcmd::installer::symlink::SymlinkInstaller;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
@@ -33,13 +34,13 @@ enum Commands {
 
     #[clap(about = "Create a new prompt file", visible_alias = "new")]
     Create(cmd::create::CreateCmd),
- 
+
     #[clap(about = "List commands and prompts", visible_alias = "ls")]
     List(cmd::list::ListCmd),
- 
+
     #[clap(about = "Print promptfile contents")]
     Cat(cmd::cat::CatCmd),
- 
+
     #[clap(about = "Run promptfile")]
     Run(cmd::run::RunCmd),
 
@@ -54,6 +55,10 @@ fn main() -> Result<()> {
     let mut prompts_storage = FileSystemPromptFilesStorage::new(
         config::prompt_storage_dir()?
     );
+
+    let mut store = RusqliteStore::new(
+        config::data_dir()?
+    )?;
 
     let target_bin = env::current_exe()
         .context("Could not determine current bin")?
@@ -112,11 +117,16 @@ fn main() -> Result<()> {
             &prompts_storage,
             &mut std::io::stdout()),
 
-        Commands::Run(cmd) => cmd::run::exec(&prompts_storage, &cmd.promptname, cmd.dryrun, cmd.prompt_args),
+        Commands::Run(cmd) => cmd.exec(
+            &mut handle,
+            &mut stdout,
+            &mut store,
+            &prompts_storage
+        ),
 
         Commands::Import(cmd) => cmd.exec(
             &mut prompts_storage,
-            &mut installer, 
+            &mut installer,
         )
     }
 }

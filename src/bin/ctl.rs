@@ -114,13 +114,9 @@ fn main() -> Result<()> {
 
         Commands::Run(cmd) => cmd::run::exec(&prompts_storage, &cmd.promptname, cmd.dryrun, cmd.prompt_args),
 
-        Commands::Import(cmd) => cmd::import::exec(
+        Commands::Import(cmd) => cmd.exec(
             &mut prompts_storage,
             &mut installer, 
-            cmd.promptname,
-            cmd.promptfile,
-            cmd.enable,
-            cmd.force,
         )
     }
 }

@@ -46,6 +46,9 @@ enum Commands {
 
     #[clap(about = "Import promptfile")]
     Import(cmd::import::ImportCmd),
+
+    #[clap(about = "Print statistics")]
+    Stats(cmd::stats::StatsCmd),
 }
 
 fn main() -> Result<()> {
@@ -127,6 +130,10 @@ fn main() -> Result<()> {
         Commands::Import(cmd) => cmd.exec(
             &mut prompts_storage,
             &mut installer,
+        ),
+
+        Commands::Stats(cmd) => cmd.exec(
+            &store
         )
     }
 }

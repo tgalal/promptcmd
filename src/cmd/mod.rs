@@ -6,6 +6,8 @@ pub mod list;
 pub mod cat;
 pub mod run;
 pub mod import;
+pub mod stats;
+
 mod templates;
 
 use thiserror::Error;

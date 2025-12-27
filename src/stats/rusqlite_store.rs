@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use rusqlite::Connection;
 use thiserror::Error;
 
-use crate::stats::{store::{FetchError, LogError, LogRecord, StatsStore}, DB_NAME};
+use crate::stats::{store::{FetchError, LogError, LogRecord, StatsStore, SummaryItem}, DB_NAME};
 
 pub struct RusqliteStore {
     conn: Connection
@@ -113,7 +113,35 @@ impl StatsStore for RusqliteStore {
 
         let result: Vec<LogRecord> = records.filter_map(Result::ok).collect();
         Ok(result)
-        // let result = records.collect();
-        // result
+    }
+
+    fn summary(&self) -> Result<Vec<SummaryItem>, FetchError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT
+                provider,
+                model,
+                COUNT(*),
+                SUM(prompt_tokens),
+                SUM(completion_tokens)
+            FROM logs
+            GROUP BY provider, model
+            ORDER BY provider, model
+        ").map_err(|err| FetchError::GeneralError(err.to_string()))?;
+
+        let records = stmt.query_map([], |row| {
+            Ok(
+                SummaryItem {
+                    provider: row.get(0)?,
+                    model: row.get(1)?,
+                    count: row.get(2)?,
+                    prompt_tokens: row.get(3)?,
+                    completion_tokens: row.get(4)?,
+                }
+            )
+        }).map_err(|err| FetchError::GeneralError(err.to_string()))?;
+
+        let result: Vec<SummaryItem> = records.filter_map(Result::ok).collect();
+
+        Ok(result)
     }
 }

@@ -1,13 +1,22 @@
 pub mod args;
 pub mod render;
+use thiserror::Error;
 
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap};
 use std::convert::TryFrom;
-use std::error::Error;
-use std::fmt;
 use anyhow::{Context, Result};
 use serde_json::json;
+
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error("Frontmatter is required but not be found")]
+    MissingFrontmatter,
+    #[error("A template is required but not be found")]
+    MissingTemplate,
+    #[error("Error parsing frontmatter")]
+    ParseFrontMatterError(#[from] serde_yaml::Error)
+}
 
 pub struct ModelInfo {
     pub model_name: String,
@@ -28,7 +37,7 @@ pub struct SchemaElement {
     pub description: String,
     pub required: bool,
     pub positional: bool
-} 
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Input {
@@ -47,19 +56,9 @@ pub struct DotPrompt {
     pub template: String
 }
 
-#[derive(Debug)]
-pub struct ParseDotPromptError(pub String);
-
-impl fmt::Display for ParseDotPromptError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ParseDotPromptError: {}", self.0)
-    }
-}
-
-impl Error for ParseDotPromptError {}
 
 impl TryFrom<&str> for DotPrompt {
-    type Error = ParseDotPromptError;
+    type Error = ParseError;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         // Skip all lines starting with '#'
@@ -75,9 +74,7 @@ impl TryFrom<&str> for DotPrompt {
 
         // Expect frontmatter to start with `---`
         if !s.starts_with("---") {
-            return Err(ParseDotPromptError(
-                "input must start with frontmatter delimiter `---`".into(),
-            ));
+            return Err(ParseError::MissingFrontmatter);
         }
 
         // Split into at most 3 parts: before first ---, frontmatter, rest.
@@ -89,18 +86,17 @@ impl TryFrom<&str> for DotPrompt {
 
         let fm_str = parts
             .next()
-            .ok_or_else(|| ParseDotPromptError("missing frontmatter block".into()))?
+            .ok_or(ParseError::MissingFrontmatter)?
             .trim();
 
         let template = parts
             .next()
-            .ok_or_else(|| ParseDotPromptError("missing template after frontmatter".into()))?
+            .ok_or(ParseError::MissingTemplate)?
             .trim()
             .to_string();
 
         // Now parse the frontmatter YAML into the typed struct
-        let fm: Frontmatter = serde_yaml::from_str(fm_str)
-            .map_err(|e| ParseDotPromptError(format!("invalid YAML frontmatter: {e}")))?;
+        let fm: Frontmatter = serde_yaml::from_str(fm_str)?;
 
         Ok(DotPrompt {
             frontmatter: fm,
@@ -317,7 +313,9 @@ output:
         assert!(result.is_err(), "Should fail without frontmatter delimiter");
 
         if let Err(e) = result {
-            assert!(e.0.contains("frontmatter delimiter"));
+            assert!(matches!(
+              e, ParseError::MissingFrontmatter
+            ));
         }
     }
 
@@ -335,7 +333,9 @@ Template"#;
         assert!(result.is_err(), "Should fail on invalid YAML");
 
         if let Err(e) = result {
-            assert!(e.0.contains("invalid YAML"));
+            assert!(matches!(
+              e, ParseError::ParseFrontMatterError(_)
+            ));
         }
     }
 

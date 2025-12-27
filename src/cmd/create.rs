@@ -6,7 +6,6 @@ use crate::cmd::enable::EnableCmd;
 use crate::cmd::{templates, TextEditor};
 use crate::config::appconfig::AppConfig;
 use crate::config::providers::{ProviderVariant};
-use crate::dotprompt::ParseDotPromptError;
 use crate::installer::DotPromptInstaller;
 use crate::storage::PromptFilesStorage;
 use crate::{dotprompt::DotPrompt};
@@ -115,13 +114,13 @@ pub fn validate_and_write(
         Ok(dotprompt) => {
             let provider = &dotprompt.model_info()?.provider;
             if let ProviderVariant::None = appconfig.providers.resolve(provider) {
-                Err(ParseDotPromptError(format!("Provider {} is unsupported", provider)))
+                Err(format!("Provider {} is unsupported", provider))
             } else {
                 Ok(dotprompt)
             }
         },
         Err(err) => {
-            Err(err)
+            Err(err.to_string())
         }
     };
 
@@ -202,7 +201,7 @@ Basic Prompt Here: {{message}}
     // - Forced Write
     // - Re-edit
     // - Abort
-    
+
     #[derive(Default)]
     struct TestingTextEditor {
         user_input: String
@@ -264,7 +263,7 @@ Basic Prompt Here: {{message}}
 
         // Provided prompt data should be stored as is
         assert_eq!(
-            PROMPTFILE_BASIC_VALID, 
+            PROMPTFILE_BASIC_VALID,
             actual_promptdata
         );
 
@@ -296,7 +295,7 @@ Basic Prompt Here: {{message}}
 
         // Provided prompt data should be stored as is
         assert_eq!(
-            PROMPTFILE_BASIC_VALID, 
+            PROMPTFILE_BASIC_VALID,
             actual_promptdata
         );
 
@@ -353,7 +352,7 @@ Basic Prompt Here: {{message}}
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
 
         assert_eq!(
-            PROMPTFILE_INVALID_MODEL, 
+            PROMPTFILE_INVALID_MODEL,
             actual_promptdata
         );
 
@@ -385,7 +384,7 @@ Basic Prompt Here: {{message}}
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
 
         assert_eq!(
-            PROMPTFILE_INVALID_MODEL, 
+            PROMPTFILE_INVALID_MODEL,
             actual_promptdata
         );
 

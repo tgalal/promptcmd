@@ -1,10 +1,10 @@
 use clap::{Parser};
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use std::io::{self, Write};
 
 use crate::cmd::enable::EnableCmd;
 use crate::cmd::{templates, TextEditor};
-use crate::config::appconfig::AppConfig;
+use crate::config::appconfig::{AppConfig, ModelError};
 use crate::config::providers::{ProviderVariant};
 use crate::installer::DotPromptInstaller;
 use crate::storage::PromptFilesStorage;
@@ -61,27 +61,42 @@ impl CreateCmd {
                         }.exec(storage, installer)?;
                     }
 
-                    let resolved_name =
-                        appconfig.resolve_model_name(&dotprompt.frontmatter.model,
-                        false)?;
+                    let model_name = dotprompt.frontmatter.model.or( appconfig.providers.default.clone());
 
-                    match appconfig.providers.resolve(&resolved_name[0].provider) {
-                        ProviderVariant::Anthropic(conf) => {
-                            if conf.api_key(&appconfig.providers).is_none() {
-                                writeln!(out, "{}", templates::ONBOARDING_ANTHROPIC)?;
+                    if let Some(model_name) = model_name {
+                        let resolved_name = appconfig.resolve_model_name(&model_name, true);
+                        if let Ok(resolved_name) = resolved_name {
+                            match appconfig.providers.resolve(&resolved_name[0].provider) {
+                                ProviderVariant::Anthropic(conf) => {
+                                    if conf.api_key(&appconfig.providers).is_none() {
+                                        writeln!(out, "{}", templates::ONBOARDING_ANTHROPIC)?;
+                                    }
+                                },
+                                ProviderVariant::OpenAi(conf) => {
+                                    if conf.api_key(&appconfig.providers).is_none() {
+                                        writeln!(out, "{}", templates::ONBOARDING_OPENAI)?;
+                                    }
+                                },
+                                ProviderVariant::Google(conf) => {
+                                    if conf.api_key(&appconfig.providers).is_none() {
+                                        writeln!(out, "{}", templates::ONBOARDING_GOOGLE)?;
+                                    }
+                                },
+                                _ => {
+                                    writeln!(out, "Warning: No configuration can be found for {model_name} ")?;
+                                }
                             }
-                        },
-                        ProviderVariant::OpenAi(conf) => {
-                            if conf.api_key(&appconfig.providers).is_none() {
-                                writeln!(out, "{}", templates::ONBOARDING_OPENAI)?;
+                        } else if let Err(ModelError::NoDefaultModelConfigured(provider_name)) = resolved_name {
+                            if model_name != provider_name {
+                                writeln!(out, "Warning: {} resolves to {}, but no default_model has been configured for it", &model_name, &provider_name)?;
+                            } else {
+                                writeln!(out, "Warning: no default_model configured for {provider_name}")?;
                             }
-                        },
-                        ProviderVariant::Google(conf) => {
-                            if conf.api_key(&appconfig.providers).is_none() {
-                                writeln!(out, "{}", templates::ONBOARDING_GOOGLE)?;
-                            }
-                        },
-                        _ => {}
+                        } else {
+                            writeln!(out, "Warning: No configuration can be found for {model_name} ")?;
+                        }
+                    } else {
+                        writeln!(out, "Warning: No model specified and there is no default one set in config.")?;
                     }
                     break;
                 }

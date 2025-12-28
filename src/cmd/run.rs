@@ -69,7 +69,11 @@ impl RunCmd {
 
         debug!("{output}");
 
-        let resolved_model_name = appconfig.resolve_model_name(&dotprompt.frontmatter.model, true)?;
+        let resolved_model_name =
+            appconfig.resolve_model_name(
+            &dotprompt.frontmatter.model.clone().or(
+                appconfig.providers.default.clone()
+            ).context("No model specified and no default models set in config")?, true)?;
 
         let (provider, model) = (&resolved_model_name[0].provider, &resolved_model_name[0].model);
 

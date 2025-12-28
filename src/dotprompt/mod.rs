@@ -20,7 +20,7 @@ pub enum ParseError {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Frontmatter {
-    pub model: String,
+    pub model: Option<String>,
     pub input: Option<Input>,
     pub output: Option<Output>
 }
@@ -263,7 +263,7 @@ Translate this: {{message}}"#;
         assert!(result.is_ok(), "Should parse valid dotprompt");
 
         let dotprompt = result.unwrap();
-        assert_eq!(dotprompt.frontmatter.model, "anthropic/claude-3-5-sonnet-20241022");
+        assert_eq!(dotprompt.frontmatter.model.unwrap(), "anthropic/claude-3-5-sonnet-20241022");
         assert_eq!(dotprompt.template, "Translate this: {{message}}");
         assert_eq!(dotprompt.frontmatter.output.unwrap().format, "text");
     }
@@ -287,7 +287,7 @@ Query: {{query}}"#;
         assert!(result.is_ok(), "Should skip comments and parse successfully");
 
         let dotprompt = result.unwrap();
-        assert_eq!(dotprompt.frontmatter.model, "ollama/llama3");
+        assert_eq!(dotprompt.frontmatter.model.unwrap(), "ollama/llama3");
     }
 
     #[test]

@@ -10,7 +10,7 @@ pub struct AnthropicProviders {
 
     #[serde(flatten)]
     pub config: AnthropicConfig,
-    
+
     #[serde(flatten)]
     pub named: std::collections::HashMap<String, AnthropicConfig>,
 }
@@ -21,6 +21,7 @@ pub struct AnthropicConfig {
     system: Option<String>,
     stream: Option<bool>,
     max_tokens: Option<u32>,
+    default_model: Option<String>,
 
     api_key: Option<String>
 }
@@ -33,6 +34,16 @@ impl AnthropicConfig {
         } else if let Some(ref api_key) = providers.anthropic.config.api_key {
             Some(api_key.to_string())
         }  else {
+            None
+        }
+    }
+
+    pub fn default_model(&self, providers: &providers::Providers) -> Option<String> {
+        if let Some(ref default_model) = self.default_model {
+            Some(default_model.to_string())
+        } else if let Some(ref default_model) = providers.anthropic.config.default_model {
+            Some(default_model.to_string())
+        } else {
             None
         }
     }
@@ -77,7 +88,7 @@ impl ToLLMProvider for AnthropicConfig {
                 .max_tokens(self.max_tokens(providers))
                 .stream(self.stream(providers))
                 .temperature(self.temperature(providers));
-            
+
         Ok(builder.build()?)
     }
 }

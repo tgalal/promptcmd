@@ -5,7 +5,7 @@ use thiserror::Error;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap};
 use std::convert::TryFrom;
-use anyhow::{Context, Result};
+use anyhow::{Result};
 use serde_json::json;
 
 #[derive(Debug, Error)]
@@ -16,11 +16,6 @@ pub enum ParseError {
     MissingTemplate,
     #[error("Error parsing frontmatter")]
     ParseFrontMatterError(#[from] serde_yaml::Error)
-}
-
-pub struct ModelInfo {
-    pub model_name: String,
-    pub provider: String
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -108,14 +103,6 @@ impl TryFrom<&str> for DotPrompt {
 impl DotPrompt {
     pub fn template_needs_stdin(&self) -> bool {
         self.template.contains("{{STDIN}}")
-    }
-
-    pub fn model_info(&self) -> Result<ModelInfo> {
-        let dissected = self.frontmatter.model.split_once("/").context("Improper model format")?;
-        Ok(ModelInfo {
-            model_name: dissected.1.to_string(),
-            provider: dissected.0.to_string()
-        })
     }
 
     pub fn output_format(&self) -> String {
@@ -525,39 +512,6 @@ No stdin needed"#;
 
         let dotprompt = DotPrompt::try_from(content).unwrap();
         assert!(!dotprompt.template_needs_stdin());
-    }
-
-    #[test]
-    fn test_model_info_parsing() {
-        let content = r#"---
-model: anthropic/claude-3-5-sonnet-20241022
-output:
-  format: text
----
-Template"#;
-
-        let dotprompt = DotPrompt::try_from(content).unwrap();
-        let model_info = dotprompt.model_info();
-
-        assert!(model_info.is_ok());
-        let info = model_info.unwrap();
-        assert_eq!(info.provider, "anthropic");
-        assert_eq!(info.model_name, "claude-3-5-sonnet-20241022");
-    }
-
-    #[test]
-    fn test_model_info_invalid_format() {
-        let content = r#"---
-model: invalid-model-format
-output:
-  format: text
----
-Template"#;
-
-        let dotprompt = DotPrompt::try_from(content).unwrap();
-        let model_info = dotprompt.model_info();
-
-        assert!(model_info.is_err(), "Should fail on invalid model format");
     }
 
     #[test]

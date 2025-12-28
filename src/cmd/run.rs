@@ -69,12 +69,14 @@ impl RunCmd {
 
         debug!("{output}");
 
-        let model_info = dotprompt.model_info().context("Failed to parse model")?;
+        let resolved_model_name = appconfig.resolve_model_name(&dotprompt.frontmatter.model, true)?;
 
-        debug!("Model Provider: {}, Model Name: {}", &model_info.provider, &model_info.model_name);
+        let (provider, model) = (&resolved_model_name[0].provider, &resolved_model_name[0].model);
+
+        debug!("Model Provider: {}, Model Name: {}", provider, model);
 
         let mut llmbuilder= LLMBuilder::new()
-            .model(&model_info.model_name);
+            .model(model);
 
         if dotprompt.output_format() == "json" {
             let output_schema: StructuredOutputFormat = serde_json::from_str(
@@ -82,14 +84,14 @@ impl RunCmd {
             llmbuilder = llmbuilder.schema(output_schema);
         }
 
-        let provider_config: &dyn ToLLMProvider =  match appconfig.providers.resolve(&model_info.provider) {
+        let provider_config: &dyn ToLLMProvider =  match appconfig.providers.resolve(provider) {
             providers::ProviderVariant::Ollama(conf) => conf,
             providers::ProviderVariant::Anthropic(conf) => conf,
             providers::ProviderVariant::Google(conf) => conf,
             providers::ProviderVariant::OpenAi(conf) => conf,
             providers::ProviderVariant::OpenRouter(conf) => conf,
             providers::ProviderVariant::None => {
-                bail!("No configuration found for the selected provider: {}", model_info.provider);
+                bail!("No configuration found for the selected provider: {}", provider);
             }
         };
 
@@ -126,8 +128,8 @@ impl RunCmd {
         let log_result = store.log(
             LogRecord {
                 promptname: self.promptname.clone(),
-                provider: model_info.provider.clone(),
-                model: model_info.model_name.clone(),
+                provider: provider.to_string(),
+                model: model.to_string(),
                 prompt_tokens,
                 completion_tokens,
                 result: response_text,

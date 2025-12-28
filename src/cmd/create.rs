@@ -48,7 +48,7 @@ impl CreateCmd {
         loop {
             edited = editor.edit(&edited)?;
 
-            match validate_and_write(inp, storage, appconfig, &self.promptname, edited.as_str(), self.force)? {
+            match validate_and_write(inp, storage, &self.promptname, edited.as_str(), self.force)? {
                 // Validated means written without errors.
                 // In this case:
                 // - we also enable it (if `enable`` is true)
@@ -61,8 +61,11 @@ impl CreateCmd {
                         }.exec(storage, installer)?;
                     }
 
-                    let model_info = dotprompt.model_info()?;
-                    match appconfig.providers.resolve(&model_info.provider) {
+                    let resolved_name =
+                        appconfig.resolve_model_name(&dotprompt.frontmatter.model,
+                        false)?;
+
+                    match appconfig.providers.resolve(&resolved_name[0].provider) {
                         ProviderVariant::Anthropic(conf) => {
                             if conf.api_key(&appconfig.providers).is_none() {
                                 writeln!(out, "{}", templates::ONBOARDING_ANTHROPIC)?;
@@ -107,17 +110,12 @@ impl CreateCmd {
 
 pub fn validate_and_write(
     inp: &mut impl std::io::BufRead,
-    storage: &mut impl PromptFilesStorage, appconfig: &AppConfig,
+    storage: &mut impl PromptFilesStorage,
     promptname: &str, promptdata: &str, force_write: bool) -> Result<WriteResult> {
 
     let validation_result = match DotPrompt::try_from(promptdata) {
         Ok(dotprompt) => {
-            let provider = &dotprompt.model_info()?.provider;
-            if let ProviderVariant::None = appconfig.providers.resolve(provider) {
-                Err(format!("Provider {} is unsupported", provider))
-            } else {
-                Ok(dotprompt)
-            }
+            Ok(dotprompt)
         },
         Err(err) => {
             Err(err.to_string())
@@ -300,32 +298,6 @@ Basic Prompt Here: {{message}}
         );
 
         // And should not be enabled (enable is false)
-        assert!(state.installer.is_installed(promptname).is_none());
-    }
-
-    #[test]
-    fn test_invalid_provider_nosave() {
-        let mut state = setup(b"N\n");
-        state.editor.set_user_input(PROMPTFILE_INVALID_MODEL);
-
-        let promptname = "translate";
-
-        CreateCmd {
-            promptname: String::from(promptname),
-            enable: false,
-            force: false
-        }.exec(
-            &mut &state.inp[..],
-            &mut state.out,
-            &mut state.storage,
-            &mut state.installer,
-            &state.editor,
-            &state.config,
-        ).unwrap();
-
-        assert!(state.storage.load(promptname).is_err());
-
-        // And should not be enabled
         assert!(state.installer.is_installed(promptname).is_none());
     }
 

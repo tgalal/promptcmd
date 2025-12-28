@@ -6,7 +6,7 @@ use crate::config::providers::{self, ProviderError, ToLLMProvider};
 pub struct OllamaProviders {
     #[serde(flatten)]
     pub config: OllamaConfig,
-    
+
     #[serde(flatten)]
     pub named: std::collections::HashMap<String, OllamaConfig>,
 }
@@ -17,6 +17,7 @@ pub struct OllamaConfig {
     system: Option<String>,
     stream: Option<bool>,
     max_tokens: Option<u32>,
+    default_model: Option<String>,
 
     #[serde(default)]
     endpoint: Option<String>
@@ -30,6 +31,16 @@ impl OllamaConfig {
             Ok(endpoint.to_string())
         } else {
             Err(ProviderError::MissingRequiredConfiguration { name: String::from("endpoint") })
+        }
+    }
+
+    pub fn default_model(&self, providers: &providers::Providers) -> Option<String> {
+        if let Some(ref default_model) = self.default_model {
+            Some(default_model.to_string())
+        } else if let Some(ref default_model) = providers.ollama.config.default_model {
+            Some(default_model.to_string())
+        } else {
+            None
         }
     }
 
@@ -68,7 +79,7 @@ impl ToLLMProvider for OllamaConfig {
                 .max_tokens(self.max_tokens(providers))
                 .stream(self.stream(providers))
                 .temperature(self.temperature(providers));
-            
+
         Ok(builder.build()?)
     }
 }

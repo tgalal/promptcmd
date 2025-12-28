@@ -42,16 +42,17 @@ pub struct Providers {
     pub temperature: Option<f32>,
     pub stream: Option<bool>,
     pub max_tokens: Option<u32>,
+    pub default: Option<String>,
 
     #[serde(default)]
     pub ollama: ollama::OllamaProviders,
 
     #[serde(default)]
     pub openai: openai::OpenAIProviders,
- 
+
     #[serde(default)]
     pub anthropic: anthropic::AnthropicProviders,
- 
+
     #[serde(default)]
     pub google: google::GoogleProviders,
 
@@ -74,6 +75,7 @@ impl Default for Providers {
             temperature: Some(DEFAULT_TEMPERATURE),
             stream: Some(DEFAULT_STREAM),
             max_tokens: Some(DEFAULT_MAX_TOKENS),
+            default: None,
             ollama: OllamaProviders::default(),
             openai: OpenAIProviders::default(),
             anthropic: AnthropicProviders::default(),

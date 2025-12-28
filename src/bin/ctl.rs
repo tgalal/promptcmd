@@ -49,6 +49,9 @@ enum Commands {
 
     #[clap(about = "Print statistics")]
     Stats(cmd::stats::StatsCmd),
+
+    #[clap(about = "Resolve model name")]
+    ResolveModel(cmd::resolve_model::ResolveModelCmd),
 }
 
 fn main() -> Result<()> {
@@ -95,8 +98,7 @@ fn main() -> Result<()> {
             &mut handle,
             &mut stdout,
             &mut prompts_storage,
-            &editor,
-            &appconfig),
+            &editor,),
 
         Commands::Enable(cmd) => cmd.exec(
             &prompts_storage,
@@ -134,6 +136,11 @@ fn main() -> Result<()> {
 
         Commands::Stats(cmd) => cmd.exec(
             &store
-        )
+        ),
+
+        Commands::ResolveModel(cmd) => cmd.exec(
+            &appconfig,
+            &mut stdout
+        ),
     }
 }

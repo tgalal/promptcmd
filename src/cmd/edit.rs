@@ -3,7 +3,6 @@ use anyhow::{bail, Result};
 
 use crate::cmd::create::{validate_and_write, WriteResult};
 use crate::cmd::TextEditor;
-use crate::config::appconfig::AppConfig;
 use crate::storage::PromptFilesStorage;
 
 #[derive(Parser)]
@@ -21,8 +20,7 @@ impl EditCmd {
         inp: &mut impl std::io::BufRead,
         out: &mut impl std::io::Write,
         storage: &mut impl PromptFilesStorage,
-        editor: &impl TextEditor,
-        appconfig: &AppConfig) -> Result<()> {
+        editor: &impl TextEditor) -> Result<()> {
 
         let promptname = &self.promptname;
 
@@ -35,7 +33,7 @@ impl EditCmd {
                 if content != edited {
                     match validate_and_write(
                         inp,
-                        storage, appconfig, promptname,
+                        storage, promptname,
                         edited.as_str(), self.force)? {
 
                         WriteResult::Validated(_, path) | WriteResult::Written(path)=> {
@@ -152,14 +150,13 @@ Basic Prompt Here: {{message}}
             &mut std::io::stderr(),
             &mut state.storage,
             &state.editor,
-            &state.config,
             ).unwrap();
 
         let actual_promptdata = state.storage.load(&promptname).unwrap().1;
 
         // Provided prompt data should be stored as is
         assert_eq!(
-            PROMPTFILE_BASIC_VALID_1, 
+            PROMPTFILE_BASIC_VALID_1,
             actual_promptdata);
     }
 
@@ -176,7 +173,6 @@ Basic Prompt Here: {{message}}
             &mut std::io::stderr(),
             &mut state.storage,
             &state.editor,
-            &state.config,
         ).unwrap_err();
 
         state.storage.load(&promptname).unwrap_err();
@@ -198,42 +194,15 @@ Basic Prompt Here: {{message}}
             &mut std::io::stderr(),
             &mut state.storage,
             &state.editor,
-            &state.config,
         ).unwrap();
 
         let actual_promptdata = state.storage.load(&promptname).unwrap().1;
 
         // Provided prompt data should be stored as is
         assert_eq!(
-            PROMPTFILE_BASIC_VALID_2, 
+            PROMPTFILE_BASIC_VALID_2,
             actual_promptdata
         );
-    }
-
-    #[test]
-    fn test_invalid_provider_nosave() {
-        let mut state = setup(b"N\n");
-        let promptname = String::from("myprompt");
-
-        state.storage.store(&promptname, PROMPTFILE_BASIC_VALID_1).unwrap();
-        state.editor.set_user_input(PROMPTFILE_INVALID_MODEL);
-
-        EditCmd {
-            force: false,
-            promptname: promptname.clone()
-        }.exec(
-            &mut &state.inp[..],
-            &mut std::io::stderr(),
-            &mut state.storage,
-            &state.editor,
-            &state.config,
-        ).unwrap();
-
-        assert_eq!(
-            state.storage.load(&promptname).unwrap().1,
-            PROMPTFILE_BASIC_VALID_1
-        );
-
     }
 
     #[test]
@@ -252,7 +221,6 @@ Basic Prompt Here: {{message}}
             &mut std::io::stderr(),
             &mut state.storage,
             &state.editor,
-            &state.config,
         ).unwrap();
 
         assert_eq!(
@@ -277,7 +245,6 @@ Basic Prompt Here: {{message}}
             &mut std::io::stderr(),
             &mut state.storage,
             &state.editor,
-            &state.config,
         ).unwrap();
 
         assert_eq!(

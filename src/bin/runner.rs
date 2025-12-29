@@ -2,6 +2,7 @@ use promptcmd::config::{self, appconfig_locator};
 use promptcmd::config::appconfig::{AppConfig};
 use promptcmd::dotprompt::DotPrompt;
 use promptcmd::cmd::run::{self, RunCmd};
+use promptcmd::lb::weighted_lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::RusqliteStore;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use clap::{Arg, Command};
@@ -32,6 +33,8 @@ fn main() -> Result<()> {
     } else {
         AppConfig::default()
     };
+
+    let lb = WeightedLoadBalancer {};
 
     // Find the executable name directly from args.
     let mut args = env::args();
@@ -94,6 +97,7 @@ fn main() -> Result<()> {
             &mut store,
             &dotprompt,
             &appconfig,
+            &lb,
             &matches)
     } else {
         bail!("Could not find prompt file")

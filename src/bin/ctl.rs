@@ -2,6 +2,7 @@ use anyhow::Result;
 use promptcmd::cmd;
 use promptcmd::cmd::BasicTextEditor;
 use promptcmd::config::{self, RUNNER_BIN_NAME};
+use promptcmd::lb::weighted_lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::RusqliteStore;
 use std::env;
 use promptcmd::installer::symlink::SymlinkInstaller;
@@ -92,6 +93,7 @@ fn main() -> Result<()> {
     let stdin = std::io::stdin();
     let mut handle = stdin.lock();
     let mut stdout = std::io::stdout();
+    let lb = WeightedLoadBalancer {};
 
     match cli.command {
         Commands::Edit(cmd) => cmd.exec(
@@ -126,7 +128,8 @@ fn main() -> Result<()> {
             &mut handle,
             &mut stdout,
             &mut store,
-            &prompts_storage
+            &prompts_storage,
+            &lb
         ),
 
         Commands::Import(cmd) => cmd.exec(

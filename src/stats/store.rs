@@ -36,13 +36,14 @@ pub struct LogRecord {
 pub struct SummaryItem {
     pub provider: String,
     pub model: String,
-    pub count: i32,
-    pub prompt_tokens: i32,
-    pub completion_tokens: i32
+    pub count: u32,
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub tps: u32
 }
 
 pub trait StatsStore {
     fn log(&self, item: LogRecord) -> Result<(), LogError>;
     fn all(&self) -> Result<Vec<LogRecord>, FetchError>;
-    fn summary(&self) -> Result<Vec<SummaryItem>, FetchError>;
+    fn summary(&self, provider: Option<String>, model: Option<String>) -> Result<Vec<SummaryItem>, FetchError>;
 }

@@ -83,17 +83,17 @@ impl CreateCmd {
                                     }
                                 },
                                 _ => {
-                                    writeln!(out, "Warning: No configuration can be found for {model_name} ")?;
+                                    writeln!(out, "Warning: No configuration can be found for '{model_name}'")?;
                                 }
                             }
                         } else if let Err(ModelError::NoDefaultModelConfigured(provider_name)) = resolved_name {
                             if model_name != provider_name {
-                                writeln!(out, "Warning: {} resolves to {}, but no default_model has been configured for it", &model_name, &provider_name)?;
+                                writeln!(out, "Warning: '{}' resolves to '{}', but no default_model has been configured for it", &model_name, &provider_name)?;
                             } else {
-                                writeln!(out, "Warning: no default_model configured for {provider_name}")?;
+                                writeln!(out, "Warning: no default_model configured for '{provider_name}'")?;
                             }
                         } else {
-                            writeln!(out, "Warning: No configuration can be found for {model_name} ")?;
+                            writeln!(out, "Warning: No configuration can be found for '{model_name}'")?;
                         }
                     } else {
                         writeln!(out, "Warning: No model specified and there is no default one set in config.")?;

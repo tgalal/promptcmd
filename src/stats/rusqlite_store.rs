@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rusqlite::Connection;
+use rusqlite::{params_from_iter, Connection};
 use thiserror::Error;
 
 use crate::stats::{store::{FetchError, LogError, LogRecord, StatsStore, SummaryItem}, DB_NAME};
@@ -115,20 +115,34 @@ impl StatsStore for RusqliteStore {
         Ok(result)
     }
 
-    fn summary(&self) -> Result<Vec<SummaryItem>, FetchError> {
-        let mut stmt = self.conn.prepare(
+    fn summary(&self, provider: Option<String>, model: Option<String>) -> Result<Vec<SummaryItem>, FetchError> {
+        let mut sql = String::from(
             "SELECT
                 provider,
                 model,
                 COUNT(*),
                 SUM(prompt_tokens),
-                SUM(completion_tokens)
-            FROM logs
-            GROUP BY provider, model
-            ORDER BY provider, model
-        ").map_err(|err| FetchError::GeneralError(err.to_string()))?;
+                SUM(completion_tokens),
+                COALESCE(SUM(completion_tokens) * 1.0 / SUM(time_taken), 0)
+            FROM logs WHERE 1=1");
+        let mut params: Vec<String> = Vec::new();
 
-        let records = stmt.query_map([], |row| {
+        if let Some(provider) = provider {
+            sql.push_str(" AND provider = ?");
+            params.push(provider);
+        }
+
+        if let Some(model) = model {
+            sql.push_str(" AND model = ?");
+            params.push(model);
+        }
+
+        sql.push_str(" GROUP BY provider, model ORDER BY provider, model");
+
+        let mut stmt = self.conn.prepare(&sql)
+            .map_err(|err| FetchError::GeneralError(err.to_string()))?;
+
+        let records = stmt.query_map(params_from_iter(params.iter()), |row| {
             Ok(
                 SummaryItem {
                     provider: row.get(0)?,
@@ -136,12 +150,16 @@ impl StatsStore for RusqliteStore {
                     count: row.get(2)?,
                     prompt_tokens: row.get(3)?,
                     completion_tokens: row.get(4)?,
+                    tps: row.get::<_, f64>(5)? as u32
                 }
             )
         }).map_err(|err| FetchError::GeneralError(err.to_string()))?;
 
-        let result: Vec<SummaryItem> = records.filter_map(Result::ok).collect();
+        //let result: Vec<SummaryItem> = records.filter_map(Result::ok).collect();
+        let result: Result<Vec<_>, _> = records.collect();
 
-        Ok(result)
+        result.map_err(|err| FetchError::GeneralError(err.to_string()))
+
     }
+
 }

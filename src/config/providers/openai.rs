@@ -1,4 +1,5 @@
 use llm::builder::LLMBuilder;
+use log::debug;
 use serde::{Serialize, Deserialize};
 use crate::config::providers::{self, ProviderError, ToLLMProvider};
 
@@ -35,6 +36,16 @@ impl OpenAIConfig {
             Some(api_key.to_string())
         }  else {
             None
+        }
+    }
+
+    pub fn system(&self, providers: &providers::Providers) -> Option<String> {
+        if let Some(ref system) = self.system {
+            Some(system.to_string())
+        } else if let Some(ref system) = providers.openai.config.system {
+            Some(system.to_string())
+        } else {
+            providers.system.clone()
         }
     }
 
@@ -106,6 +117,14 @@ impl ToLLMProvider for OpenAIConfig {
                     builder = builder.api_key("none");
                 }
             };
+
+            if let Some(system) = self.system(providers) {
+                if system.len() > 70 {
+                    debug!("System message: {}...", &system[..75]);
+                } else {
+                    debug!("System message: {}", &system);
+                }
+            }
 
             Ok(builder.build()?)
     }

@@ -4,6 +4,7 @@ use serde::Serialize;
 
 use crate::config::providers::ProviderError;
 use crate::config::providers::{self, ToLLMProvider};
+use log::debug;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AnthropicProviders {
@@ -35,6 +36,16 @@ impl AnthropicConfig {
             Some(api_key.to_string())
         }  else {
             None
+        }
+    }
+
+    pub fn system(&self, providers: &providers::Providers) -> Option<String> {
+        if let Some(ref system) = self.system {
+            Some(system.to_string())
+        } else if let Some(ref system) = providers.anthropic.config.system {
+            Some(system.to_string())
+        } else {
+            providers.system.clone()
         }
     }
 
@@ -83,11 +94,21 @@ impl ToLLMProvider for AnthropicConfig {
                 return Err(ProviderError::ConfigurationError { desc: String::from("Anthropic provider requires api_key.") })
             }
 
-            let builder = llmbuilder.backend(llm::builder::LLMBackend::Anthropic)
+            let mut builder = llmbuilder.backend(llm::builder::LLMBackend::Anthropic)
                 .api_key(api_key.unwrap())
                 .max_tokens(self.max_tokens(providers))
                 .stream(self.stream(providers))
                 .temperature(self.temperature(providers));
+
+            if let Some(system) = self.system(providers) {
+                if system.len() > 70 {
+                    debug!("System message: {}...", &system[..75]);
+                } else {
+                    debug!("System message: {}", &system);
+                }
+
+                builder = builder.system(system);
+            }
 
         Ok(builder.build()?)
     }

@@ -1,4 +1,5 @@
 use llm::builder::LLMBuilder;
+use log::debug;
 use serde::{Serialize, Deserialize};
 use crate::config::providers::{self, ProviderError, ToLLMProvider};
 
@@ -31,6 +32,16 @@ impl OpenRouterConfig {
             Some(api_key.to_string())
         }  else {
             None
+        }
+    }
+
+    pub fn system(&self, providers: &providers::Providers) -> Option<String> {
+        if let Some(ref system) = self.system {
+            Some(system.to_string())
+        } else if let Some(ref system) = providers.openrouter.config.system {
+            Some(system.to_string())
+        } else {
+            providers.system.clone()
         }
     }
 
@@ -79,11 +90,19 @@ impl ToLLMProvider for OpenRouterConfig {
                     return Err(ProviderError::MissingRequiredConfiguration { name: "api_key".to_string() })
                 }
             };
-            let builder = llmbuilder.backend(llm::builder::LLMBackend::OpenRouter)
+            let mut builder = llmbuilder.backend(llm::builder::LLMBackend::OpenRouter)
                 .max_tokens(self.max_tokens(providers))
                 .stream(self.stream(providers))
                 .temperature(self.temperature(providers))
                 .api_key(api_key);
+
+            if let Some(system) = self.system(providers) {
+                if system.len() > 70 {
+                    debug!("System message: {}...", &system[..75]);
+                } else {
+                    debug!("System message: {}", &system);
+                }
+            }
 
         Ok(builder.build()?)
     }

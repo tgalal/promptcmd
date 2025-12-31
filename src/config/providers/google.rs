@@ -1,6 +1,7 @@
 use llm::builder::LLMBuilder;
 use serde::Deserialize;
 use serde::Serialize;
+use log::debug;
 
 use crate::config::providers::ProviderError;
 use crate::config::providers::{self, ToLLMProvider};
@@ -33,6 +34,16 @@ impl GoogleConfig {
             Some(api_key.to_string())
         }  else {
             None
+        }
+    }
+
+    pub fn system(&self, providers: &providers::Providers) -> Option<String> {
+        if let Some(ref system) = self.system {
+            Some(system.to_string())
+        } else if let Some(ref system) = providers.google.config.system {
+            Some(system.to_string())
+        } else {
+            providers.system.clone()
         }
     }
 
@@ -80,11 +91,19 @@ impl ToLLMProvider for GoogleConfig {
                 return Err(ProviderError::ConfigurationError { desc: String::from("Google provider requires api_key.") })
             }
 
-            let builder = llmbuilder.backend(llm::builder::LLMBackend::Google)
+            let mut builder = llmbuilder.backend(llm::builder::LLMBackend::Google)
                 .api_key(api_key.unwrap())
                 .max_tokens(self.max_tokens(providers))
                 .stream(self.stream(providers))
                 .temperature(self.temperature(providers));
+
+            if let Some(system) = self.system(providers) {
+                if system.len() > 70 {
+                    debug!("System message: {}...", &system[..75]);
+                } else {
+                    debug!("System message: {}", &system);
+                }
+            }
 
         Ok(builder.build()?)
     }

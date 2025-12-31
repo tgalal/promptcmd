@@ -7,9 +7,10 @@ pub mod openrouter;
 use llm::{builder::LLMBuilder, error::LLMError, LLMProvider};
 use serde::{Serialize, Deserialize};
 
-const DEFAULT_MAX_TOKENS:u32 = 1000;
-const DEFAULT_STREAM:bool = false;
-const DEFAULT_TEMPERATURE:f32 = 0.7;
+const DEFAULT_MAX_TOKENS: u32 = 1000;
+const DEFAULT_STREAM: bool = false;
+const DEFAULT_TEMPERATURE: f32 = 0.7;
+const DEFAULT_SYSTEM: &str = "You are useful AI assistant. Give me brief answers. Do not use special formatting like markdown.";
 
 use thiserror::Error;
 
@@ -43,6 +44,7 @@ pub struct Providers {
     pub stream: Option<bool>,
     pub max_tokens: Option<u32>,
     pub default: Option<String>,
+    pub system: Option<String>,
 
     #[serde(default)]
     pub ollama: ollama::OllamaProviders,
@@ -75,6 +77,7 @@ impl Default for Providers {
             temperature: Some(DEFAULT_TEMPERATURE),
             stream: Some(DEFAULT_STREAM),
             max_tokens: Some(DEFAULT_MAX_TOKENS),
+            system: Some(DEFAULT_SYSTEM.to_string()),
             default: None,
             ollama: OllamaProviders::default(),
             openai: OpenAIProviders::default(),

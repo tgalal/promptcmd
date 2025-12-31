@@ -1,4 +1,5 @@
 use llm::{builder::LLMBuilder};
+use log::debug;
 use serde::{Serialize, Deserialize};
 use crate::config::providers::{self, ProviderError, ToLLMProvider};
 
@@ -31,6 +32,16 @@ impl OllamaConfig {
             Ok(endpoint.to_string())
         } else {
             Err(ProviderError::MissingRequiredConfiguration { name: String::from("endpoint") })
+        }
+    }
+
+    pub fn system(&self, providers: &providers::Providers) -> Option<String> {
+        if let Some(ref system) = self.system {
+            Some(system.to_string())
+        } else if let Some(ref system) = providers.ollama.config.system {
+            Some(system.to_string())
+        } else {
+            providers.system.clone()
         }
     }
 
@@ -74,11 +85,19 @@ impl ToLLMProvider for OllamaConfig {
         llmbuilder: LLMBuilder,
         providers: &providers::Providers) -> Result<Box< dyn llm::LLMProvider>, providers::ProviderError> {
             let endpoint = self.endpoint(providers)?;
-            let builder = llmbuilder.backend(llm::builder::LLMBackend::Ollama)
+            let mut builder = llmbuilder.backend(llm::builder::LLMBackend::Ollama)
                .base_url(&endpoint)
                 .max_tokens(self.max_tokens(providers))
                 .stream(self.stream(providers))
                 .temperature(self.temperature(providers));
+
+            if let Some(system) = self.system(providers) {
+                if system.len() > 70 {
+                    debug!("System message: {}...", &system[..75]);
+                } else {
+                    debug!("System message: {}", &system);
+                }
+            }
 
         Ok(builder.build()?)
     }

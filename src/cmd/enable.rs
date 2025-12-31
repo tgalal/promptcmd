@@ -26,7 +26,7 @@ impl EnableCmd {
             debug!("Enabling {path}");
 
             let installed_path = installer.install(&self.promptname)?;
-            println!("Created {installed_path}");
+            println!("Installed {installed_path}");
 
         } else {
             bail!("Could not find an existing prompt file");

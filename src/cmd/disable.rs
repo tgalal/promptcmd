@@ -13,9 +13,9 @@ impl DisableCmd {
     pub fn exec(&self, installer: &mut impl DotPromptInstaller) -> Result<()> {
 
         if let Some(path) = installer.is_installed(&self.promptname) {
-            installer.uninstall(&self.promptname).context("Failed to uninstalled prompt")?;
-            println!("Removed {path}");
-        } 
+            installer.uninstall(&self.promptname).context("Failed to uninstall prompt")?;
+            println!("Uninstalled {path}");
+        }
 
         Ok(())
     }

@@ -11,7 +11,7 @@ impl StatsCmd {
     // Group by provider and model
     // Provider     Model   Runs    Total In    Total Out
     pub fn exec(&self, store: &impl StatsStore) -> Result<()> {
-        let summary = store.summary(None, None)?;
+        let summary = store.summary(None, None, None, None, None)?;
 
         let mut table = Table::new();
         let format = format::FormatBuilder::new()

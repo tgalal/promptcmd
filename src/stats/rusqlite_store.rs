@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rusqlite::{params_from_iter, Connection};
+use rusqlite::{params, params_from_iter, Connection};
 use thiserror::Error;
 
 use crate::stats::{store::{FetchError, LogError, LogRecord, StatsStore, SummaryItem}, DB_NAME};
@@ -33,6 +33,8 @@ impl RusqliteStore {
                     promptname TEXT NOT NULL,
                     provider TEXT NOT NULL,
                     model TEXT NOT NULL,
+                    variant TEXT,
+                    `group` TEXT,
                     prompt_tokens INTEGER NOT NULL DEFAULT 0,
                     completion_tokens INTEGER NOT NULL DEFAULT 0,
                     result TEXT,
@@ -58,16 +60,20 @@ impl StatsStore for RusqliteStore {
                 promptname,
                 provider,
                 model,
+                variant,
+                `group`,
                 prompt_tokens,
                 completion_tokens,
                 result,
                 success,
                 time_taken,
                 created
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)", [
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)", params![
                 &record.promptname,
                 &record.provider,
                 &record.model,
+                record.variant,
+                record.group,
                 &record.prompt_tokens.to_string(),
                 &record.completion_tokens.to_string(),
                 &record.result,
@@ -86,6 +92,8 @@ impl StatsStore for RusqliteStore {
                 promptname,
                 provider,
                 model,
+                variant,
+                `group`,
                 prompt_tokens,
                 completion_tokens,
                 result,
@@ -101,12 +109,14 @@ impl StatsStore for RusqliteStore {
                     promptname: row.get(0)?,
                     provider: row.get(1)?,
                     model: row.get(2)?,
-                    prompt_tokens: row.get(3)?,
-                    completion_tokens: row.get(4)?,
-                    result: row.get(5)?,
-                    success: row.get(6)?,
-                    time_taken: row.get(7)?,
-                    created: row.get(8)?
+                    variant: row.get(3)?,
+                    group: row.get(4)?,
+                    prompt_tokens: row.get(5)?,
+                    completion_tokens: row.get(6)?,
+                    result: row.get(7)?,
+                    success: row.get(8)?,
+                    time_taken: row.get(9)?,
+                    created: row.get(10)?
                 }
             )
         }).map_err(|err| FetchError::GeneralError(err.to_string()))?;
@@ -115,7 +125,13 @@ impl StatsStore for RusqliteStore {
         Ok(result)
     }
 
-    fn summary(&self, provider: Option<String>, model: Option<String>) -> Result<Vec<SummaryItem>, FetchError> {
+    fn summary(&self,
+        provider: Option<String>,
+        model: Option<String>,
+        variant: Option<String>,
+        group: Option<String>,
+        success: Option<bool>
+    ) -> Result<Vec<SummaryItem>, FetchError> {
         let mut sql = String::from(
             "SELECT
                 provider,
@@ -135,6 +151,22 @@ impl StatsStore for RusqliteStore {
         if let Some(model) = model {
             sql.push_str(" AND model = ?");
             params.push(model);
+        }
+
+        if let Some(variant) = variant {
+            sql.push_str(" AND variant = ?");
+            params.push(variant);
+        }
+
+        if let Some(group) = group {
+            sql.push_str(" AND group = ?");
+            params.push(group);
+        }
+
+        if let Some(success) = success {
+            sql.push_str(" AND success = ?");
+            let success = if success { "1" } else { "0" };
+            params.push(success.to_string());
         }
 
         sql.push_str(" GROUP BY provider, model ORDER BY provider, model");

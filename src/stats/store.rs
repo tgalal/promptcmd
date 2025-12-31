@@ -24,6 +24,8 @@ pub struct LogRecord {
     pub promptname: String,
     pub provider: String,
     pub model: String,
+    pub variant: Option<String>,
+    pub group: Option<String>,
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub result: String,
@@ -45,5 +47,11 @@ pub struct SummaryItem {
 pub trait StatsStore {
     fn log(&self, item: LogRecord) -> Result<(), LogError>;
     fn all(&self) -> Result<Vec<LogRecord>, FetchError>;
-    fn summary(&self, provider: Option<String>, model: Option<String>) -> Result<Vec<SummaryItem>, FetchError>;
+    fn summary(&self,
+        provider: Option<String>,
+        model: Option<String>,
+        variant: Option<String>,
+        group: Option<String>,
+        success: Option<bool>
+    ) -> Result<Vec<SummaryItem>, FetchError>;
 }

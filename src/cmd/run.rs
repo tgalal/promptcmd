@@ -66,7 +66,6 @@ impl RunCmd {
     ) -> Result<(String, String)> {
 
         // Step 1. Determine the requested model name.
-
         let requested_model_name = frontmatter.model.clone()
             .or(appconfig.providers.default.clone())
             .context("No model specified and no default models set in config")?;
@@ -76,16 +75,14 @@ impl RunCmd {
 
 
         // Step 3. Get usage statistics
-        // let summaries = resolved_model_names
-        //     .iter()
-        //     .filter_map(|item| {
-        //         let summary = store.summary(Some(item.provider.clone()), Some(item.model.clone())).ok()?;
-        //         Some((item, summary))
-        //     });
         let summaries = resolved_model_names
             .iter()
             .map(|item| {
-                store.summary(Some(item.provider.clone()), Some(item.model.clone()))
+                store.summary(
+                    Some(item.provider.clone()),
+                    Some(item.model.clone()),
+                    None, None,
+                    Some(true))
             }).collect::<Result<Vec<_>, _>>()?;
 
         let lb_model = summaries
@@ -220,6 +217,8 @@ impl RunCmd {
                 promptname: self.promptname.clone(),
                 provider,
                 model,
+                variant: None,
+                group: None,
                 prompt_tokens,
                 completion_tokens,
                 result: response_text,

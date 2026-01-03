@@ -7,10 +7,10 @@ pub mod openrouter;
 use llm::{builder::LLMBuilder, error::LLMError, LLMProvider};
 use serde::{Serialize, Deserialize};
 
-const DEFAULT_MAX_TOKENS: u32 = 1000;
-const DEFAULT_STREAM: bool = false;
-const DEFAULT_TEMPERATURE: f32 = 0.7;
-const DEFAULT_SYSTEM: &str = "You are useful AI assistant. Give me brief answers. Do not use special formatting like markdown.";
+pub const DEFAULT_MAX_TOKENS: u32 = 1000;
+pub const DEFAULT_STREAM: bool = false;
+pub const DEFAULT_TEMPERATURE: f32 = 0.7;
+pub const DEFAULT_SYSTEM: &str = "You are useful AI assistant. Give me brief answers. Do not use special formatting like markdown.";
 
 use thiserror::Error;
 

@@ -4,18 +4,18 @@ use log::{error, debug};
 use clap::{Arg, ArgMatches, Command};
 use std::collections::HashMap;
 use std::time::Instant;
+use std::convert::TryFrom;
 use anyhow::{bail, Context, Result};
+use thiserror::Error;
 use llm::{
     builder::{LLMBuilder},
     chat::{ChatMessage},
 };
 use llm::chat::StructuredOutputFormat;
 use tokio::runtime::Runtime;
-use crate::{config::appconfig::{AppConfig, ResolvedModelName}, dotprompt::Frontmatter, lb::{self, weighted_lb::{ModelUsage, WeightedLoadBalancer}}, stats::store::SummaryItem};
-use crate::config::{providers};
+use crate::{config::appconfig::AppConfig, dotprompt::Frontmatter, lb::{self, weighted_lb::{ModelUsage, WeightedLoadBalancer}}, resolver::{self, resolved::ModelInfo, ResolvedPropertySource}};
 use crate::dotprompt::DotPrompt;
 use crate::dotprompt::render::Render;
-use crate::config::providers::ToLLMProvider;
 use crate::config::{appconfig_locator,};
 use crate::stats::store::{LogRecord, StatsStore};
 use crate::storage::PromptFilesStorage;
@@ -44,7 +44,61 @@ pub fn generate_arguments_from_dotprompt(mut command: Command, dotprompt: &DotPr
     Ok(command)
 }
 
+pub enum UsageMode {
+    // Load balances over all usages of the same model (Model is the shared resource, usage of
+    // another model under the same provider does not count)
+    Model,
+    // Load balances over all models under the same provider. (Provider is the shared resource)
+    Provider,
+    // Load balances over variant. (Variant is the shared resource, usage of referenced
+    // provider/model outside the variant do not count)
+    Variant,
+    // Load balances over group. Usages of any referenced model outside the group does not count
+    Group, //
+}
+
+#[derive(Error, Debug)]
+pub enum RunCmdError {
+    #[error("'{0}' is required by not configured")]
+    RequiredConfiguration(&'static str)
+}
+
 impl RunCmd {
+
+    // fn decide_model2(
+    //     frontmatter: &Frontmatter,
+    //     appconfig: &AppConfig,
+    //     store: &mut impl StatsStore,
+    //     lb: &WeightedLoadBalancer,
+    //     usage_mode: UsageMode
+    // ) -> Result<(String, String)> {
+    //     // Step 1. Determine the requested model name.
+    //     let requested_name = frontmatter.model.clone()
+    //         .or(appconfig.providers.default.clone())
+    //         .context("No model specified and no default models set in config")?;
+
+    //     match resolver::resolve(appconfig, &requested_name) {
+    //        Ok(resolver::ResolvedConfig::Base(base))  => {},
+    //        Ok(resolver::ResolvedConfig::Variant(variant))  => {},
+    //        Ok(resolver::ResolvedConfig::Group(group))  => {},
+    //        Err(err) => {}
+    //     }
+
+    //     // let resolved_config = resolver::resolve(
+    //     //     appconfig, &requested_name, true).context("Resolve failed")?;
+
+    //     // Step 2: Pull statistics of each of resolved configs
+    //     // match resolved_config {
+    //     //     ResolvedConfig::Base(base) => {
+    //     //         store.summary(provider, model, variant, group, success)
+    //     //     }
+    //     //     ResolvedConfig::Variant(variant) => {}
+    //     //     ResolvedConfig::Group(group) => {}
+    //     // }
+
+    //     bail!("Done")
+    // }
+
     /// Device which model will be used.
     ///
     /// This is a multistep process involving the following.
@@ -139,7 +193,7 @@ impl RunCmd {
     pub fn exec_prompt(&self,
         inp: &mut impl std::io::BufRead,
         out: &mut impl std::io::Write,
-        store: &mut impl StatsStore,
+        store: &impl StatsStore,
         dotprompt: &DotPrompt, appconfig: &AppConfig,
         lb: &WeightedLoadBalancer,
         matches: &ArgMatches,) -> Result<()> {
@@ -157,13 +211,47 @@ impl RunCmd {
 
         debug!("{output}");
 
-        let (provider, model) = RunCmd::decide_model(
-            &dotprompt.frontmatter, appconfig, store, lb)?;
+        let requested_name = dotprompt.frontmatter.model.clone()
+            .or(appconfig.providers.default.clone())
+            .context("No model specified and no default models set in config")?;
 
-        debug!("Model Provider: {}, Model Name: {}", provider, model);
+        let (model_info, mut llmbuilder) = match resolver::resolve(
+            appconfig, &requested_name, Some(ResolvedPropertySource::Dotprompt(requested_name.clone()))
+        ) {
+           Ok(resolver::ResolvedConfig::Base(base))  => {
+                <(ModelInfo, LLMBuilder)>::try_from(base)
+            },
+           Ok(resolver::ResolvedConfig::Variant(variant))  => {
+                <(ModelInfo, LLMBuilder)>::try_from(variant)
+                // (ModelInfo,LLMBuilder)::try_from(variant)
+            },
+           Ok(resolver::ResolvedConfig::Group(group))  => {
+                bail!("TODO: implement groups")
+                // Do the Loadbalancing here!
 
-        let mut llmbuilder= LLMBuilder::new()
-            .model(&model);
+                // group.members.iter().map(|member| {
+                //     match member {
+                //         resolver::group::GroupMember::Base(base) => {
+                //             // LLMBuilder::try_from(base);
+                //         }
+                //         resolver::group::GroupMember::Variant(variant) => {
+                //             // LLMBuilder::try_from(variant);
+                //         }
+                //     }
+                // }).collect();
+           },
+           Err(err) => {
+                bail!(err)
+            }
+        }?;
+
+        // let (provider, model) = RunCmd::decide_model(
+        //     &dotprompt.frontmatter, appconfig, store, lb)?;
+
+        debug!("Model Provider: {}, Model Name: {}", &model_info.provider, &model_info.model);
+
+        // let mut llmbuilder= LLMBuilder::new()
+        //     .model(&model);
 
         if dotprompt.output_format() == "json" {
             let output_schema: StructuredOutputFormat = serde_json::from_str(
@@ -171,18 +259,18 @@ impl RunCmd {
             llmbuilder = llmbuilder.schema(output_schema);
         }
 
-        let provider_config: &dyn ToLLMProvider =  match appconfig.providers.resolve(&provider) {
-            providers::ProviderVariant::Ollama(conf) => conf,
-            providers::ProviderVariant::Anthropic(conf) => conf,
-            providers::ProviderVariant::Google(conf) => conf,
-            providers::ProviderVariant::OpenAi(conf) => conf,
-            providers::ProviderVariant::OpenRouter(conf) => conf,
-            providers::ProviderVariant::None => {
-                bail!("No configuration found for the selected provider: {}", provider);
-            }
-        };
+        // let provider_config: &dyn ToLLMProvider =  match appconfig.providers.resolve(&provider) {
+        //     providers::ProviderVariant::Ollama(conf) => conf,
+        //     providers::ProviderVariant::Anthropic(conf) => conf,
+        //     providers::ProviderVariant::Google(conf) => conf,
+        //     providers::ProviderVariant::OpenAi(conf) => conf,
+        //     providers::ProviderVariant::OpenRouter(conf) => conf,
+        //     providers::ProviderVariant::None => {
+        //         bail!("No configuration found for the selected provider: {}", provider);
+        //     }
+        // };
 
-        let llm = provider_config.llm_provider(llmbuilder, &appconfig.providers)?;
+        let llm = llmbuilder.build()?;
 
         let messages = vec![
             ChatMessage::user()
@@ -215,8 +303,8 @@ impl RunCmd {
         let log_result = store.log(
             LogRecord {
                 promptname: self.promptname.clone(),
-                provider,
-                model,
+                provider: model_info.provider,
+                model: model_info.model,
                 variant: None,
                 group: None,
                 prompt_tokens,
@@ -238,7 +326,7 @@ impl RunCmd {
     pub fn exec(&self,
         inp: &mut impl std::io::BufRead,
         out: &mut impl std::io::Write,
-        store: &mut impl StatsStore,
+        store: &impl StatsStore,
         prompt_storage: &impl PromptFilesStorage,
         lb: &WeightedLoadBalancer) -> Result<()> {
 

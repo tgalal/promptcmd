@@ -1,38 +1,31 @@
 use clap::{Parser};
-use anyhow::{Result, bail};
-use crate::config::appconfig::{AppConfig, ModelError};
+use anyhow::{bail, Result};
+use crate::{config::appconfig::AppConfig, resolver::{self, ResolvedPropertySource}};
 
 
 #[derive(Parser)]
 pub struct ResolveModelCmd {
     #[arg()]
     pub name: String,
+    #[arg(short, long)]
+    pub debug: bool,
 }
 
 impl ResolveModelCmd {
     pub fn exec(&self, appconfig: &AppConfig, out: &mut impl std::io::Write) -> Result<()> {
-
-        match appconfig.resolve_model_name(&self.name, true) {
-            Err(ModelError::NoDefaultModelConfigured(provider_name)) => {
-                writeln!(out, "{} resolves to {}, but no default_model has been configured for it", &self.name, &provider_name)?;
+        let source = Some(ResolvedPropertySource::Input(self.name.clone()));
+        match resolver::resolve(appconfig, &self.name, source) {
+            Ok(resolved_config) => {
+                if self.debug {
+                    writeln!(out, "{}", resolved_config)?;
+                } else {
+                    writeln!(out, "{}", resolved_config)?;
+                }
             },
             Err(err) => {
-                bail!("{err}");
-            },
-            Ok(resolved_names) => {
-                if resolved_names.is_empty() {
-                    bail!("Failed to resolve {}", &self.name);
-                } else if resolved_names.len() == 1 {
-                    writeln!(out, "{}:{}", &resolved_names[0].provider, &resolved_names[0].model)?;
-                } else {
-                    writeln!(out, "Group:")?;
-                    for item in resolved_names {
-                        writeln!(out, "  {}/{}", &item.provider, &item.model)?;
-                    }
-                }
+                bail!(err)
             }
         }
-
         Ok(())
     }
 }

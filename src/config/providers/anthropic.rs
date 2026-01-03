@@ -18,13 +18,13 @@ pub struct AnthropicProviders {
 
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct AnthropicConfig {
-    temperature: Option<f32>,
-    system: Option<String>,
-    stream: Option<bool>,
-    max_tokens: Option<u32>,
-    default_model: Option<String>,
+    pub temperature: Option<f32>,
+    pub system: Option<String>,
+    pub stream: Option<bool>,
+    pub max_tokens: Option<u32>,
+    pub default_model: Option<String>,
 
-    api_key: Option<String>
+    pub api_key: Option<String>
 }
 
 

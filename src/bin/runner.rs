@@ -34,7 +34,9 @@ fn main() -> Result<()> {
         AppConfig::default()
     };
 
-    let lb = WeightedLoadBalancer {};
+    let lb = WeightedLoadBalancer {
+        stats: &store
+    };
 
     // Find the executable name directly from args.
     let mut args = env::args();
@@ -94,7 +96,7 @@ fn main() -> Result<()> {
         runcmd.exec_prompt(
             &mut handle,
             &mut stdout,
-            &mut store,
+            &store,
             &dotprompt,
             &appconfig,
             &lb,

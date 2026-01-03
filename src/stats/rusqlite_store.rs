@@ -155,23 +155,29 @@ impl StatsStore for RusqliteStore {
             FROM logs WHERE 1=1");
         let mut params: Vec<String> = Vec::new();
 
+        let mut group_by: Vec<&'static str> = Vec::new();
+
         if let Some(provider) = provider {
             sql.push_str(" AND provider = ?");
+            group_by.push("provider");
             params.push(provider);
         }
 
         if let Some(model) = model {
             sql.push_str(" AND model = ?");
+            group_by.push("model");
             params.push(model);
         }
 
         if let Some(variant) = variant {
             sql.push_str(" AND variant = ?");
+            group_by.push("variant");
             params.push(variant);
         }
 
         if let Some(group) = group {
             sql.push_str(" AND group = ?");
+            group_by.push("group");
             params.push(group);
         }
 
@@ -181,7 +187,12 @@ impl StatsStore for RusqliteStore {
             params.push(success.to_string());
         }
 
-        sql.push_str(" GROUP BY provider, model ORDER BY provider, model");
+        sql.push_str(" GROUP BY ");
+        if group_by.is_empty() {
+            sql.push_str("provider, model");
+        } else {
+            sql.push_str(&group_by.join(", "));
+        }
 
         let mut stmt = self.conn.prepare(&sql)
             .map_err(|err| FetchError::GeneralError(err.to_string()))?;
@@ -203,7 +214,6 @@ impl StatsStore for RusqliteStore {
         let result: Result<Vec<_>, _> = records.collect();
 
         result.map_err(|err| FetchError::GeneralError(err.to_string()))
-
     }
 
 }

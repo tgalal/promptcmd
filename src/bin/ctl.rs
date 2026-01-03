@@ -93,7 +93,9 @@ fn main() -> Result<()> {
     let stdin = std::io::stdin();
     let mut handle = stdin.lock();
     let mut stdout = std::io::stdout();
-    let lb = WeightedLoadBalancer {};
+    let lb = WeightedLoadBalancer {
+        stats: &store
+    };
 
     match cli.command {
         Commands::Edit(cmd) => cmd.exec(
@@ -127,7 +129,7 @@ fn main() -> Result<()> {
         Commands::Run(cmd) => cmd.exec(
             &mut handle,
             &mut stdout,
-            &mut store,
+            &store,
             &prompts_storage,
             &lb
         ),

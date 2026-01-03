@@ -46,7 +46,7 @@ pub struct SummaryItem {
 
 pub trait StatsStore {
     fn log(&self, item: LogRecord) -> Result<(), LogError>;
-    fn all(&self) -> Result<Vec<LogRecord>, FetchError>;
+    fn records(&self, last: Option<u32>) -> Result<Vec<LogRecord>, FetchError>;
     fn summary(&self,
         provider: Option<String>,
         model: Option<String>,

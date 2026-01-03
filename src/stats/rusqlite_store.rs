@@ -74,11 +74,11 @@ impl StatsStore for RusqliteStore {
                 &record.model,
                 record.variant,
                 record.group,
-                &record.prompt_tokens.to_string(),
-                &record.completion_tokens.to_string(),
+                record.prompt_tokens,
+                record.completion_tokens,
                 &record.result,
-                &record.success.to_string(),
-                &record.time_taken.to_string(),
+                record.success,
+                record.time_taken,
                 &record.created.to_rfc3339()
             ]
         ).map_err(|e| LogError::GeneralError(e.to_string()))?;
@@ -86,8 +86,8 @@ impl StatsStore for RusqliteStore {
         Ok(())
     }
 
-    fn all(&self) -> Result<Vec<LogRecord>, FetchError> {
-        let mut stmt = self.conn.prepare(
+    fn records(&self, last: Option<u32>) -> Result<Vec<LogRecord>, FetchError> {
+        let mut sql = String::from(
             "SELECT
                 promptname,
                 provider,
@@ -101,9 +101,19 @@ impl StatsStore for RusqliteStore {
                 time_taken,
                 created
             FROM logs
-        ").map_err(|err| FetchError::GeneralError(err.to_string()))?;
+        ");
 
-        let records = stmt.query_map([], |row| {
+        let mut params: Vec<String> = Vec::new();
+
+        if let Some(last) = last {
+            sql.push_str(" ORDER BY id DESC LIMIT ?");
+            params.push(last.to_string());
+        }
+        let mut stmt = self.conn.prepare(&sql)
+            .map_err(|err| FetchError::GeneralError(err.to_string()))?;
+
+        let records = stmt.query_map(
+            params_from_iter(params.iter()), |row| {
             Ok(
                 LogRecord {
                     promptname: row.get(0)?,
@@ -121,8 +131,10 @@ impl StatsStore for RusqliteStore {
             )
         }).map_err(|err| FetchError::GeneralError(err.to_string()))?;
 
-        let result: Vec<LogRecord> = records.filter_map(Result::ok).collect();
-        Ok(result)
+        //let result: Vec<SummaryItem> = records.filter_map(Result::ok).collect();
+        let result: Result<Vec<_>, _> = records.collect();
+
+        result.map_err(|err| FetchError::GeneralError(err.to_string()))
     }
 
     fn summary(&self,

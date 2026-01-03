@@ -1,6 +1,5 @@
 use llm::builder::LLMBuilder;
 
-use crate::config::providers::openai::OpenAIConfig;
 use crate::define_resolved_provider_config;
 use crate::resolver::resolved::ToLLMBuilderError;
 use crate::resolver::ResolvedProperty;
@@ -13,7 +12,7 @@ use log::debug;
 use std::fmt;
 use serde::Deserialize;
 
-define_resolved_provider_config!(OpenAIConfig {
+define_resolved_provider_config!("openai" {
     api_key: String,
 });
 

@@ -15,7 +15,6 @@ pub struct GroupConfig {
 pub struct LongGroupProviderConfig {
     pub name: String,
     pub weight: Option<u32>,
-    pub fallback: Option<bool>
 }
 
 #[derive(Debug, Deserialize)]
@@ -30,8 +29,7 @@ impl GroupProviderConfig {
         match self {
             Self::Short(name) => LongGroupProviderConfig {
                 name: name.to_string(),
-                weight: Some(1) ,
-                fallback: Some(true)
+                weight: Some(1),
             },
             Self::Long(config) => config.clone()
         }
@@ -50,25 +48,12 @@ pub enum AppConfigError {
     ReadConfigError(#[from] TomlError)
 }
 
-#[derive(Error, Debug)]
-pub enum ResolveGroupError {
-    #[error("No such group: {0}")]
-    NoSuchGroup(String)
-}
-
 impl TryFrom<&String> for AppConfig {
     type Error = AppConfigError;
 
     fn try_from(contents: &String) -> Result<Self, Self::Error> {
         Ok(toml::from_str::<AppConfig>(contents)?)
     }
-}
-
-pub struct ResolvedModelName {
-    pub provider: String,
-    pub model: String,
-    pub weight: u32,
-    pub fallback: bool,
 }
 
 #[derive(Error, Debug)]
@@ -156,46 +141,6 @@ mod tests {
 
         let config = AppConfig::try_from(&incomplete_toml.to_string());
         assert!(config.is_err(), "Should fail when required fields are missing");
-    }
-
-    #[test]
-    fn test_provider_resolution() {
-        let toml_content = r#"
-            default_model = "claude-3-5-sonnet-20241022"
-            editor = "vim"
-
-            [providers.anthropic]
-            api_key = "anthropic-key"
-
-            [providers.ollama]
-            endpoint = "http://localhost:11434"
-
-            [providers.ollama.custom_ollama]
-            endpoint = "http://custom:11434"
-
-            [providers.anthropic.custom_claude]
-            api_key = "custom-key"
-        "#;
-
-        let config = AppConfig::try_from(&toml_content.to_string()).unwrap();
-
-        // Test direct provider resolution - only checks the resolve() method logic
-        let anthropic = config.providers.resolve("anthropic");
-        assert!(matches!(anthropic, providers::ProviderVariant::Anthropic(_)));
-
-        let ollama = config.providers.resolve("ollama");
-        assert!(matches!(ollama, providers::ProviderVariant::Ollama(_)));
-
-        // Test named provider resolution
-        let custom_ollama = config.providers.resolve("custom_ollama");
-        assert!(matches!(custom_ollama, providers::ProviderVariant::Ollama(_)));
-
-        let custom_claude = config.providers.resolve("custom_claude");
-        assert!(matches!(custom_claude, providers::ProviderVariant::Anthropic(_)));
-
-        // Test non-existent provider
-        let none = config.providers.resolve("nonexistent");
-        assert!(matches!(none, providers::ProviderVariant::None));
     }
 
     #[test]

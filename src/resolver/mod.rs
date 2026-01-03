@@ -1,5 +1,4 @@
 pub mod base;
-// mod base2;
 pub mod variant;
 pub mod group;
 pub mod resolved;
@@ -8,12 +7,8 @@ use std::fmt::{self, Write, Display};
 
 use thiserror::Error;
 use log::debug;
-use crate::{config::{appconfig::{AppConfig, GroupProviderConfig, LongGroupProviderConfig}, providers::{
-    anthropic::AnthropicConfig, ollama::OllamaConfig, openai::OpenAIConfig
-    // google::GoogleConfig,
-    // openai::OpenAIConfig,
-    // openrouter::OpenRouterConfig
-}}, resolver::{base::Base, group::{Group, GroupMember}, variant::Variant}};
+use crate::{config::{appconfig::{AppConfig, GroupProviderConfig, LongGroupProviderConfig},
+}, resolver::{base::Base, group::{Group, GroupMember}, variant::Variant}};
 
 
 #[derive(Debug)]
@@ -42,17 +37,17 @@ impl fmt::Display for ResolvedConfig {
 
 
 pub enum BaseProviderConfigSource<'a> {
-    Ollama(&'a OllamaConfig),
-    Anthropic(&'a AnthropicConfig),
-    OpenAI(&'a OpenAIConfig),
+    Ollama(&'a resolved::ollama::Config),
+    Anthropic(&'a resolved::anthropic::Config),
+    OpenAI(&'a  resolved::openai::Config),
     // OpenRouter(&'a OpenRouterConfig),
     // Google(&'a GoogleConfig),
 }
 
 pub enum VariantProviderConfigSource<'a> {
-    Ollama(&'a OllamaConfig, &'a OllamaConfig),
-    Anthropic(&'a AnthropicConfig, &'a AnthropicConfig),
-    OpenAI(&'a OpenAIConfig, &'a OpenAIConfig),
+    Ollama(&'a resolved::ollama::Config, &'a resolved::ollama::Config),
+    Anthropic(&'a resolved::anthropic::Config, &'a resolved::anthropic::Config),
+    OpenAI(&'a resolved::openai::Config, &'a resolved::openai::Config),
     // OpenRouter(&'a OpenRouterConfig),
     // Google(&'a GoogleConfig),
 }
@@ -297,7 +292,6 @@ fn resolve_group(appconfig: &AppConfig, group_name: &str) -> Result<Group, Resol
                 LongGroupProviderConfig {
                     name: name.to_string(),
                     weight: Some(1),
-                    fallback: Some(false)
                 }
             },
             GroupProviderConfig::Long(long_config) => long_config.clone()

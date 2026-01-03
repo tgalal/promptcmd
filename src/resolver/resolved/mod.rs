@@ -25,7 +25,7 @@ pub enum ToModelInfoError {
 
 #[macro_export]
 macro_rules! define_resolved_provider_config {
-    ($source_config:ty { $($field:ident : $type:ty),* $(,)? }) => {
+    ($provider_name:literal { $($field:ident : $type:ty),* $(,)? }) => {
 
         #[derive(Debug, Deserialize, Default)]
         pub struct Providers {
@@ -167,7 +167,7 @@ macro_rules! define_resolved_provider_config {
 
                 fn read_env<T: std::str::FromStr>(key: &str, def: Option<ResolvedProperty<T>>) -> Option<ResolvedProperty<T>> {
                     let env_prefix = String::from("PROMPTCMD_")
-                        + &stringify!($source_config).to_uppercase().replace("CONFIG", "");
+                        + $provider_name.to_uppercase().as_str();
                     let env_field_name = env_prefix.clone() + "_" + key;
                     debug!("READING {}", env_field_name);
                     let env_field_value = env::var(&env_field_name).ok().map(|value| {
@@ -227,8 +227,8 @@ macro_rules! define_resolved_provider_config {
             }
         }
 
-        impl From<(&$source_config, ResolvedPropertySource)> for ResolvedProviderConfigBuilder {
-            fn from(tuple: (&$source_config, ResolvedPropertySource)) -> Self {
+        impl From<(&Config, ResolvedPropertySource)> for ResolvedProviderConfigBuilder {
+            fn from(tuple: (&Config, ResolvedPropertySource)) -> Self {
                 let source_config = tuple.0;
                 let source = tuple.1;
                 Self {

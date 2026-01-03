@@ -1,6 +1,5 @@
 use llm::builder::LLMBuilder;
 
-use crate::config::providers::anthropic::AnthropicConfig;
 use crate::config::providers;
 use crate::define_resolved_provider_config;
 use crate::resolver::resolved::ToLLMBuilderError;
@@ -13,7 +12,7 @@ use log::debug;
 use std::fmt;
 use serde::Deserialize;
 
-define_resolved_provider_config!(AnthropicConfig {
+define_resolved_provider_config!("anthropic" {
     api_key: String,
 });
 

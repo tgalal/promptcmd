@@ -1,10 +1,5 @@
-pub mod anthropic;
-pub mod ollama;
-pub mod openai;
-pub mod google;
-pub mod openrouter;
-
 use serde::Deserialize;
+use crate::resolver::resolved;
 
 pub const DEFAULT_MAX_TOKENS: u32 = 1000;
 pub const DEFAULT_STREAM: bool = false;
@@ -12,9 +7,6 @@ pub const DEFAULT_TEMPERATURE: f32 = 0.7;
 pub const DEFAULT_SYSTEM: &str = "You are useful AI assistant. Give me brief answers. Do not use special formatting like markdown.";
 
 use thiserror::Error;
-
-use crate::config::providers::{anthropic::AnthropicProviders, google::GoogleProviders,
-    ollama::OllamaProviders, openai::OpenAIProviders, openrouter::OpenRouterProviders};
 
 #[derive(Error, Debug)]
 pub enum ProviderError {
@@ -40,28 +32,19 @@ pub struct Providers {
     pub system: Option<String>,
 
     #[serde(default)]
-    pub ollama: ollama::OllamaProviders,
+    pub ollama: resolved::ollama::Providers,
 
     #[serde(default)]
-    pub openai: openai::OpenAIProviders,
+    pub openai: resolved::openai::Providers,
 
     #[serde(default)]
-    pub anthropic: anthropic::AnthropicProviders,
+    pub anthropic: resolved::anthropic::Providers,
 
-    #[serde(default)]
-    pub google: google::GoogleProviders,
+    // #[serde(default)]
+    // pub google: resolved::google::Providers,
 
-    #[serde(default)]
-    pub openrouter: openrouter::OpenRouterProviders,
-}
-
-pub enum ProviderVariant<'a> {
-    Ollama(&'a ollama::OllamaConfig),
-    OpenAi(&'a openai::OpenAIConfig),
-    Anthropic(&'a anthropic::AnthropicConfig),
-    Google(&'a google::GoogleConfig),
-    OpenRouter(&'a openrouter::OpenRouterConfig),
-    None
+    // #[serde(default)]
+    // pub openrouter: resolved::openrouter::Providers,
 }
 
 impl Default for Providers {
@@ -72,52 +55,11 @@ impl Default for Providers {
             max_tokens: Some(DEFAULT_MAX_TOKENS),
             system: Some(DEFAULT_SYSTEM.to_string()),
             default: None,
-            ollama: OllamaProviders::default(),
-            openai: OpenAIProviders::default(),
-            anthropic: AnthropicProviders::default(),
-            google: GoogleProviders::default(),
-            openrouter: OpenRouterProviders::default(),
+            ollama: resolved::ollama::Providers::default(),
+            openai: resolved::openai::Providers::default(),
+            anthropic: resolved::anthropic::Providers::default(),
+            // google: GoogleProviders::default(),
+            // openrouter: OpenRouterProviders::default(),
         }
-    }
-}
-
-impl Providers {
-
-    pub fn resolve<'a>(&'a self, name: &str) -> ProviderVariant<'a> {
-        // Direct, top level search
-        if name == "ollama" {
-            return ProviderVariant::Ollama(&self.ollama.config)
-        } else if name == "anthropic" {
-            return ProviderVariant::Anthropic(&self.anthropic.config)
-        } else if name == "google" {
-            return ProviderVariant::Google(&self.google.config)
-        } else if name == "openrouter" {
-            return ProviderVariant::OpenRouter(&self.openrouter.config)
-        } else if name == "openai" {
-            return ProviderVariant::OpenAi(&self.openai.config)
-        }
-
-        // search throughout all providers
-        if let Some(conf) = self.ollama.named.get(name) {
-            return ProviderVariant::Ollama(conf);
-        }
-
-        if let Some(conf) = self.openai.named.get(name) {
-            return ProviderVariant::OpenAi(conf);
-        }
-
-        if let Some(conf) = self.anthropic.named.get(name) {
-            return ProviderVariant::Anthropic(conf);
-        }
-
-        if let Some(conf) = self.google.named.get(name) {
-            return ProviderVariant::Google(conf);
-        }
-
-        if let Some(conf) = self.openrouter.named.get(name) {
-            return ProviderVariant::OpenRouter(conf);
-        }
-
-        ProviderVariant::None
     }
 }

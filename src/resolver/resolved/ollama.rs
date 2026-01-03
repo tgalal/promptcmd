@@ -1,6 +1,5 @@
 use llm::builder::LLMBuilder;
 
-use crate::config::providers::ollama::OllamaConfig;
 use crate::config::providers;
 use crate::define_resolved_provider_config;
 use crate::resolver::resolved::ToLLMBuilderError;
@@ -13,7 +12,7 @@ use log::debug;
 use std::fmt;
 use serde::Deserialize;
 
-define_resolved_provider_config!(OllamaConfig {
+define_resolved_provider_config!("ollama" {
     endpoint: String,
 });
 

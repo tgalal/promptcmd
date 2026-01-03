@@ -23,11 +23,11 @@ impl DisableCmd {
 
 #[cfg(test)]
 mod tests {
-    use crate::{cmd::{disable::DisableCmd}, installer::{tests::InMemoryInstaller, DotPromptInstaller, UninstallError}, storage::promptfiles_mem::InMemoryPromptFilesStorage};
+    use crate::{cmd::{disable::DisableCmd}, installer::{tests::InMemoryInstaller,
+        DotPromptInstaller, UninstallError}};
 
     #[derive(Default)]
     struct TestState {
-        storage: InMemoryPromptFilesStorage,
         installer: InMemoryInstaller
     }
 

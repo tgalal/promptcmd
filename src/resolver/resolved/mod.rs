@@ -11,14 +11,14 @@ pub struct ModelInfo {
 
 #[derive(Error, Debug)]
 pub enum ToLLMBuilderError {
-    #[error("'{0}' is required by not configured")]
+    #[error("'{0}' is required but not configured")]
     RequiredConfiguration(&'static str),
     #[error("{0}")]
     ModelError(#[from] ToModelInfoError)
 }
 
 #[derive(Error, Debug, Clone)]
-#[error("'{0}' is required by not configured")]
+#[error("'{0}' is required but not configured")]
 pub enum ToModelInfoError {
     RequiredConfiguration(&'static str)
 }
@@ -26,7 +26,29 @@ pub enum ToModelInfoError {
 #[macro_export]
 macro_rules! define_resolved_provider_config {
     ($source_config:ty { $($field:ident : $type:ty),* $(,)? }) => {
-        #[derive(Debug)]
+
+        #[derive(Debug, Deserialize, Default)]
+        pub struct Providers {
+
+            #[serde(flatten)]
+            pub config: Config,
+
+            #[serde(flatten)]
+            pub named: std::collections::HashMap<String, Config>,
+        }
+
+        #[derive(Debug, Deserialize, Default)]
+        pub struct Config {
+            pub temperature: Option<f32>,
+            pub system: Option<String>,
+            pub stream: Option<bool>,
+            pub max_tokens: Option<u32>,
+            pub default_model: Option<String>,
+
+            $(pub $field: Option<$type>),*
+        }
+
+        #[derive(Debug, Default)]
         pub struct ResolvedProviderConfigBuilder {
             // Shared fields
             pub temperature: Option<ResolvedProperty<f32>>,

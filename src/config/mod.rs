@@ -2,8 +2,6 @@ pub mod bin_locator;
 pub mod appconfig;
 pub mod appconfig_locator;
 pub mod providers;
-pub mod resolver;
-pub mod providers2;
 
 use std::path::PathBuf;
 

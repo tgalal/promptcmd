@@ -1,33 +1,12 @@
-use std::{collections::HashMap};
-use log::debug;
 use thiserror::Error;
 
-use crate::{resolver::{base::Base, group::{Group, GroupMember}, resolved::{ModelInfo, ToModelInfoError}, variant::Variant}, stats::store::{FetchError, StatsStore, SummaryItem}};
+use crate::{resolver::{base::Base, group::{Group, GroupMember}, resolved::{ModelInfo,
+    ToModelInfoError}, variant::Variant}, stats::store::{FetchError, StatsStore, SummaryItem}};
 
-pub struct Model {
-    pub usage: ModelUsage,
-    pub attributes: SelectionAttributes
-}
-
-pub struct ModelUsage {
-    pub provider: String,
-    pub model: String,
-    pub prompt_tokens: u64,
-    pub completion_tokens: u64,
-    pub total_usages: u32,
-    pub avg_tps: u32
-}
-
-pub struct SelectionAttributes {
-    pub weight: u32
-}
-
-pub type SelectableModels = HashMap<String, Model>;
 
 pub struct WeightedLoadBalancer<'a> {
     pub stats: &'a dyn StatsStore
 }
-
 
 pub enum Choice<'b> {
     Base(&'b Base),
@@ -157,8 +136,8 @@ impl<'a> WeightedLoadBalancer<'a> {
         } else {
             members_with_summaries
             .max_by(|a, b| {
-                let deficit_a = Self::calculate_deficit2(a.0, a.1, total_weight, total_tokens);
-                let deficit_b = Self::calculate_deficit2(b.0, b.1, total_weight, total_tokens);
+                let deficit_a = Self::calculate_deficit(a.0, a.1, total_weight, total_tokens);
+                let deficit_b = Self::calculate_deficit(b.0, b.1, total_weight, total_tokens);
                 deficit_a.partial_cmp(&deficit_b).unwrap()
             }).ok_or(LBError::Other("AAA"))?
             .0
@@ -177,49 +156,9 @@ impl<'a> WeightedLoadBalancer<'a> {
 
     }
 
-    fn calculate_deficit2(member: &GroupMember, summary: &SummaryItem, total_weight: u32, total_tokens: u64) -> f64 {
+    fn calculate_deficit(member: &GroupMember, summary: &SummaryItem, total_weight: u32, total_tokens: u64) -> f64 {
         let target_ratio = member.weight() as f64 / total_weight as f64;
         let actual_ratio = (summary.prompt_tokens + summary.completion_tokens) as f64
-            / total_tokens as f64;
-        target_ratio - actual_ratio
-    }
-
-    pub fn select(&self, models: &SelectableModels) -> Option<String> {
-        if models.is_empty() {
-            debug!("No models to choose from");
-            return None;
-        }
-
-        //calculate the sum of all weights and tokens
-        let total_weight: u32 = models.values().map(|m| m.attributes.weight).sum();
-        let total_tokens: u64 = models.values().map(|m | m.usage.prompt_tokens + m .usage.completion_tokens).sum();
-
-        if total_weight == 0 {
-            debug!("Total weight is zero, aborting");
-            return None;
-        }
-
-        if total_tokens == 0 {
-            // just return the one with the maximum weight
-            return models
-                .iter()
-                .max_by_key(|(_, m)| m.attributes.weight)
-                .map(|(id, _)| id.clone());
-        }
-
-        models
-        .iter()
-        .max_by(|(_, a), (_, b)| {
-            let deficit_a = Self::calculate_deficit(a, total_weight, total_tokens);
-            let deficit_b = Self::calculate_deficit(b, total_weight, total_tokens);
-            deficit_a.partial_cmp(&deficit_b).unwrap()
-        })
-        .map(|(id, _)| id.clone())
-
-    }
-    fn calculate_deficit(model: &Model, total_weight: u32, total_tokens: u64) -> f64 {
-        let target_ratio = model.attributes.weight as f64 / total_weight as f64;
-        let actual_ratio = (model.usage.prompt_tokens + model.usage.completion_tokens) as f64
             / total_tokens as f64;
         target_ratio - actual_ratio
     }

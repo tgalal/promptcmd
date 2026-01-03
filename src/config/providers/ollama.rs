@@ -1,9 +1,6 @@
-use llm::{builder::LLMBuilder};
-use log::debug;
-use serde::{Serialize, Deserialize};
-use crate::config::providers::{self, ProviderError, ToLLMProvider};
+use serde::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default)]
 pub struct OllamaProviders {
     #[serde(flatten)]
     pub config: OllamaConfig,
@@ -12,7 +9,7 @@ pub struct OllamaProviders {
     pub named: std::collections::HashMap<String, OllamaConfig>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Default)]
 pub struct OllamaConfig {
     pub temperature: Option<f32>,
     pub system: Option<String>,
@@ -22,122 +19,4 @@ pub struct OllamaConfig {
 
     #[serde(default)]
     pub endpoint: Option<String>
-}
-
-impl OllamaConfig {
-    pub fn endpoint(&self, providers: &providers::Providers) -> Result<String, ProviderError> {
-        if let Some(ref endpoint) = self.endpoint {
-            Ok(endpoint.to_string())
-        } else if let Some(ref endpoint) = providers.ollama.config.endpoint {
-            Ok(endpoint.to_string())
-        } else {
-            Err(ProviderError::MissingRequiredConfiguration { name: String::from("endpoint") })
-        }
-    }
-
-    pub fn system(&self, providers: &providers::Providers) -> Option<String> {
-        if let Some(ref system) = self.system {
-            Some(system.to_string())
-        } else if let Some(ref system) = providers.ollama.config.system {
-            Some(system.to_string())
-        } else {
-            providers.system.clone()
-        }
-    }
-
-    pub fn default_model(&self, providers: &providers::Providers) -> Option<String> {
-        if let Some(ref default_model) = self.default_model {
-            Some(default_model.to_string())
-        } else if let Some(ref default_model) = providers.ollama.config.default_model {
-            Some(default_model.to_string())
-        } else {
-            None
-        }
-    }
-
-    pub fn temperature(&self, providers: &providers::Providers) -> f32 {
-        self.temperature.or(
-            providers.ollama.config.temperature.or(
-                providers.temperature
-            )
-        ).unwrap_or(providers::DEFAULT_TEMPERATURE)
-    }
-
-    pub fn stream(&self, providers: &providers::Providers) -> bool {
-        self.stream.or(
-            providers.ollama.config.stream.or(
-                providers.stream
-            )
-        ).unwrap_or(providers::DEFAULT_STREAM)
-    }
-
-    pub fn max_tokens(&self, providers: &providers::Providers) -> u32 {
-        self.max_tokens.or(
-            providers.ollama.config.max_tokens.or(
-                providers.max_tokens
-            )
-        ).unwrap_or(providers::DEFAULT_MAX_TOKENS)
-    }
-}
-
-impl ToLLMProvider for OllamaConfig {
-    fn llm_provider(&self,
-        llmbuilder: LLMBuilder,
-        providers: &providers::Providers) -> Result<Box< dyn llm::LLMProvider>, providers::ProviderError> {
-            let endpoint = self.endpoint(providers)?;
-            let mut builder = llmbuilder.backend(llm::builder::LLMBackend::Ollama)
-               .base_url(&endpoint)
-                .max_tokens(self.max_tokens(providers))
-                .stream(self.stream(providers))
-                .temperature(self.temperature(providers));
-
-            if let Some(system) = self.system(providers) {
-                if system.len() > 70 {
-                    debug!("System message: {}...", &system[..75]);
-                } else {
-                    debug!("System message: {}", &system);
-                }
-            }
-
-        Ok(builder.build()?)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::config::appconfig::AppConfig;
-
-    #[test]
-    fn test_ollama_config_inheritance() {
-        let toml_content = r#"
-            default_model = "claude-3-5-sonnet-20241022"
-            editor = "vim"
-
-            [providers]
-            temperature = 0.7
-
-            [providers.ollama]
-            endpoint = "http://root_ollama_endpoint"
-            temperature = 0.6
-
-            [providers.ollama.custom_ollama1]
-            endpoint = "http://custom_ollama1_endpoint"
-            temperature = 0.4
-
-            [providers.ollama.custom_ollama2]
-            stream = false
-        "#;
-        let appconfig = AppConfig::try_from(&toml_content.to_string()).unwrap();
-        let ollama = &appconfig.providers.ollama.config;
-        let custom_ollama1 = &appconfig.providers.ollama.named.get("custom_ollama1").unwrap();
-        let custom_ollama2 = &appconfig.providers.ollama.named.get("custom_ollama2").unwrap();
-
-        assert_eq!(ollama.endpoint(&appconfig.providers).unwrap(), "http://root_ollama_endpoint");
-        assert_eq!(custom_ollama1.endpoint(&appconfig.providers).unwrap(), "http://custom_ollama1_endpoint");
-        assert_eq!(custom_ollama2.endpoint(&appconfig.providers).unwrap(), "http://root_ollama_endpoint");
-
-        assert_eq!(ollama.temperature(&appconfig.providers), 0.6);
-        assert_eq!(custom_ollama1.temperature(&appconfig.providers), 0.4);
-        assert_eq!(custom_ollama2.temperature(&appconfig.providers), 0.6);
-    }
 }

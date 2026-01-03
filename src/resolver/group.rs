@@ -10,8 +10,8 @@ pub enum GroupMember {
 impl GroupMember {
     pub fn weight(&self) -> u32 {
         match self {
-            GroupMember::Base(_, weight) => weight.clone(),
-            GroupMember::Variant(_, weight) => weight.clone(),
+            GroupMember::Base(_, weight) => *weight,
+            GroupMember::Variant(_, weight) => *weight,
         }
     }
 }

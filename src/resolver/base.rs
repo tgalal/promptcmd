@@ -50,20 +50,20 @@ impl Base {
     }
 }
 
-impl TryFrom<Base> for (ModelInfo, LLMBuilder) {
+impl TryFrom<&Base> for (ModelInfo, LLMBuilder) {
     type Error = ToLLMBuilderError;
 
-    fn try_from(base: resolver::base::Base) -> std::result::Result<Self, Self::Error> {
-        match base.resolved {
+    fn try_from(base: &resolver::base::Base) -> std::result::Result<Self, Self::Error> {
+        match &base.resolved {
             resolver::ResolvedProviderConfig::Ollama(resolved) => {
-                let model_info = ModelInfo::try_from(&resolved)?;
-                let llmbuilder = LLMBuilder::try_from(&resolved)?;
+                let model_info = ModelInfo::try_from(resolved)?;
+                let llmbuilder = LLMBuilder::try_from(resolved)?;
                 Ok((model_info, llmbuilder))
             }
             resolver::ResolvedProviderConfig::Anthropic(resolved) =>
-                Ok((ModelInfo::try_from(&resolved)?, LLMBuilder::try_from(&resolved)?)),
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
             resolver::ResolvedProviderConfig::OpenAI(resolved) =>
-                Ok((ModelInfo::try_from(&resolved)?, LLMBuilder::try_from(&resolved)?))
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?))
         }
     }
 }

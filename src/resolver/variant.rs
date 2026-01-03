@@ -65,17 +65,17 @@ impl Variant {
     }
 }
 
-impl TryFrom<Variant> for (ModelInfo, LLMBuilder) {
+impl TryFrom<&Variant> for (ModelInfo, LLMBuilder) {
     type Error = ToLLMBuilderError;
 
-    fn try_from(variant: Variant) -> std::result::Result<Self, Self::Error> {
-        match variant.resolved {
+    fn try_from(variant: &Variant) -> std::result::Result<Self, Self::Error> {
+        match &variant.resolved {
             ResolvedProviderConfig::Ollama(resolved) =>
-                Ok((ModelInfo::try_from(&resolved)?, LLMBuilder::try_from(&resolved)?)),
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
             ResolvedProviderConfig::Anthropic(resolved) =>
-                Ok((ModelInfo::try_from(&resolved)?, LLMBuilder::try_from(&resolved)?)),
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
             ResolvedProviderConfig::OpenAI(resolved) =>
-                Ok((ModelInfo::try_from(&resolved)?, LLMBuilder::try_from(&resolved)?)),
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
         }
     }
 }

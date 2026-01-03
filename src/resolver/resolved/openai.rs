@@ -11,6 +11,7 @@ use crate::config::providers;
 use std::env;
 use log::debug;
 use std::fmt;
+use serde::Deserialize;
 
 define_resolved_provider_config!(OpenAIConfig {
     api_key: String,

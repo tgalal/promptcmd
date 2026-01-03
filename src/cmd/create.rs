@@ -1,14 +1,17 @@
 use clap::{Parser};
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
+use llm::builder::LLMBuilder;
 use std::io::{self, Write};
+use log::{error};
 
 use crate::cmd::enable::EnableCmd;
 use crate::cmd::{templates, TextEditor};
-use crate::config::appconfig::{AppConfig, ModelError};
-use crate::config::providers::{ProviderVariant};
+use crate::config::appconfig::{AppConfig};
 use crate::installer::DotPromptInstaller;
+use crate::resolver::resolved::{ModelInfo, ToLLMBuilderError, ToModelInfoError};
 use crate::storage::PromptFilesStorage;
 use crate::{dotprompt::DotPrompt};
+use crate::resolver::{self, ResolvedPropertySource};
 
 #[derive(Parser)]
 pub struct CreateCmd {
@@ -64,40 +67,42 @@ impl CreateCmd {
                     let model_name = dotprompt.frontmatter.model.or( appconfig.providers.default.clone());
 
                     if let Some(model_name) = model_name {
-                        let resolved_name = appconfig.resolve_model_name(&model_name, true);
-                        if let Ok(resolved_name) = resolved_name {
-                            match appconfig.providers.resolve(&resolved_name[0].provider) {
-                                ProviderVariant::Anthropic(conf) => {
-                                    if conf.api_key(&appconfig.providers).is_none() {
-                                        writeln!(out, "{}", templates::ONBOARDING_ANTHROPIC)?;
-                                    }
-                                },
-                                ProviderVariant::OpenAi(conf) => {
-                                    if conf.api_key(&appconfig.providers).is_none() {
-                                        writeln!(out, "{}", templates::ONBOARDING_OPENAI)?;
-                                    }
-                                },
-                                ProviderVariant::Google(conf) => {
-                                    if conf.api_key(&appconfig.providers).is_none() {
-                                        writeln!(out, "{}", templates::ONBOARDING_GOOGLE)?;
-                                    }
-                                },
-                                _ => {
-                                    writeln!(out, "Warning: No configuration can be found for '{model_name}'")?;
-                                }
+
+                        let resolved_config = match resolver::resolve(
+                            appconfig, &model_name, Some(ResolvedPropertySource::Dotprompt(model_name.clone())
+                        )) {
+                            Ok(resolver::ResolvedConfig::Base(base))  => {
+                                <(ModelInfo, LLMBuilder)>::try_from(&base)
+                            },
+                            Ok(resolver::ResolvedConfig::Variant(variant))  => {
+                                <(ModelInfo, LLMBuilder)>::try_from(&variant)
+                            },
+                            Ok(_) => {
+                                break;
+                            },
+                            Err(resolver::ResolveError::NotFound(name)) => {
+                                writeln!(out, "Warning: No configuration could be found for '{name}'")?;
+                                break;
+                            },
+                            Err(err) => {
+                                error!("{}", err);
+                                break;
+                            },
+                        };
+
+                        match resolved_config {
+                            Ok(_) => {},
+                            Err(ToLLMBuilderError::RequiredConfiguration(_)) | Err(ToLLMBuilderError::ModelError(ToModelInfoError::RequiredConfiguration(_))) => {
+                                match model_name.as_str() {
+                                    "anthropic" => writeln!(out, "{}", templates::ONBOARDING_ANTHROPIC)?,
+                                    "openai" => writeln!(out, "{}", templates::ONBOARDING_OPENAI)?,
+                                    "google" => writeln!(out, "{}", templates::ONBOARDING_GOOGLE)?,
+                                    _ => {}
+                                };
                             }
-                        } else if let Err(ModelError::NoDefaultModelConfigured(provider_name)) = resolved_name {
-                            if model_name != provider_name {
-                                writeln!(out, "Warning: '{}' resolves to '{}', but no default_model has been configured for it", &model_name, &provider_name)?;
-                            } else {
-                                writeln!(out, "Warning: no default_model configured for '{provider_name}'")?;
-                            }
-                        } else {
-                            writeln!(out, "Warning: No configuration can be found for '{model_name}'")?;
                         }
-                    } else {
-                        writeln!(out, "Warning: No model specified and there is no default one set in config.")?;
                     }
+
                     break;
                 }
                 // Written means there were errors, but the user forced writing the file.

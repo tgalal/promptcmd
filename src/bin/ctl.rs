@@ -63,7 +63,7 @@ fn main() -> Result<()> {
         config::prompt_storage_dir()?
     );
 
-    let mut store = RusqliteStore::new(
+    let store = RusqliteStore::new(
         config::data_dir()?
     )?;
 

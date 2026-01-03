@@ -6,9 +6,7 @@ use crate::{config::appconfig::AppConfig, resolver::{self, ResolvedPropertySourc
 #[derive(Parser)]
 pub struct ResolveModelCmd {
     #[arg()]
-    pub name: String,
-    #[arg(short, long)]
-    pub debug: bool,
+    pub name: String
 }
 
 impl ResolveModelCmd {
@@ -16,11 +14,7 @@ impl ResolveModelCmd {
         let source = Some(ResolvedPropertySource::Input(self.name.clone()));
         match resolver::resolve(appconfig, &self.name, source) {
             Ok(resolved_config) => {
-                if self.debug {
-                    writeln!(out, "{}", resolved_config)?;
-                } else {
-                    writeln!(out, "{}", resolved_config)?;
-                }
+                writeln!(out, "{}", resolved_config)?;
             },
             Err(err) => {
                 bail!(err)

@@ -13,7 +13,8 @@ use llm::{
 };
 use llm::chat::StructuredOutputFormat;
 use tokio::runtime::Runtime;
-use crate::{config::appconfig::AppConfig, dotprompt::Frontmatter, lb::{self, weighted_lb::{ModelUsage, WeightedLoadBalancer}}, resolver::{self, resolved::ModelInfo, ResolvedPropertySource}};
+use crate::{config::appconfig::AppConfig, lb::{weighted_lb::{WeightedLoadBalancer}},
+    resolver::{self, resolved::ModelInfo, ResolvedPropertySource}};
 use crate::dotprompt::DotPrompt;
 use crate::dotprompt::render::Render;
 use crate::config::{appconfig_locator,};
@@ -59,137 +60,11 @@ pub enum UsageMode {
 
 #[derive(Error, Debug)]
 pub enum RunCmdError {
-    #[error("'{0}' is required by not configured")]
+    #[error("'{0}' is required but not configured")]
     RequiredConfiguration(&'static str)
 }
 
 impl RunCmd {
-
-    // fn decide_model2(
-    //     frontmatter: &Frontmatter,
-    //     appconfig: &AppConfig,
-    //     store: &mut impl StatsStore,
-    //     lb: &WeightedLoadBalancer,
-    //     usage_mode: UsageMode
-    // ) -> Result<(String, String)> {
-    //     // Step 1. Determine the requested model name.
-    //     let requested_name = frontmatter.model.clone()
-    //         .or(appconfig.providers.default.clone())
-    //         .context("No model specified and no default models set in config")?;
-
-    //     match resolver::resolve(appconfig, &requested_name) {
-    //        Ok(resolver::ResolvedConfig::Base(base))  => {},
-    //        Ok(resolver::ResolvedConfig::Variant(variant))  => {},
-    //        Ok(resolver::ResolvedConfig::Group(group))  => {},
-    //        Err(err) => {}
-    //     }
-
-    //     // let resolved_config = resolver::resolve(
-    //     //     appconfig, &requested_name, true).context("Resolve failed")?;
-
-    //     // Step 2: Pull statistics of each of resolved configs
-    //     // match resolved_config {
-    //     //     ResolvedConfig::Base(base) => {
-    //     //         store.summary(provider, model, variant, group, success)
-    //     //     }
-    //     //     ResolvedConfig::Variant(variant) => {}
-    //     //     ResolvedConfig::Group(group) => {}
-    //     // }
-
-    //     bail!("Done")
-    // }
-
-    /// Device which model will be used.
-    ///
-    /// This is a multistep process involving the following.
-    ///
-    /// 1. Determine the requested model name. This must either be set in the prompt file's
-    ///    frontmatter.model or in appconfig.providers.default.
-    /// 2. Run the requested model name by appconfig.resolve. This maps the requested model name
-    ///    into the real provider/model names (which can the requested model can be a variant thereof).
-    ///    If there the requested model name is a group name, it resolves to the list of of real
-    ///    provider/model names.
-    /// 3. For each of the determined real provider/model names, the stats store is queried for
-    ///    their usage statistics.
-    /// 4. The numbers are given to the loadbalancer which calculates the final model  to use
-    fn decide_model(
-        frontmatter: &Frontmatter,
-        appconfig: &AppConfig,
-        store: &mut impl StatsStore,
-        lb: &WeightedLoadBalancer,
-    ) -> Result<(String, String)> {
-
-        // Step 1. Determine the requested model name.
-        let requested_model_name = frontmatter.model.clone()
-            .or(appconfig.providers.default.clone())
-            .context("No model specified and no default models set in config")?;
-
-        // Step 2. Run by appconfig.resolve
-        let resolved_model_names = appconfig.resolve_model_name(&requested_model_name, true)?;
-
-
-        // Step 3. Get usage statistics
-        let summaries = resolved_model_names
-            .iter()
-            .map(|item| {
-                store.summary(
-                    Some(item.provider.clone()),
-                    Some(item.model.clone()),
-                    None, None,
-                    Some(true))
-            }).collect::<Result<Vec<_>, _>>()?;
-
-        let lb_model = summaries
-            .iter()
-            .zip(resolved_model_names.iter())
-            .map(|(summary,item)| {
-                let usage = if summary.is_empty() {
-                    ModelUsage {
-                        provider: item.provider.clone(),
-                        model: item.model.clone(),
-                        prompt_tokens: 0,
-                        completion_tokens: 0,
-                        total_usages: 0,
-                        avg_tps: 0
-                    }
-                } else {
-                    ModelUsage {
-                        provider: item.provider.clone(),
-                        model: item.model.clone(),
-                        prompt_tokens: summary[0].prompt_tokens as u64,
-                        completion_tokens: summary[0].completion_tokens as u64,
-                        total_usages: summary[0].count,
-                        avg_tps: 0
-                    }
-                };
-                (item, usage)
-            }).map(|(item, usage)| {
-                let model = lb::weighted_lb::Model {
-                    usage,
-                    attributes: lb::weighted_lb::SelectionAttributes {
-                        weight: item.weight
-                    }
-                };
-                (format!("{}/{}", &item.provider, &item.model), model)
-            }).collect::<HashMap<_,_>>();
-
-        // Step 4. Loadbalancer decides
-        let selected_identifier= lb.select(&lb_model).context("LB Error 1")?;
-        debug!("lb has selected {selected_identifier}");
-
-        let selected_model = resolved_model_names
-            .iter()
-            .find(|item| format!("{}/{}", &item.provider, &item.model) == selected_identifier)
-            .context("LB Error 2")?;
-
-        Ok((selected_model.provider.clone(), selected_model.model.clone()))
-    }
-
-    /*
-    * This function locates the given promptfile, and parses it into Dotprompt.
-    * It then generates a command line interface matching the input schema from the Dotprompt,
-    * then performs  the matching.
-    */
     pub fn exec_prompt(&self,
         inp: &mut impl std::io::BufRead,
         out: &mut impl std::io::Write,
@@ -219,10 +94,10 @@ impl RunCmd {
             appconfig, &requested_name, Some(ResolvedPropertySource::Dotprompt(requested_name.clone()))
         ) {
            Ok(resolver::ResolvedConfig::Base(base))  => {
-                <(ModelInfo, LLMBuilder)>::try_from(base)
+                <(ModelInfo, LLMBuilder)>::try_from(&base)
             },
            Ok(resolver::ResolvedConfig::Variant(variant))  => {
-                <(ModelInfo, LLMBuilder)>::try_from(variant)
+                <(ModelInfo, LLMBuilder)>::try_from(&variant)
                 // (ModelInfo,LLMBuilder)::try_from(variant)
             },
            Ok(resolver::ResolvedConfig::Group(group))  => {
@@ -259,17 +134,6 @@ impl RunCmd {
             llmbuilder = llmbuilder.schema(output_schema);
         }
 
-        // let provider_config: &dyn ToLLMProvider =  match appconfig.providers.resolve(&provider) {
-        //     providers::ProviderVariant::Ollama(conf) => conf,
-        //     providers::ProviderVariant::Anthropic(conf) => conf,
-        //     providers::ProviderVariant::Google(conf) => conf,
-        //     providers::ProviderVariant::OpenAi(conf) => conf,
-        //     providers::ProviderVariant::OpenRouter(conf) => conf,
-        //     providers::ProviderVariant::None => {
-        //         bail!("No configuration found for the selected provider: {}", provider);
-        //     }
-        // };
-
         let llm = llmbuilder.build()?;
 
         let messages = vec![
@@ -285,7 +149,7 @@ impl RunCmd {
 
         let elapsed = start_time.elapsed().as_secs() as u32;
 
-            // Send chat request and handle the response
+        // Send chat request and handle the response
         let (success, response_text, prompt_tokens, completion_tokens) = match result  {
             Ok(response) => {
 

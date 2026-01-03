@@ -11,6 +11,7 @@ use std::convert::From;
 use std::env;
 use log::debug;
 use std::fmt;
+use serde::Deserialize;
 
 define_resolved_provider_config!(AnthropicConfig {
     api_key: String,

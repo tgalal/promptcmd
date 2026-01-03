@@ -4,8 +4,7 @@ pub mod openai;
 pub mod google;
 pub mod openrouter;
 
-use llm::{builder::LLMBuilder, error::LLMError, LLMProvider};
-use serde::{Serialize, Deserialize};
+use serde::Deserialize;
 
 pub const DEFAULT_MAX_TOKENS: u32 = 1000;
 pub const DEFAULT_STREAM: bool = false;
@@ -19,8 +18,6 @@ use crate::config::providers::{anthropic::AnthropicProviders, google::GoogleProv
 
 #[derive(Error, Debug)]
 pub enum ProviderError {
-    #[error("Error Creating LLM Backend")]
-    CreateLLMClientError(#[from] LLMError),
 
     #[error("Missing required configuration key {name}")]
     MissingRequiredConfiguration {
@@ -33,11 +30,7 @@ pub enum ProviderError {
     },
 }
 
-pub trait ToLLMProvider {
-    fn llm_provider(&self, llmbuilder: LLMBuilder, providers: &Providers) -> Result<Box< dyn LLMProvider>, ProviderError>;
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Providers {
 
     pub temperature: Option<f32>,

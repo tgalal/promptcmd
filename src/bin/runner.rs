@@ -11,7 +11,7 @@ use std::{env};
 use anyhow::{Context, Result, bail};
 use std::path::PathBuf;
 use std::fs;
-use log::{ debug};
+use log::debug;
 
 
 fn main() -> Result<()> {
@@ -21,7 +21,7 @@ fn main() -> Result<()> {
         config::prompt_storage_dir()?
     );
 
-    let mut store = RusqliteStore::new(
+    let store = RusqliteStore::new(
         config::data_dir()?
     )?;
 

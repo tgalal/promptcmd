@@ -10,15 +10,15 @@ use serde_json::json;
 
 #[derive(Debug, Error)]
 pub enum ParseError {
-    #[error("Frontmatter is required but not be found")]
-    MissingFrontmatter,
-    #[error("A template is required but not be found")]
+    #[error("A template is required but not found")]
     MissingTemplate,
     #[error("Error parsing frontmatter")]
-    ParseFrontMatterError(#[from] serde_yaml::Error)
+    ParseFrontMatterError(#[from] serde_yaml::Error),
+    #[error("Frontmatter not well formed")]
+    FrontmatterNotWellFormed
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct Frontmatter {
     pub model: Option<String>,
     pub input: Option<Input>,
@@ -68,33 +68,46 @@ impl TryFrom<&str> for DotPrompt {
             .join("\n");
 
         // Expect frontmatter to start with `---`
-        if !s.starts_with("---") {
-            return Err(ParseError::MissingFrontmatter);
+        let (frontmatter, template) = if s.starts_with("---") {
+            // Split into at most 3 parts: before first ---, frontmatter, rest.
+            // Using splitn(3, "---") yields: ["", "<fm>", "<rest>"]
+            let sections: Vec<&str> = s.splitn(3,"---").collect();
+            // Need at least 3 sections for a properly closed block:
+            // [before, content, after]
+            if sections.len() < 3 {
+                return Err(ParseError::FrontmatterNotWellFormed);
+            }
+
+            let mut parts = sections.iter();
+
+            // skip prefix (could be empty)
+            parts.next();
+
+            let fm_str = parts
+                .next()
+                .ok_or(ParseError::FrontmatterNotWellFormed)?
+                .trim();
+
+            let template = parts
+                .next()
+                .ok_or(ParseError::MissingTemplate)?
+                .trim()
+                .to_string();
+
+            // Now parse the frontmatter YAML into the typed struct
+            let fm: Frontmatter = serde_yaml::from_str(fm_str)?;
+            (fm, template)
+        } else {
+            // No frontmatter, which is okay.
+            (Frontmatter::default(), s)
+        };
+
+        if template.trim().is_empty() {
+            return Err(ParseError::MissingTemplate);
         }
 
-        // Split into at most 3 parts: before first ---, frontmatter, rest.
-        // Using splitn(3, "---") yields: ["", "<fm>", "<rest>"]
-        let mut parts = s.splitn(3, "---");
-
-        // skip prefix (could be empty)
-        parts.next();
-
-        let fm_str = parts
-            .next()
-            .ok_or(ParseError::MissingFrontmatter)?
-            .trim();
-
-        let template = parts
-            .next()
-            .ok_or(ParseError::MissingTemplate)?
-            .trim()
-            .to_string();
-
-        // Now parse the frontmatter YAML into the typed struct
-        let fm: Frontmatter = serde_yaml::from_str(fm_str)?;
-
         Ok(DotPrompt {
-            frontmatter: fm,
+            frontmatter,
             template,
         })
     }
@@ -297,11 +310,24 @@ output:
   format: text"#;
 
         let result = DotPrompt::try_from(content);
-        assert!(result.is_err(), "Should fail without frontmatter delimiter");
+        assert!(result.is_ok(), "Should pass w/o frontmatter");
+
+    }
+
+    #[test]
+    fn test_parse_frontmatter_not_wellformed() {
+        let content = r#"
+        ---
+        model: test/model
+output:
+  format: text"#;
+
+        let result = DotPrompt::try_from(content);
+        assert!(result.is_err(), "Should fail without proper frontmatter delimiter");
 
         if let Err(e) = result {
             assert!(matches!(
-              e, ParseError::MissingFrontmatter
+              e, ParseError::FrontmatterNotWellFormed
             ));
         }
     }
@@ -335,9 +361,7 @@ output:
 ---"#;
 
         let result = DotPrompt::try_from(content);
-        // This should actually succeed with an empty template
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().template, "");
+        assert!(result.is_err());
     }
 
     #[test]

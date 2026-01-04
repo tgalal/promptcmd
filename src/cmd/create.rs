@@ -16,8 +16,8 @@ use crate::config::providers::{ModelInfo, error};
 
 #[derive(Parser)]
 pub struct CreateCmd {
-    #[arg(short, long, default_value_t=true)]
-    pub enable: bool,
+    #[arg(short, long, default_value_t=false)]
+    pub no_enable: bool,
 
     #[arg(short, long, default_value_t=false)]
     pub force: bool,
@@ -59,7 +59,7 @@ impl CreateCmd {
                 // - we give out user help if provider has no available configuration
                 WriteResult::Validated(dotprompt, path) => {
                     writeln!(out, "Saved {}", path)?;
-                    if self.enable {
+                    if !self.no_enable {
                         EnableCmd {
                             promptname: self.promptname.clone()
                         }.exec(storage, installer)?;
@@ -110,7 +110,7 @@ impl CreateCmd {
                 // In this case we don't enable the prompt automatically, even if requested.
                 WriteResult::Written(path) => {
                     writeln!(out, "Saved {}", path)?;
-                    if self.enable {
+                    if !self.no_enable {
                         writeln!(out, "Not enabling due to errors")?;
                     }
                     break;
@@ -267,7 +267,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            enable: true,
+            no_enable: false,
             force: false
         }.exec(
                 &mut &state.inp[..],
@@ -299,7 +299,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            enable: false,
+            no_enable: true,
             force: false
         }.exec(
             &mut &state.inp[..],
@@ -331,7 +331,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            enable: false,
+            no_enable: true,
             force: false
         }.exec(
             &mut &state.inp[..],
@@ -362,7 +362,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            enable: false,
+            no_enable: true,
             force: true
         }.exec(
             &mut &state.inp[..],

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::Deserialize;
 use toml;
 use toml::de::Error as TomlError;
@@ -10,7 +12,7 @@ use crate::config::resolver;
 #[derive(Debug, Deserialize, Default)]
 pub struct AppConfig {
     pub providers: Providers,
-    pub group: Option<Vec<GroupConfig>>
+    pub groups: HashMap<String, GroupConfig>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -37,7 +39,6 @@ pub struct Providers {
 
 #[derive(Debug, Deserialize, Default)]
 pub struct GroupConfig {
-    pub name: String,
     pub providers: Vec<GroupProviderConfig>,
 }
 
@@ -186,21 +187,19 @@ mod tests {
         let toml_content = r#"
 [providers]
 
-[[group]]
-name = "group1"
+[groups.group1]
 providers = [
     "openai", "anthropic"
 ]
 
-[[group]]
-name = "group2"
+[groups.group1]
 providers = [
     { name = "openai", weight = 1 },
     { name = "ollama", weight = 2 },
 ]
 "#;
         let config = AppConfig::try_from(&toml_content.to_string()).unwrap();
-        let groups = config.group.unwrap();
+        let groups = config.groups;
 
         println!("{:?}", groups);
 

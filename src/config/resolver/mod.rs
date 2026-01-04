@@ -204,9 +204,9 @@ fn resolve_variant(
 }
 
 fn resolve_group(appconfig: &AppConfig, group_name: &str) -> Result<Group, error::ResolveError> {
-    let groups = appconfig.group.as_ref().ok_or(error::ResolveError::NoGroups)?;
-    let group = groups.iter().find(|item| item.name == group_name).ok_or(
-        error::ResolveError::NotFound(group_name.to_string()))?;
+    let group = appconfig.groups.get(group_name).ok_or(
+        error::ResolveError::NotFound(group_name.to_string())
+    )?;
 
     let members = group.providers.iter().map(|item| {
         match item {

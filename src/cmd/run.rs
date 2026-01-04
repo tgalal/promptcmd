@@ -92,17 +92,18 @@ impl RunCmd {
             .or(appconfig.providers.globals.model.clone())
             .context("No model specified and no default models set in config")?;
 
-        let (model_info, mut llmbuilder) = match resolver::resolve(
-            appconfig, &requested_name, Some(ResolvedPropertySource::Dotprompt(requested_name.clone()))
-        ) {
-           Ok(resolver::ResolvedConfig::Base(base))  => {
-                <(ModelInfo, LLMBuilder)>::try_from(&base)
+        let resolved_config = resolver::resolve(
+            appconfig, &requested_name, Some(ResolvedPropertySource::Dotprompt(requested_name.clone())))?;
+
+        let (model_info, mut llmbuilder) = match &resolved_config {
+           resolver::ResolvedConfig::Base(base)  => {
+                <(ModelInfo, LLMBuilder)>::try_from(base)
             },
-           Ok(resolver::ResolvedConfig::Variant(variant))  => {
-                <(ModelInfo, LLMBuilder)>::try_from(&variant)
+           resolver::ResolvedConfig::Variant(variant)  => {
+                <(ModelInfo, LLMBuilder)>::try_from(variant)
                 // (ModelInfo,LLMBuilder)::try_from(variant)
             },
-           Ok(resolver::ResolvedConfig::Group(group))  => {
+           resolver::ResolvedConfig::Group(group)  => {
                 bail!("TODO: implement groups")
                 // Do the Loadbalancing here!
 
@@ -116,10 +117,7 @@ impl RunCmd {
                 //         }
                 //     }
                 // }).collect();
-           },
-           Err(err) => {
-                bail!(err)
-            }
+           }
         }?;
 
         // let (provider, model) = RunCmd::decide_model(
@@ -138,10 +136,13 @@ impl RunCmd {
 
         if self.dryrun {
             println!("Dry run mode.");
-            println!("Provider: {}", &model_info.provider);
-            println!("Model: {}", &model_info.model);
-            println!("System Message: \nTodo");
-            println!("Prompt: \n{}", &output);
+            println!("=============");
+
+            println!(">>> Resolved Config");
+            println!("{}\n", &resolved_config);
+
+            println!(">>> Rendered Prompt");
+            println!("{}", &output);
 
             return Ok(());
         }

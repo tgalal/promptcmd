@@ -65,7 +65,6 @@ macro_rules! define_resolved_provider_config {
             $(pub $field: Option<ResolvedProperty<$type>>),*
         }
 
-        // #[derive(Debug)]
         pub struct ResolvedProviderConfig {
             // Shared fields
             pub temperature: Option<ResolvedProperty<f32>>,

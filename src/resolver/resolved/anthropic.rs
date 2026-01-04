@@ -43,10 +43,6 @@ impl TryFrom<&ResolvedProviderConfig> for LLMBuilder {
             )?.value.clone()
         );
 
-        // if config.api_key.is_none() {
-        //     return Err(ToLLMBuilderError::RequiredConfiguration("api_key"))
-        // }
-
         Ok(builder)
     }
 }

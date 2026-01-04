@@ -2,7 +2,6 @@ use llm::builder::LLMBuilder;
 
 use crate::resolver::resolved::{ModelInfo, ToLLMBuilderError, ToModelInfoError};
 use crate::resolver::{self, BaseProviderConfigSource, ResolvedProperty, ResolvedPropertySource, ResolvedProviderConfig};
-use std::fmt;
 
 
 #[derive(Debug)]
@@ -10,8 +9,6 @@ pub struct Base {
     pub name: String,
     pub resolved: ResolvedProviderConfig,
     pub model_info: Result<ModelInfo, ToModelInfoError>
-    // pub source: BaseProviderConfigSource<'a>,
-    // pub config: ResolvedProviderConfig
 }
 
 impl Base {
@@ -65,12 +62,5 @@ impl TryFrom<&Base> for (ModelInfo, LLMBuilder) {
             resolver::ResolvedProviderConfig::OpenAI(resolved) =>
                 Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?))
         }
-    }
-}
-
-impl fmt::Display for Base {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Base: {}", &self.name)?;
-        write!(f, "{}", self.resolved)
     }
 }

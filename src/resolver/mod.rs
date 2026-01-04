@@ -1,14 +1,13 @@
 pub mod base;
+pub mod display;
 pub mod variant;
 pub mod group;
 pub mod resolved;
-use indenter::indented;
-use std::fmt::{self, Write, Display};
+pub mod error;
 
-use thiserror::Error;
 use log::debug;
-use crate::{config::{appconfig::{AppConfig, GroupProviderConfig, LongGroupProviderConfig},
-}, resolver::{base::Base, group::{Group, GroupMember}, variant::Variant}};
+use crate::{config::appconfig::{AppConfig, GroupProviderConfig, LongGroupProviderConfig},
+    resolver::{base::Base, error::ResolveError, group::{Group, GroupMember}, variant::Variant}};
 
 
 #[derive(Debug)]
@@ -17,24 +16,6 @@ pub enum ResolvedConfig {
     Variant(variant::Variant),
     Group(group::Group)
 }
-
-impl fmt::Display for ResolvedConfig {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ResolvedConfig::Base(base) => {
-                write!(f, "{base}")
-            },
-            ResolvedConfig::Variant(variant) => {
-                write!(f, "{variant}")
-
-            },
-            ResolvedConfig::Group(group) => {
-                write!(f, "{group}")
-            },
-        }
-    }
-}
-
 
 pub enum BaseProviderConfigSource<'a> {
     Ollama(&'a resolved::ollama::Config),
@@ -52,10 +33,6 @@ pub enum VariantProviderConfigSource<'a> {
     // Google(&'a GoogleConfig),
 }
 
-// struct ProviderConfigSource<'a, T> {
-//     source: &'a T
-// }
-
 #[derive(Debug)]
 pub enum ResolvedProviderConfig {
     Ollama(resolved::ollama::ResolvedProviderConfig),
@@ -65,44 +42,11 @@ pub enum ResolvedProviderConfig {
     // Google(ResolvedGoogleConfig),
 }
 
-impl fmt::Display for ResolvedProviderConfig {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Provider: ")?;
-        match self {
-            Self::Ollama(conf) => {
-                writeln!(f, "Ollama")?;
-                writeln!(f, "Configuration:")?;
-                write!(indented(f).with_str("  "), "{conf}")?
-            },
-            Self::Anthropic(conf) => {
-                writeln!(f, "Anthropic")?;
-                writeln!(f, "Configuration:")?;
-                write!(indented(f).with_str("  "), "{conf}")?
-            },
-            Self::OpenAI(conf) => {
-                writeln!(f, "OpenAI")?;
-                writeln!(f, "Configuration:")?;
-                write!(indented(f).with_str("  "), "{conf}")?
-            }
-        };
-
-        Ok(())
-    }
-}
-
-
 #[derive(Clone, Debug)]
 pub struct ResolvedProperty<T> {
     pub source: ResolvedPropertySource,
     pub value: T
 }
-
-impl<T:Display> fmt::Display for ResolvedProperty<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
-    }
-}
-
 
 #[derive(Clone, Debug)]
 pub enum ResolvedPropertySource {
@@ -114,33 +58,6 @@ pub enum ResolvedPropertySource {
     Dotprompt(String),
     Input(String),
     Other(String)
-}
-
-impl fmt::Display for ResolvedPropertySource {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Group(group_name, value) => write!(f, "Group({group_name},{value})"),
-            Self::Variant(name) => write!(f, "Variant({name})"),
-            Self::Base(name) => write!(f, "Base({name})"),
-            Self::Env(name) => write!(f, "Env({name})"),
-            Self::Default => write!(f, "Default"),
-            Self::Dotprompt(name) => write!(f, "Frontmatter({name})"),
-            Self::Input(name) => write!(f, "Input({name})"),
-            Self::Other(name) => write!(f, "Other({name})")
-        }
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum ResolveError {
-    #[error("'{0}' not found")]
-    NotFound(String),
-    #[error("No groups defined in config")]
-    NoGroups,
-    #[error("Group '{0}' references '{1}' which is not found")]
-    GroupMemberNotFound(String, String),
-    #[error("Group '{0}' failed to load member: {1}")]
-    GroupMemberError(String, Box<ResolveError>),
 }
 
 fn resolve_base(appconfig: &AppConfig, base_name: &str,

@@ -1,7 +1,6 @@
 use llm::builder::LLMBuilder;
 
 use crate::resolver::{resolved::{anthropic, ollama, openai, ModelInfo, ToLLMBuilderError, ToModelInfoError}, ResolvedProperty, ResolvedPropertySource, ResolvedProviderConfig, VariantProviderConfigSource};
-use std::fmt;
 
 #[derive(Debug)]
 pub struct Variant {
@@ -77,13 +76,5 @@ impl TryFrom<&Variant> for (ModelInfo, LLMBuilder) {
             ResolvedProviderConfig::OpenAI(resolved) =>
                 Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
         }
-    }
-}
-
-impl fmt::Display for Variant {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Variant: {}", &self.name)?;
-        writeln!(f, "Base: {}", self.base_name)?;
-        write!(f, "{}", self.resolved)
     }
 }

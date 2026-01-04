@@ -80,7 +80,7 @@ impl CreateCmd {
                             Ok(_) => {
                                 break;
                             },
-                            Err(resolver::ResolveError::NotFound(name)) => {
+                            Err(resolver::error::ResolveError::NotFound(name)) => {
                                 writeln!(out, "Warning: No configuration could be found for '{name}'")?;
                                 break;
                             },

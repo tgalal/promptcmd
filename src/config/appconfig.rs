@@ -2,7 +2,7 @@ use serde::Deserialize;
 use toml;
 use toml::de::Error as TomlError;
 use thiserror::Error;
-use crate::resolver::ResolveError;
+use crate::resolver::error::ResolveError;
 use crate::resolver::resolved;
 
 

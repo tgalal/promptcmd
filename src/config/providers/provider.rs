@@ -234,9 +234,8 @@ macro_rules! create_provider {
         impl TryFrom<&ResolvedProviderConfig> for ModelInfo {
             type Error = error::ToModelInfoError;
             fn try_from(config: &ResolvedProviderConfig) -> Result<Self, Self::Error> {
-                let provider_name = stringify!($source_config).replace("Config", "").to_lowercase();
                 config.model.as_ref()
-                    .map(|property| ModelInfo { provider: provider_name, model: property.value.clone() })
+                    .map(|property| ModelInfo { provider: $provider_name.into(), model: property.value.clone() })
                     .ok_or(error::ToModelInfoError::RequiredConfiguration("model"))
             }
         }

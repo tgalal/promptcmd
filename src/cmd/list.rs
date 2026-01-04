@@ -19,10 +19,10 @@ pub struct ListCmd {
 
     #[arg(short, long)]
     pub fullpath: bool,
- 
+
     #[arg(short, long)]
     pub prompts: bool,
- 
+
     #[arg(short, long)]
     pub commands: bool,
 
@@ -69,8 +69,8 @@ fn exec_for_prompts(
     let prompts = storage.list()?;
 
     if long {
-        
-        let mut table = Table::new(); 
+
+        let mut table = Table::new();
         let format = format::FormatBuilder::new()
             .padding(0, 5)
             .build();

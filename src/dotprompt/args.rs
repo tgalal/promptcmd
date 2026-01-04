@@ -1,4 +1,4 @@
-use clap::{Arg, ArgMatches};
+use clap::{value_parser, Arg, ArgMatches};
 use crate::dotprompt::{DotPrompt, render::Render};
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -39,6 +39,7 @@ impl TryFrom<&DotPrompt> for Vec<Arg> {
             arg = if inputschema_element.data_type == "boolean" {
                 arg.long(inputschema_element.key.clone())
                     .action(clap::ArgAction::SetTrue)
+                    .required(false)
             } else if inputschema_element.data_type == "string" {
                 if inputschema_element.positional {
                         if inputschema_element.required {
@@ -49,8 +50,14 @@ impl TryFrom<&DotPrompt> for Vec<Arg> {
                 } else {
                     arg.long(inputschema_element.key.clone())
                 }
-            } else {
-
+            } else if inputschema_element.data_type == "integer" {
+                arg.long(inputschema_element.key.clone())
+                    .value_parser(value_parser!(i128))
+            } else if inputschema_element.data_type == "number" {
+                arg.long(inputschema_element.key.clone())
+                    .value_parser(value_parser!(f32))
+            }
+            else {
                 return Err(
                     DotPromptArgsError::UnsupportedDataType {
                             key: inputschema_element.key,
@@ -81,7 +88,26 @@ impl Render<ArgMatches, DotPromptArgsError> for DotPrompt {
                         String::from("")
                     }
                 }
-            } else if ele.data_type == "string" {
+            } else if ele.data_type == "integer" {
+                match matches.get_one::<i128>(&ele.key) {
+                    Some(value) => {
+                        value.to_string()
+                    },
+                    None => {
+                        String::from("")
+                    }
+                }
+            } else if ele.data_type == "number" {
+                match matches.get_one::<f32>(&ele.key) {
+                    Some(value) => {
+                        value.to_string()
+                    },
+                    None => {
+                        String::from("")
+                    }
+                }
+            }
+            else if ele.data_type == "string" {
                 if ele.positional {
                     match matches.get_many::<String>(&ele.key) {
                         Some(value) => {
@@ -101,7 +127,8 @@ impl Render<ArgMatches, DotPromptArgsError> for DotPrompt {
                         }
                     }
                 }
-            } else {
+            }
+            else {
                 return Err(DotPromptArgsError::UnsupportedDataType { key: ele.key, data_type: ele.data_type })
             };
             handlebar_maps.insert(ele.key.to_string(), value);

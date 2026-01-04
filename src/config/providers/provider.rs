@@ -115,7 +115,7 @@ macro_rules! create_provider {
                         if value.len() > 50 {
                             write!(f, "{:.50}... [source: {}]", value, val.source)?;
                         } else {
-                            write!(f, "{}... [source: {}]", value, val.source)?;
+                            write!(f, "{} [source: {}]", value, val.source)?;
                         }
                     }
                 );*
@@ -123,8 +123,8 @@ macro_rules! create_provider {
                 $(
                 write!(f, "\n{}: ", stringify!($field))?;
                 if let Some(val) = &self.$field {
-                    if "api_key" == stringify!($field) && val.value.len() > 15 {
-                        write!(f, "{:.15}xxxxx...redacted [source: {}]", val.value, val.source)?;
+                    if "api_key" == stringify!($field) && val.value.len() > 0 {
+                        write!(f, "xxxxx...redacted [source: {}]", val.source)?;
                     } else {
                         write!(f, "{} [source: {}]", val, val.source)?;
                     }

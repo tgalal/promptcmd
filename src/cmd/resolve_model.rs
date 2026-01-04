@@ -1,6 +1,7 @@
 use clap::{Parser};
 use anyhow::{bail, Result};
-use crate::{config::appconfig::AppConfig, resolver::{self, ResolvedPropertySource}};
+use crate::config::appconfig::AppConfig;
+use crate::config::resolver::{self, ResolvedPropertySource};
 
 
 #[derive(Parser)]

@@ -1,40 +1,16 @@
-pub mod ollama;
-pub mod anthropic;
-pub mod openai;
-use thiserror::Error;
-
-pub const DEFAULT_MAX_TOKENS: u32 = 1000;
-pub const DEFAULT_STREAM: bool = false;
-pub const DEFAULT_TEMPERATURE: f32 = 1.0;
-pub const DEFAULT_SYSTEM: &str = "You are useful AI assistant. Give me brief answers. Do not use special formatting like markdown.";
-
-#[derive(Debug, Clone)]
-pub struct ModelInfo {
-    pub provider: String,
-    pub model: String
-}
-
-#[derive(Error, Debug)]
-pub enum ToLLMBuilderError {
-    #[error("'{0}' is required but not configured")]
-    RequiredConfiguration(&'static str),
-    #[error("{0}")]
-    ModelError(#[from] ToModelInfoError)
-}
-
-#[derive(Error, Debug, Clone)]
-#[error("'{0}' is required but not configured")]
-pub enum ToModelInfoError {
-    RequiredConfiguration(&'static str)
-}
-
 #[macro_export]
-macro_rules! define_resolved_provider_config {
+macro_rules! create_provider {
     ($provider_name:literal { $($field:ident : $type:ty),* $(,)? }) => {
+        use $crate::config::resolver::ResolvedProperty;
+        use $crate::config::resolver::ResolvedPropertySource;
+        use $crate::config::providers::constants;
+        use $crate::config::providers::ModelInfo;
+        use $crate::config::providers::error;
 
+
+        // Serialized formats for reading configuration files
         #[derive(Debug, Deserialize, Default)]
         pub struct Providers {
-
             #[serde(flatten)]
             pub config: Config,
 
@@ -53,6 +29,8 @@ macro_rules! define_resolved_provider_config {
             $(pub $field: Option<$type>),*
         }
 
+        // Resolution Structs
+        // Builder enables overriding
         #[derive(Debug, Default)]
         pub struct ResolvedProviderConfigBuilder {
             // Shared fields
@@ -65,6 +43,8 @@ macro_rules! define_resolved_provider_config {
             $(pub $field: Option<ResolvedProperty<$type>>),*
         }
 
+        // Finalized Configuration with all sources
+        #[derive(Debug)]
         pub struct ResolvedProviderConfig {
             // Shared fields
             pub temperature: Option<ResolvedProperty<f32>>,
@@ -74,37 +54,6 @@ macro_rules! define_resolved_provider_config {
             pub model: Option<ResolvedProperty<String>>,
             // Custom fields
             $(pub $field: Option<ResolvedProperty<$type>>),*
-        }
-
-        impl fmt::Debug for ResolvedProviderConfig {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "temperature: ")?;
-                if let Some(val) = &self.temperature {
-                    write!(f, "{} (source: {})", val, val.source)?;
-                }
-                write!(f, "\nsystem: ")?;
-                if let Some(val) = &self.system {
-                    if val.value.len() > 50 {
-                        write!(f, "{:.50}... (source: {})", val.value, val.source)?;
-                    } else {
-                        write!(f, "{}... (source: {})", val, val.source)?;
-                    }
-                }
-                write!(f, "\nmodel: ")?;
-                if let Some(val) = &self.model {
-                    write!(f, "{} (source: {})", val, val.source)?;
-                }
-
-                $(
-                write!(f, "\n{}: ", stringify!($field))?;
-                if let Some(val) = &self.$field {
-                    write!(f, "{} (source: {})", val, val.source)?;
-                }
-                );*
-                // writeln!(f, "temperature={}", self.temperature.as_ref()
-                //     .map_or("".to_string(),|v| v.value.to_string()))?;
-                Ok(())
-            }
         }
 
         impl fmt::Display for ResolvedProviderConfig {
@@ -201,13 +150,13 @@ macro_rules! define_resolved_provider_config {
                 self.temperature = self.temperature.or(
                     Some(ResolvedProperty {
                         source: ResolvedPropertySource::Default,
-                        value: resolved::DEFAULT_TEMPERATURE
+                        value: constants::DEFAULT_TEMPERATURE
                     })
                 );
                 self.system = self.system.or(
                     Some(ResolvedProperty {
                         source: ResolvedPropertySource::Default,
-                        value: resolved::DEFAULT_SYSTEM.into()
+                        value: constants::DEFAULT_SYSTEM.into()
                     })
                 );
 
@@ -257,12 +206,12 @@ macro_rules! define_resolved_provider_config {
         }
 
         impl TryFrom<&ResolvedProviderConfig> for ModelInfo {
-            type Error = ToModelInfoError;
+            type Error = error::ToModelInfoError;
             fn try_from(config: &ResolvedProviderConfig) -> Result<Self, Self::Error> {
                 let provider_name = stringify!($source_config).replace("Config", "").to_lowercase();
                 config.model.as_ref()
                     .map(|property| ModelInfo { provider: provider_name, model: property.value.clone() })
-                    .ok_or(ToModelInfoError::RequiredConfiguration("model"))
+                    .ok_or(error::ToModelInfoError::RequiredConfiguration("model"))
             }
         }
     };

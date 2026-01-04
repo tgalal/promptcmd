@@ -1,8 +1,9 @@
 use llm::builder::LLMBuilder;
 
-use crate::resolver::resolved::{ModelInfo, ToLLMBuilderError, ToModelInfoError};
-use crate::resolver::{self, BaseProviderConfigSource, ResolvedProperty, ResolvedPropertySource, ResolvedProviderConfig};
-
+use crate::config::resolver::{BaseProviderConfigSource, ResolvedPropertySource};
+use crate::config::{providers::{error::ToModelInfoError, ModelInfo}, resolver::{ResolvedProperty,
+    ResolvedProviderConfig}};
+use crate::config::providers;
 
 #[derive(Debug)]
 pub struct Base {
@@ -19,21 +20,21 @@ impl Base {
 
         let (model_info, resolved) = match source {
             BaseProviderConfigSource::Ollama(source_config) => {
-                let resolved = resolver::resolved::ollama::ResolvedProviderConfigBuilder::from(
+                let resolved = providers::ollama::ResolvedProviderConfigBuilder::from(
                         (source_config, ResolvedPropertySource::Base(name.clone()))
                     ).override_model(model_resolved_property).build();
                 (ModelInfo::try_from(&resolved),ResolvedProviderConfig::Ollama(resolved))
             },
 
             BaseProviderConfigSource::Anthropic(source_config) => {
-                let resolved = resolver::resolved::anthropic::ResolvedProviderConfigBuilder::from(
+                let resolved = providers::anthropic::ResolvedProviderConfigBuilder::from(
                         (source_config, ResolvedPropertySource::Base(name.clone()))
                     ).override_model(model_resolved_property).build();
                 (ModelInfo::try_from(&resolved),ResolvedProviderConfig::Anthropic(resolved))
 
             },
             BaseProviderConfigSource::OpenAI(source_config) => {
-                let resolved = resolver::resolved::openai::ResolvedProviderConfigBuilder::from(
+                let resolved = providers::openai::ResolvedProviderConfigBuilder::from(
                         (source_config, ResolvedPropertySource::Base(name.clone()))
                     ).override_model(model_resolved_property).build();
                 (ModelInfo::try_from(&resolved),ResolvedProviderConfig::OpenAI(resolved))
@@ -48,18 +49,18 @@ impl Base {
 }
 
 impl TryFrom<&Base> for (ModelInfo, LLMBuilder) {
-    type Error = ToLLMBuilderError;
+    type Error = providers::error::ToLLMBuilderError;
 
-    fn try_from(base: &resolver::base::Base) -> std::result::Result<Self, Self::Error> {
+    fn try_from(base: &Base) -> std::result::Result<Self, Self::Error> {
         match &base.resolved {
-            resolver::ResolvedProviderConfig::Ollama(resolved) => {
+            ResolvedProviderConfig::Ollama(resolved) => {
                 let model_info = ModelInfo::try_from(resolved)?;
                 let llmbuilder = LLMBuilder::try_from(resolved)?;
                 Ok((model_info, llmbuilder))
             }
-            resolver::ResolvedProviderConfig::Anthropic(resolved) =>
+            ResolvedProviderConfig::Anthropic(resolved) =>
                 Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
-            resolver::ResolvedProviderConfig::OpenAI(resolved) =>
+            ResolvedProviderConfig::OpenAI(resolved) =>
                 Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?))
         }
     }

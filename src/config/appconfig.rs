@@ -2,8 +2,9 @@ use serde::Deserialize;
 use toml;
 use toml::de::Error as TomlError;
 use thiserror::Error;
-use crate::resolver::error::ResolveError;
-use crate::resolver::resolved;
+
+use crate::config::providers;
+use crate::config::resolver;
 
 
 #[derive(Debug, Deserialize, Default)]
@@ -22,11 +23,11 @@ pub struct Providers {
     pub system: Option<String>,
 
     #[serde(default)]
-    pub ollama: resolved::ollama::Providers,
+    pub ollama: providers::ollama::Providers,
     #[serde(default)]
-    pub openai: resolved::openai::Providers,
+    pub openai: providers::openai::Providers,
     #[serde(default)]
-    pub anthropic: resolved::anthropic::Providers,
+    pub anthropic: providers::anthropic::Providers,
     // #[serde(default)]
     // pub google: resolved::google::Providers,
 
@@ -85,27 +86,10 @@ pub enum ModelError {
     #[error("Error parsing model string:{0}")]
     ParseNameError(String),
     #[error("Could not resolve model or group: {0}")]
-    ResolveFailed(#[from] ResolveError),
+    ResolveFailed(#[from] resolver::error::ResolveError),
     #[error("No default_model configured for provider: {0}")]
     NoDefaultModelConfigured(String),
 }
-
-// impl Default for Providers {
-//     fn default() -> Self {
-//         Providers {
-//             temperature: Some(DEFAULT_TEMPERATURE),
-//             stream: Some(DEFAULT_STREAM),
-//             max_tokens: Some(DEFAULT_MAX_TOKENS),
-//             system: Some(DEFAULT_SYSTEM.to_string()),
-//             default: None,
-//             ollama: resolved::ollama::Providers::default(),
-//             openai: resolved::openai::Providers::default(),
-//             anthropic: resolved::anthropic::Providers::default(),
-//             // google: GoogleProviders::default(),
-//             // openrouter: OpenRouterProviders::default(),
-//         }
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

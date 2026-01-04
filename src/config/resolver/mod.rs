@@ -1,14 +1,19 @@
 pub mod base;
-pub mod display;
 pub mod variant;
 pub mod group;
-pub mod resolved;
 pub mod error;
+mod display;
+
+use crate::config::appconfig::{AppConfig, GroupProviderConfig, LongGroupProviderConfig};
+use crate::config::providers::ollama;
+use crate::config::providers::openai;
+use crate::config::providers::anthropic;
+
+pub use variant::Variant;
+pub use base::Base;
+pub use group::{Group, GroupMember};
 
 use log::debug;
-use crate::{config::appconfig::{AppConfig, GroupProviderConfig, LongGroupProviderConfig},
-    resolver::{base::Base, error::ResolveError, group::{Group, GroupMember}, variant::Variant}};
-
 
 #[derive(Debug)]
 pub enum ResolvedConfig {
@@ -18,26 +23,26 @@ pub enum ResolvedConfig {
 }
 
 pub enum BaseProviderConfigSource<'a> {
-    Ollama(&'a resolved::ollama::Config),
-    Anthropic(&'a resolved::anthropic::Config),
-    OpenAI(&'a  resolved::openai::Config),
+    Ollama(&'a ollama::Config),
+    Anthropic(&'a anthropic::Config),
+    OpenAI(&'a  openai::Config),
     // OpenRouter(&'a OpenRouterConfig),
     // Google(&'a GoogleConfig),
 }
 
 pub enum VariantProviderConfigSource<'a> {
-    Ollama(&'a resolved::ollama::Config, &'a resolved::ollama::Config),
-    Anthropic(&'a resolved::anthropic::Config, &'a resolved::anthropic::Config),
-    OpenAI(&'a resolved::openai::Config, &'a resolved::openai::Config),
+    Ollama(&'a ollama::Config, &'a ollama::Config),
+    Anthropic(&'a anthropic::Config, &'a anthropic::Config),
+    OpenAI(&'a openai::Config, &'a openai::Config),
     // OpenRouter(&'a OpenRouterConfig),
     // Google(&'a GoogleConfig),
 }
 
 #[derive(Debug)]
 pub enum ResolvedProviderConfig {
-    Ollama(resolved::ollama::ResolvedProviderConfig),
-    Anthropic(resolved::anthropic::ResolvedProviderConfig),
-    OpenAI(resolved::openai::ResolvedProviderConfig),
+    Ollama(ollama::ResolvedProviderConfig),
+    Anthropic(anthropic::ResolvedProviderConfig),
+    OpenAI(openai::ResolvedProviderConfig),
     // OpenRouter(ResolvedAnthropicConfig),
     // Google(ResolvedGoogleConfig),
 }
@@ -61,7 +66,7 @@ pub enum ResolvedPropertySource {
 }
 
 fn resolve_base(appconfig: &AppConfig, base_name: &str,
-    model_source: Option<ResolvedPropertySource>) -> Result<Base, ResolveError> {
+    model_source: Option<ResolvedPropertySource>) -> Result<Base, error::ResolveError> {
 
     debug!("Attempting to resolve {base_name} as Base");
 
@@ -126,7 +131,7 @@ fn resolve_base(appconfig: &AppConfig, base_name: &str,
         //     })
         // }
         _ => {
-            Err(ResolveError::NotFound(base_name.to_string()))
+            Err(error::ResolveError::NotFound(base_name.to_string()))
         }
     }
 }
@@ -134,7 +139,7 @@ fn resolve_base(appconfig: &AppConfig, base_name: &str,
 fn resolve_variant(
         appconfig: &AppConfig,
         variant_name: &str,
-        model_source: Option<ResolvedPropertySource>) -> Result<Variant, ResolveError> {
+        model_source: Option<ResolvedPropertySource>) -> Result<Variant, error::ResolveError> {
     debug!("Attempting to resolve {variant_name} as Variant");
 
     let (provider, model) = if let Some (dissected) = variant_name.split_once("/") {
@@ -173,7 +178,7 @@ fn resolve_variant(
             model_resolved_property
         ))
     } else {
-        Err(ResolveError::NotFound(variant_name.to_string()))
+        Err(error::ResolveError::NotFound(variant_name.to_string()))
     }
     // else if let Some(conf) = appconfig.providers.google.named.get(variant_name) {
     //     Some(Variant {
@@ -198,10 +203,10 @@ fn resolve_variant(
     // }
 }
 
-fn resolve_group(appconfig: &AppConfig, group_name: &str) -> Result<Group, ResolveError> {
-    let groups = appconfig.group.as_ref().ok_or(ResolveError::NoGroups)?;
+fn resolve_group(appconfig: &AppConfig, group_name: &str) -> Result<Group, error::ResolveError> {
+    let groups = appconfig.group.as_ref().ok_or(error::ResolveError::NoGroups)?;
     let group = groups.iter().find(|item| item.name == group_name).ok_or(
-        ResolveError::NotFound(group_name.to_string()))?;
+        error::ResolveError::NotFound(group_name.to_string()))?;
 
     let members = group.providers.iter().map(|item| {
         match item {
@@ -224,8 +229,8 @@ fn resolve_group(appconfig: &AppConfig, group_name: &str) -> Result<Group, Resol
     }).collect::<Result<Vec<_>, _>>()
         .map_err(|e| {
             match e {
-                ResolveError::NotFound(name) => ResolveError::GroupMemberNotFound(group_name.to_string(), name),
-                err => ResolveError::GroupMemberError(group_name.to_string(), Box::from(err))
+                error::ResolveError::NotFound(name) => error::ResolveError::GroupMemberNotFound(group_name.to_string(), name),
+                err => error::ResolveError::GroupMemberError(group_name.to_string(), Box::from(err))
             }
     })?;
     Ok(Group {
@@ -238,20 +243,20 @@ pub fn resolve(
     appconfig: &AppConfig,
     name: &str,
     model_source: Option<ResolvedPropertySource>
-) -> Result<ResolvedConfig, ResolveError> {
+) -> Result<ResolvedConfig, error::ResolveError> {
     debug!("Resolving {name}");
     match resolve_base(appconfig, name, model_source.clone()) {
         Ok(base) => {
             debug!("Resolved {name} as base");
             Ok(ResolvedConfig::Base(base))
         }
-        Err(ResolveError::NotFound(_)) => {
+        Err(error::ResolveError::NotFound(_)) => {
             match resolve_variant(appconfig, name, model_source) {
                 Ok(variant) => {
                     debug!("Resolved {name} as variant");
                     Ok(ResolvedConfig::Variant(variant))
                 },
-                Err(ResolveError::NotFound(_)) => {
+                Err(error::ResolveError::NotFound(_)) => {
                     match resolve_group(appconfig, name) {
                         Ok(group) => {
                             debug!("Resolved {name} as group");

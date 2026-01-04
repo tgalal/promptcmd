@@ -1,6 +1,7 @@
 use llm::builder::LLMBuilder;
 
-use crate::resolver::{resolved::{anthropic, ollama, openai, ModelInfo, ToLLMBuilderError, ToModelInfoError}, ResolvedProperty, ResolvedPropertySource, ResolvedProviderConfig, VariantProviderConfigSource};
+use crate::config::{providers::{error::ToModelInfoError, ModelInfo}, resolver::{ResolvedProperty, ResolvedPropertySource, ResolvedProviderConfig, VariantProviderConfigSource}};
+use crate::config::providers;
 
 #[derive(Debug)]
 pub struct Variant {
@@ -23,30 +24,30 @@ impl Variant {
         let (model_info, resolved) = match source {
             VariantProviderConfigSource::Ollama(variant_config, base_config) => {
 
-                let resolved = ollama::ResolvedProviderConfigBuilder::from(
+                let resolved = providers::ollama::ResolvedProviderConfigBuilder::from(
                     (base_config, ResolvedPropertySource::Base(base_name.clone()))
                 ).override_from(
-                        &ollama::ResolvedProviderConfigBuilder::from((variant_config, ResolvedPropertySource::Variant(name.clone())))
+                        &providers::ollama::ResolvedProviderConfigBuilder::from((variant_config, ResolvedPropertySource::Variant(name.clone())))
                             .build()
                     ).override_model(model_resolved_property).build();
 
                     (ModelInfo::try_from(&resolved), ResolvedProviderConfig::Ollama(resolved))
             },
             VariantProviderConfigSource::Anthropic(variant_config, base_config) => {
-                let resolved = anthropic::ResolvedProviderConfigBuilder::from(
+                let resolved = providers::anthropic::ResolvedProviderConfigBuilder::from(
                     (base_config, ResolvedPropertySource::Base(base_name.clone()))
                 ).override_from(
-                        &anthropic::ResolvedProviderConfigBuilder::from((variant_config, ResolvedPropertySource::Variant(name.clone())))
+                        &providers::anthropic::ResolvedProviderConfigBuilder::from((variant_config, ResolvedPropertySource::Variant(name.clone())))
                             .build()
                     ).override_model(model_resolved_property).build();
 
                     (ModelInfo::try_from(&resolved), ResolvedProviderConfig::Anthropic(resolved))
             },
             VariantProviderConfigSource::OpenAI(variant_config, base_config) => {
-                let resolved = openai::ResolvedProviderConfigBuilder::from(
+                let resolved = providers::openai::ResolvedProviderConfigBuilder::from(
                     (base_config, ResolvedPropertySource::Base(base_name.clone()))
                 ).override_from(
-                        &openai::ResolvedProviderConfigBuilder::from((variant_config, ResolvedPropertySource::Variant(name.clone())))
+                        &providers::openai::ResolvedProviderConfigBuilder::from((variant_config, ResolvedPropertySource::Variant(name.clone())))
                             .build()
                     ).override_model(model_resolved_property).build();
 
@@ -65,7 +66,7 @@ impl Variant {
 }
 
 impl TryFrom<&Variant> for (ModelInfo, LLMBuilder) {
-    type Error = ToLLMBuilderError;
+    type Error = providers::error::ToLLMBuilderError;
 
     fn try_from(variant: &Variant) -> std::result::Result<Self, Self::Error> {
         match &variant.resolved {

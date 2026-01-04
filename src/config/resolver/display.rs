@@ -1,7 +1,14 @@
 use indenter::indented;
 use std::fmt::{self, Write};
 
-use crate::resolver::{base::Base, variant::Variant, ResolvedConfig, ResolvedProperty, ResolvedPropertySource, ResolvedProviderConfig};
+use crate::config::resolver::{
+    ResolvedPropertySource,
+    ResolvedConfig,
+    ResolvedProviderConfig,
+    ResolvedProperty,
+    Base,
+    Variant,
+};
 
 impl fmt::Display for ResolvedPropertySource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -1,5 +1,6 @@
-use crate::resolver::{base::Base, variant::Variant};
 use std::fmt;
+
+use crate::config::resolver::{base::Base, variant::Variant};
 
 #[derive(Debug)]
 pub enum GroupMember {

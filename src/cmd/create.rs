@@ -8,10 +8,11 @@ use crate::cmd::enable::EnableCmd;
 use crate::cmd::{templates, TextEditor};
 use crate::config::appconfig::{AppConfig};
 use crate::installer::DotPromptInstaller;
-use crate::resolver::resolved::{ModelInfo, ToLLMBuilderError, ToModelInfoError};
 use crate::storage::PromptFilesStorage;
 use crate::{dotprompt::DotPrompt};
-use crate::resolver::{self, ResolvedPropertySource};
+use crate::config::resolver::{self, ResolvedPropertySource};
+use crate::config::providers::{ModelInfo, error};
+
 
 #[derive(Parser)]
 pub struct CreateCmd {
@@ -92,7 +93,7 @@ impl CreateCmd {
 
                         match resolved_config {
                             Ok(_) => {},
-                            Err(ToLLMBuilderError::RequiredConfiguration(_)) | Err(ToLLMBuilderError::ModelError(ToModelInfoError::RequiredConfiguration(_))) => {
+                            Err(error::ToLLMBuilderError::RequiredConfiguration(_)) | Err(error::ToLLMBuilderError::ModelError(error::ToModelInfoError::RequiredConfiguration(_))) => {
                                 match model_name.as_str() {
                                     "anthropic" => writeln!(out, "{}", templates::ONBOARDING_ANTHROPIC)?,
                                     "openai" => writeln!(out, "{}", templates::ONBOARDING_OPENAI)?,

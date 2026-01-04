@@ -1,8 +1,16 @@
 use thiserror::Error;
 
-use crate::{resolver::{base::Base, group::{Group, GroupMember}, resolved::{ModelInfo,
-    ToModelInfoError}, variant::Variant}, stats::store::{FetchError, StatsStore, SummaryItem}};
+use crate::stats::store::{
+    FetchError, StatsStore, SummaryItem
+};
 
+use crate::config::resolver::{
+    Base, Variant, Group, GroupMember
+};
+
+use crate::config::providers::{
+    self, ModelInfo
+};
 
 pub struct WeightedLoadBalancer<'a> {
     pub stats: &'a dyn StatsStore
@@ -19,7 +27,7 @@ pub enum LBError {
     #[error("LBError:{0}")]
     Other(&'static str),
     #[error("ToModelInfoError: {0}")]
-    ModelInfoError(#[from] ToModelInfoError),
+    ModelInfoError(#[from] providers::error::ToModelInfoError),
     #[error("FetchError: {0}")]
     FetchError(#[from] FetchError),
 }
@@ -56,8 +64,8 @@ impl<'a> WeightedLoadBalancer<'a> {
 
         let model_infos: Vec<ModelInfo> = group.members.iter().map(|member| {
             match member {
-                crate::resolver::group::GroupMember::Base(base, _) => base.model_info.clone(),
-                crate::resolver::group::GroupMember::Variant(variant, _) => variant.model_info.clone()
+                GroupMember::Base(base, _) => base.model_info.clone(),
+                GroupMember::Variant(variant, _) => variant.model_info.clone()
             }
         }).collect::<Result<Vec<_>, _>>()?;
 
@@ -82,7 +90,7 @@ impl<'a> WeightedLoadBalancer<'a> {
                 };
                 // LB on provider + model + variant
                 let variant_filter = if matches!(level, BalanceLevel::Variant) {
-                    if let crate::resolver::group::GroupMember::Variant(variant, _) = member  {
+                    if let GroupMember::Variant(variant, _) = member  {
                         Some(variant.name.clone())
                     } else {
                         None
@@ -144,10 +152,10 @@ impl<'a> WeightedLoadBalancer<'a> {
         };
 
         let choice =  match result {
-            crate::resolver::group::GroupMember::Base(base, _) => {
+            GroupMember::Base(base, _) => {
                 Choice::Base(base)
             },
-            crate::resolver::group::GroupMember::Variant(base, _) => {
+            GroupMember::Variant(base, _) => {
                 Choice::Variant(base)
             },
         };

@@ -5,4 +5,3 @@ pub mod storage;
 pub mod installer;
 pub mod stats;
 pub mod lb;
-pub mod resolver;

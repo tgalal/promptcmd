@@ -14,7 +14,9 @@ use llm::{
 use llm::chat::StructuredOutputFormat;
 use tokio::runtime::Runtime;
 use crate::{config::appconfig::AppConfig, lb::{weighted_lb::{WeightedLoadBalancer}},
-    resolver::{self, resolved::ModelInfo, ResolvedPropertySource}};
+};
+use crate::config::resolver::{self, ResolvedPropertySource};
+use crate::config::providers::ModelInfo;
 use crate::dotprompt::DotPrompt;
 use crate::dotprompt::render::Render;
 use crate::config::{appconfig_locator,};

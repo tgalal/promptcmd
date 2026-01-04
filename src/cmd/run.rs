@@ -136,6 +136,16 @@ impl RunCmd {
             llmbuilder = llmbuilder.schema(output_schema);
         }
 
+        if self.dryrun {
+            println!("Dry run mode.");
+            println!("Provider: {}", &model_info.provider);
+            println!("Model: {}", &model_info.model);
+            println!("System Message: \nTodo");
+            println!("Prompt: \n{}", &output);
+
+            return Ok(());
+        }
+
         let llm = llmbuilder.build()?;
 
         let messages = vec![

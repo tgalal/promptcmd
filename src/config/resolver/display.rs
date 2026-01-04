@@ -18,6 +18,7 @@ impl fmt::Display for ResolvedPropertySource {
             Self::Base(name) => write!(f, "Base({name})"),
             Self::Env(name) => write!(f, "Env({name})"),
             Self::Default => write!(f, "Default"),
+            Self::Globals => write!(f, "Globals"),
             Self::Dotprompt(name) => write!(f, "Frontmatter({name})"),
             Self::Input(name) => write!(f, "Input({name})"),
             Self::Other(name) => write!(f, "Other({name})")

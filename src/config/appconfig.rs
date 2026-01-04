@@ -16,13 +16,18 @@ pub struct AppConfig {
 }
 
 #[derive(Debug, Deserialize, Default)]
-pub struct Providers {
-
+pub struct GlobalProviderProperties {
     pub temperature: Option<f32>,
     pub stream: Option<bool>,
     pub max_tokens: Option<u32>,
-    pub default: Option<String>,
+    pub model: Option<String>,
     pub system: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct Providers {
+    #[serde(flatten)]
+    pub globals: GlobalProviderProperties,
 
     #[serde(default)]
     pub ollama: providers::ollama::Providers,
@@ -202,7 +207,6 @@ providers = [
         let groups = config.groups;
 
         println!("{:?}", groups);
-
     }
 
 }

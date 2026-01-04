@@ -60,6 +60,7 @@ pub enum ResolvedPropertySource {
     Base(String),
     Env(String),
     Default,
+    Globals,
     Dotprompt(String),
     Input(String),
     Other(String)

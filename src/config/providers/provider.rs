@@ -1,11 +1,23 @@
 #[macro_export]
 macro_rules! create_provider {
+
     ($provider_name:literal { $($field:ident : $type:ty),* $(,)? }) => {
+        create_provider!(@internal $provider_name { $($field : $type),* };
+            temperature: f32,
+            system: String,
+            stream: bool,
+            max_tokens: u32,
+            model: String
+        );
+    };
+
+    (@internal $provider_name:literal { $($field:ident : $type:ty),* }; $($global_field:ident : $global_field_type:ty),*) => {
         use $crate::config::resolver::ResolvedProperty;
         use $crate::config::resolver::ResolvedPropertySource;
         use $crate::config::providers::constants;
         use $crate::config::providers::ModelInfo;
         use $crate::config::providers::error;
+        use $crate::config::appconfig::GlobalProviderProperties;
 
 
         // Serialized formats for reading configuration files
@@ -20,12 +32,7 @@ macro_rules! create_provider {
 
         #[derive(Debug, Deserialize, Default)]
         pub struct Config {
-            pub temperature: Option<f32>,
-            pub system: Option<String>,
-            pub stream: Option<bool>,
-            pub max_tokens: Option<u32>,
-            pub default_model: Option<String>,
-
+            $(pub $global_field: Option<$global_field_type>),*,
             $(pub $field: Option<$type>),*
         }
 
@@ -33,47 +40,86 @@ macro_rules! create_provider {
         // Builder enables overriding
         #[derive(Debug, Default)]
         pub struct ResolvedProviderConfigBuilder {
-            // Shared fields
-            pub temperature: Option<ResolvedProperty<f32>>,
-            pub system: Option<ResolvedProperty<String>>,
-            // stream: Option<ResolvedProperty<bool>>,
-            // max_tokens: Option<ResolvedProperty<u32>>,
-            pub model: Option<ResolvedProperty<String>>,
-            // Custom fields
+
+            $(pub $global_field: Option<ResolvedProperty<$global_field_type>>),*,
             $(pub $field: Option<ResolvedProperty<$type>>),*
         }
 
         // Finalized Configuration with all sources
         #[derive(Debug)]
         pub struct ResolvedProviderConfig {
-            // Shared fields
-            pub temperature: Option<ResolvedProperty<f32>>,
-            pub system: Option<ResolvedProperty<String>>,
-            // stream: Option<ResolvedProperty<bool>>,
-            // max_tokens: Option<ResolvedProperty<u32>>,
-            pub model: Option<ResolvedProperty<String>>,
-            // Custom fields
+            $(pub $global_field: Option<ResolvedProperty<$global_field_type>>),*,
             $(pub $field: Option<ResolvedProperty<$type>>),*
+        }
+
+        impl ResolvedProviderConfig {
+            pub fn from_env_globals() -> Self {
+                let mut builder = ResolvedProviderConfigBuilder::new();
+
+                $(
+                    builder.$global_field = read_env(
+                        &stringify!($global_field_type).to_uppercase(),
+                        true, None
+                    );
+                )*
+
+                builder.build()
+            }
+        }
+
+        fn read_env<T: std::str::FromStr>(
+            key: &str,
+            global: bool,
+            def: Option<ResolvedProperty<T>>) -> Option<ResolvedProperty<T>> {
+            let mut env_field_name_builder = vec!["PROMPTCMD"];
+            let provider_prefix = $provider_name.to_uppercase();
+
+            if !global {
+                env_field_name_builder.push(&provider_prefix);
+            }
+
+            env_field_name_builder.push(key);
+
+            let env_field_name = env_field_name_builder.join("_");
+            debug!("READING {}", env_field_name);
+            let env_field_value = env::var(&env_field_name).ok().map(|value| {
+                debug!("{}={}", env_field_name, value);
+                value.parse().ok()
+            })
+            .flatten()
+            .map(|value| {
+                ResolvedProperty {
+                    source: ResolvedPropertySource::Env(env_field_name),
+                    value
+                }
+            })
+            .or(def);
+            env_field_value
         }
 
         impl fmt::Display for ResolvedProviderConfig {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "temperature: ")?;
-                if let Some(val) = &self.temperature {
-                    write!(f, "{} [source: {}]", val, val.source)?;
-                }
-                write!(f, "\nsystem: ")?;
-                if let Some(val) = &self.system {
-                    if val.value.len() > 50 {
-                        write!(f, "{:.50}... [source: {}]", val.value, val.source)?;
-                    } else {
-                        write!(f, "{}... [source: {}]", val, val.source)?;
+
+                let mut first = true;
+
+                $(
+                    if !first {
+                        writeln!(f)?;
                     }
-                }
-                write!(f, "\nmodel: ")?;
-                if let Some(val) = &self.model {
-                    write!(f, "{} [source: {}]", val, val.source)?;
-                }
+                    first = false;
+                    write!(f, stringify!($global_field))?;
+                    write!(f, ": ")?;
+
+                    if let Some(val) = &self.$global_field {
+                        let value = val.to_string();
+                        if value.len() > 50 {
+                            write!(f, "{:.50}... [source: {}]", value, val.source)?;
+                        } else {
+                            write!(f, "{}... [source: {}]", value, val.source)?;
+                        }
+                    }
+                );*
+
                 $(
                 write!(f, "\n{}: ", stringify!($field))?;
                 if let Some(val) = &self.$field {
@@ -84,8 +130,6 @@ macro_rules! create_provider {
                     }
                 }
                 );*
-                // writeln!(f, "temperature={}", self.temperature.as_ref()
-                //     .map_or("".to_string(),|v| v.value.to_string()))?;
                 Ok(())
             }
         }
@@ -94,9 +138,7 @@ macro_rules! create_provider {
             pub fn new(
             ) -> Self {
                 Self {
-                    temperature: None,
-                    system: None,
-                    model: None,
+                    $($global_field: None),*,
                     $($field: None),*
                 }
             }
@@ -117,32 +159,11 @@ macro_rules! create_provider {
             }
 
             fn apply_env(mut self) -> Self {
+                $(
+                    self.$global_field = read_env(&stringify!($global_field).to_uppercase(), false, self.$global_field);
+                )*
 
-                fn read_env<T: std::str::FromStr>(key: &str, def: Option<ResolvedProperty<T>>) -> Option<ResolvedProperty<T>> {
-                    let env_prefix = String::from("PROMPTCMD_")
-                        + $provider_name.to_uppercase().as_str();
-                    let env_field_name = env_prefix.clone() + "_" + key;
-                    debug!("READING {}", env_field_name);
-                    let env_field_value = env::var(&env_field_name).ok().map(|value| {
-                        debug!("{}={}", env_field_name, value);
-                        value.parse().ok()
-                    })
-                    .flatten()
-                    .map(|value| {
-                        ResolvedProperty {
-                            source: ResolvedPropertySource::Env(env_field_name),
-                            value
-                        }
-                    })
-                    .or(def);
-                    env_field_value
-                }
-
-                self.temperature = read_env("TEMPERATURE", self.temperature);
-                self.system = read_env("SYSTEM", self.system);
-                self.model = read_env("MODEL", self.model);
-
-                $(self.$field = read_env(&stringify!($field).to_uppercase(), self.$field));*;
+                $(self.$field = read_env(&stringify!($field).to_uppercase(), false, self.$field));*;
                 self
             }
 
@@ -166,9 +187,7 @@ macro_rules! create_provider {
             pub fn build(self) -> ResolvedProviderConfig {
                 let finalized_builder = self.apply_default().apply_env();
                 ResolvedProviderConfig {
-                    temperature: finalized_builder.temperature,
-                    system: finalized_builder.system,
-                    model: finalized_builder.model,
+                    $($global_field: finalized_builder.$global_field),*,
                     $($field: finalized_builder.$field),*
                 }
             }
@@ -185,23 +204,30 @@ macro_rules! create_provider {
                 let source_config = tuple.0;
                 let source = tuple.1;
                 Self {
-                    temperature: source_config.temperature.as_ref().map(|value| ResolvedProperty {
-                        source: source.clone(),
-                        value: value.clone()
-                    }),
-                    system: source_config.system.as_ref().map(|value| ResolvedProperty {
-                        source:source.clone(),
-                        value: value.clone()
-                    }),
-                    model: source_config.default_model.as_ref().map(|value| ResolvedProperty {
-                        source:source.clone(),
-                        value: value.clone()
-                    }),
+                    $(
+                        $global_field: source_config.$global_field.as_ref().map(|value| ResolvedProperty {
+                            source: source.clone(),
+                            value: value.clone()
+                        })
+                    ),*,
                     $($field: source_config.$field.as_ref().map(|value| ResolvedProperty {
                         source: source.clone(),
                         value: value.clone()
                     })),*
                 }
+            }
+        }
+
+        impl From<&GlobalProviderProperties> for ResolvedProviderConfig {
+            fn from(globals: &GlobalProviderProperties) -> Self {
+                let mut builder = ResolvedProviderConfigBuilder::new();
+                $(
+                    builder.$global_field = globals.$global_field.as_ref().map(|value| ResolvedProperty {
+                        source: ResolvedPropertySource::Globals,
+                        value: value.clone()
+                    });
+                )*
+                builder.build()
             }
         }
 

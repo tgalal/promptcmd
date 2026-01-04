@@ -1,7 +1,7 @@
 use llm::builder::LLMBuilder;
 
-use crate::config::providers;
 use crate::define_resolved_provider_config;
+use crate::resolver::resolved;
 use crate::resolver::resolved::ToLLMBuilderError;
 use crate::resolver::ResolvedProperty;
 use crate::resolver::ResolvedPropertySource;

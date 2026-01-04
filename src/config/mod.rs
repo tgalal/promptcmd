@@ -1,6 +1,5 @@
 pub mod appconfig;
 pub mod appconfig_locator;
-pub mod providers;
 
 use std::path::PathBuf;
 

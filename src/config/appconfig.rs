@@ -2,8 +2,37 @@ use serde::Deserialize;
 use toml;
 use toml::de::Error as TomlError;
 use thiserror::Error;
-use crate::config::providers;
 use crate::resolver::ResolveError;
+use crate::resolver::resolved;
+
+
+#[derive(Debug, Deserialize, Default)]
+pub struct AppConfig {
+    pub providers: Providers,
+    pub group: Option<Vec<GroupConfig>>
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct Providers {
+
+    pub temperature: Option<f32>,
+    pub stream: Option<bool>,
+    pub max_tokens: Option<u32>,
+    pub default: Option<String>,
+    pub system: Option<String>,
+
+    #[serde(default)]
+    pub ollama: resolved::ollama::Providers,
+    #[serde(default)]
+    pub openai: resolved::openai::Providers,
+    #[serde(default)]
+    pub anthropic: resolved::anthropic::Providers,
+    // #[serde(default)]
+    // pub google: resolved::google::Providers,
+
+    // #[serde(default)]
+    // pub openrouter: resolved::openrouter::Providers,
+}
 
 #[derive(Debug, Deserialize, Default)]
 pub struct GroupConfig {
@@ -11,17 +40,17 @@ pub struct GroupConfig {
     pub providers: Vec<GroupProviderConfig>,
 }
 
-#[derive(Debug, Deserialize, Default, Clone)]
-pub struct LongGroupProviderConfig {
-    pub name: String,
-    pub weight: Option<u32>,
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum GroupProviderConfig{
     Short(String),
     Long(LongGroupProviderConfig)
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+pub struct LongGroupProviderConfig {
+    pub name: String,
+    pub weight: Option<u32>,
 }
 
 impl GroupProviderConfig {
@@ -36,11 +65,6 @@ impl GroupProviderConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Default)]
-pub struct AppConfig {
-    pub providers: providers::Providers,
-    pub group: Option<Vec<GroupConfig>>
-}
 
 #[derive(Error, Debug)]
 pub enum AppConfigError {
@@ -65,6 +89,23 @@ pub enum ModelError {
     #[error("No default_model configured for provider: {0}")]
     NoDefaultModelConfigured(String),
 }
+
+// impl Default for Providers {
+//     fn default() -> Self {
+//         Providers {
+//             temperature: Some(DEFAULT_TEMPERATURE),
+//             stream: Some(DEFAULT_STREAM),
+//             max_tokens: Some(DEFAULT_MAX_TOKENS),
+//             system: Some(DEFAULT_SYSTEM.to_string()),
+//             default: None,
+//             ollama: resolved::ollama::Providers::default(),
+//             openai: resolved::openai::Providers::default(),
+//             anthropic: resolved::anthropic::Providers::default(),
+//             // google: GoogleProviders::default(),
+//             // openrouter: OpenRouterProviders::default(),
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

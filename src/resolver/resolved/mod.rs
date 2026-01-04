@@ -3,6 +3,11 @@ pub mod anthropic;
 pub mod openai;
 use thiserror::Error;
 
+pub const DEFAULT_MAX_TOKENS: u32 = 1000;
+pub const DEFAULT_STREAM: bool = false;
+pub const DEFAULT_TEMPERATURE: f32 = 1.0;
+pub const DEFAULT_SYSTEM: &str = "You are useful AI assistant. Give me brief answers. Do not use special formatting like markdown.";
+
 #[derive(Debug, Clone)]
 pub struct ModelInfo {
     pub provider: String,
@@ -197,13 +202,13 @@ macro_rules! define_resolved_provider_config {
                 self.temperature = self.temperature.or(
                     Some(ResolvedProperty {
                         source: ResolvedPropertySource::Default,
-                        value: providers::DEFAULT_TEMPERATURE
+                        value: resolved::DEFAULT_TEMPERATURE
                     })
                 );
                 self.system = self.system.or(
                     Some(ResolvedProperty {
                         source: ResolvedPropertySource::Default,
-                        value: providers::DEFAULT_SYSTEM.into()
+                        value: resolved::DEFAULT_SYSTEM.into()
                     })
                 );
 

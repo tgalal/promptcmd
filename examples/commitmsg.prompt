@@ -1,0 +1,36 @@
+# Usage Examples:
+#
+# Review the generated commit message before commiting:
+# git diff --staged | commitmsg --style conventional | git commit -e --file -
+#
+# Or commit right away:
+# git diff --staged | commitmsg --style conventional | git commit --file -
+#
+# Add alias for shorthand invocation:
+# alias gc="git diff --staged | commitmsg --style conventional | git commit -e --file -"
+
+---
+model: openai/gpt-4o-2024-08-06
+input:
+ schema:
+   style: string, [conventional | simple]
+output:
+  format: text
+---
+Generate a commit message for the following git diff.
+
+Style: {{style}}
+{{#if (eq style "conventional")}}
+Use the Conventional Commits format: type(scope): description
+
+Types: feat, fix, docs, style, refactor, test, chore
+{{else}}
+Write a simple, clear commit message in plain English. One line, under 72 characters.
+{{/if}}
+
+Your output will be used directly as the commit message, so you must produce the
+commit message without any formatting syntax like markdown and so on.
+
+Diff:
+
+{{STDIN}}

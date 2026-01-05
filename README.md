@@ -311,7 +311,8 @@ providers = [
 Import and use any of the examples under [examples]() using `promptctl import`:
 
 ```
-curl https://raw.githubusercontent.com/tgalal/promptcmd/refs/heads/main/examples/commitmsg.toml promptctl import -pe commitmsg -
+curl https://raw.githubusercontent.com/tgalal/promptcmd/refs/heads/main/examples/commitmsg.toml | \
+promptctl import -pe commitmsg -
 ```
 
 ## License

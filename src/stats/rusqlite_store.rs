@@ -176,8 +176,8 @@ impl StatsStore for RusqliteStore {
         }
 
         if let Some(group) = group {
-            sql.push_str(" AND group = ?");
-            group_by.push("group");
+            sql.push_str(" AND `group` = ?");
+            group_by.push("`group`");
             params.push(group);
         }
 

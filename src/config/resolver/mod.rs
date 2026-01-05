@@ -132,7 +132,7 @@ fn resolve_base(appconfig: &AppConfig, base_name: &str,
         //     })
         // }
         _ => {
-            Err(error::ResolveError::NotFound(base_name.to_string()))
+            Err(error::ResolveError::NotSupported(base_name.to_string()))
         }
     }
 }

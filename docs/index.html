@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>promptcmd - Turn GenAI prompts into runnable programs</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #0d0d0d;
+            color: #f8f8f2;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(255, 255, 255, 0.03) 0px,
+                    transparent 1px,
+                    transparent 2px,
+                    rgba(255, 255, 255, 0.03) 3px
+                );
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            text-align: center;
+            padding: 2rem 0 1.5rem;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, #bd93f9 0%, #ff79c6 50%, #50fa7b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+        }
+
+        h1::before {
+            content: '$ ';
+            color: #50fa7b;
+            opacity: 0.7;
+        }
+
+        .tagline {
+            font-size: 1.25rem;
+            color: #f8f8f2;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            font-size: 0.95rem;
+            color: #6272a4;
+            max-width: 600px;
+            margin: 0 auto 1rem;
+            line-height: 1.5;
+        }
+
+        .github-links {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        .github-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #f8f8f2;
+            text-decoration: none;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 0.85rem;
+            transition: all 0.15s;
+        }
+
+        .github-btn:hover {
+            border-color: #bd93f9;
+            box-shadow: 0 0 20px rgba(189, 147, 249, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .github-btn::before {
+            content: '';
+            width: 16px;
+            height: 16px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23f8f8f2' viewBox='0 0 16 16'%3E%3Cpath d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z'/%3E%3C/svg%3E");
+        }
+
+        .github-btn.stars::before {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23f8f8f2' viewBox='0 0 16 16'%3E%3Cpath d='M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z'/%3E%3C/svg%3E");
+        }
+
+        .install-section {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 1.75rem;
+            margin-bottom: 2rem;
+            border: 1px solid #333;
+            box-shadow: 0 0 40px rgba(189, 147, 249, 0.1);
+        }
+
+        .install-header {
+            text-align: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .install-title {
+            font-size: 1.25rem;
+            color: #bd93f9;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+        }
+
+        .install-title::before {
+            content: '# ';
+            color: #6272a4;
+        }
+
+        .install-subtitle {
+            color: #6272a4;
+            font-size: 0.85rem;
+        }
+
+        .command-box {
+            display: flex;
+            align-items: center;
+            background: #000;
+            border-radius: 8px;
+            padding: 1.25rem;
+            font-size: 1rem;
+            border: 1px solid #333;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .command-box::before {
+            content: '$';
+            color: #50fa7b;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-weight: 700;
+            margin-right: 0.75rem;
+            opacity: 0.8;
+        }
+
+        .command-text {
+            flex: 1;
+            user-select: all;
+            color: #50fa7b;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-weight: 500;
+        }
+
+        .copy-btn {
+            background: #bd93f9;
+            border: none;
+            color: #282a36;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: inherit;
+            margin-left: 1rem;
+            transition: all 0.15s;
+        }
+
+        .copy-btn:hover {
+            background: #ff79c6;
+        }
+
+        .copy-btn:active {
+            transform: scale(0.98);
+        }
+
+        .copy-btn.copied {
+            background: #50fa7b;
+            color: #282a36;
+        }
+
+        .examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 0;
+        }
+
+        .example {
+            background: #000;
+            padding: 0.75rem;
+            border-radius: 6px;
+            border: 1px solid #333;
+            border-left: 3px solid #ff79c6;
+        }
+
+        .example-title {
+            color: #ff79c6;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.35rem;
+            font-weight: 600;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+        }
+
+        .example-title::before {
+            content: '// ';
+            color: #6272a4;
+        }
+
+        .example-code {
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            color: #f8f8f2;
+            font-size: 0.85rem;
+        }
+
+        .demo-section {
+            margin-top: 2rem;
+        }
+
+        .demo-header {
+            text-align: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .demo-title {
+            font-size: 1.5rem;
+            color: #ff79c6;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+        }
+
+        .demo-title::before {
+            content: '# ';
+            color: #6272a4;
+        }
+
+        footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #333;
+            text-align: center;
+            color: #6272a4;
+            font-size: 0.85rem;
+        }
+
+        footer a {
+            color: #bd93f9;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            color: #ff79c6;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 3rem;
+            }
+
+            .tagline {
+                font-size: 1.3rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+
+            .github-links {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .github-btn {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
+            }
+
+            .install-section {
+                padding: 1.5rem;
+            }
+
+            .command-box {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1.25rem;
+            }
+
+            .copy-btn {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .command-text {
+                font-size: 0.85rem;
+            }
+
+            .examples {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>promptcmd</h1>
+            <p class="tagline">Turn GenAI prompts into runnable programs</p>
+            <p class="subtitle">Create custom CLI commands powered by AI. No plugins, no friction. Just pure command-line magic.</p>
+
+            <div class="github-links">
+                <a href="https://github.com/tgalal/promptcmd" class="github-btn" target="_blank" rel="noopener">
+                    View on GitHub
+                </a>
+                <a href="https://github.com/tgalal/promptcmd" class="github-btn stars" target="_blank" rel="noopener">
+                    Star on GitHub
+                </a>
+            </div>
+        </header>
+
+        <div class="install-section">
+            <div class="install-header">
+                <h2 class="install-title">Get Started in Seconds</h2>
+                <p class="install-subtitle">One command to install</p>
+            </div>
+
+            <div class="command-box">
+                <code class="command-text" id="installCommand">
+             curl -LsSf https://installer.promptcmd.sh | sh
+          </code>
+                <button class="copy-btn" onclick="copyCommand()">Copy</button>
+            </div>
+
+            <div class="examples">
+                <div class="example">
+                    <div class="example-title">Translate on the fly</div>
+                    <code class="example-code">$ echo "Hello!" | translate --to German</code>
+                </div>
+                <div class="example">
+                    <div class="example-title">Code assistance</div>
+                    <code class="example-code">$ askrust "How do I create a loop?"</code>
+                </div>
+                <div class="example">
+                    <div class="example-title">Natural language</div>
+                    <code class="example-code">$ How can I sort this JSON file</code>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <div class="demo-header">
+                <h2 class="demo-title">See It In Action</h2>
+            </div>
+        <script src="https://asciinema.org/a/xfkheZPIujfYm7OzyIawTvIkk.js" id="asciicast-xfkheZPIujfYm7OzyIawTvIkk" async="true"></script>
+        </div>
+
+        <footer>
+            <p>Open source and GPLv3 licensed.</p>
+            <p><a href="https://github.com/tgalal/promptcmd" target="_blank" rel="noopener">View source on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        function copyCommand() {
+            const command = document.getElementById('installCommand').textContent;
+            const btn = event.target;
+
+            navigator.clipboard.writeText(command).then(() => {
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

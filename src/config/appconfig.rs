@@ -37,11 +37,10 @@ pub struct Providers {
     pub openai: providers::openai::Providers,
     #[serde(default)]
     pub anthropic: providers::anthropic::Providers,
-    // #[serde(default)]
-    // pub google: resolved::google::Providers,
-
-    // #[serde(default)]
-    // pub openrouter: resolved::openrouter::Providers,
+    #[serde(default)]
+    pub google: providers::google::Providers,
+    #[serde(default)]
+    pub openrouter: providers::openrouter::Providers,
 }
 
 #[derive(Debug, Deserialize, Default)]

@@ -61,7 +61,17 @@ impl fmt::Display for ResolvedProviderConfig {
                 writeln!(f, "OpenAI")?;
                 writeln!(f, "Configuration:")?;
                 write!(indented(f).with_str("  "), "{conf}")?
-            }
+            },
+            Self::Google(conf) => {
+                writeln!(f, "Google")?;
+                writeln!(f, "Configuration:")?;
+                write!(indented(f).with_str("  "), "{conf}")?
+            },
+            Self::OpenRouter(conf) => {
+                writeln!(f, "OpenRouter")?;
+                writeln!(f, "Configuration:")?;
+                write!(indented(f).with_str("  "), "{conf}")?
+            },
         };
 
         Ok(())

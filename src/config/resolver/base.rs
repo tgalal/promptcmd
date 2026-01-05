@@ -39,6 +39,18 @@ impl Base {
                     ).override_model(model_resolved_property).build();
                 (ModelInfo::try_from(&resolved),ResolvedProviderConfig::OpenAI(resolved))
             },
+            BaseProviderConfigSource::Google(source_config) => {
+                let resolved = providers::google::ResolvedProviderConfigBuilder::from(
+                        (source_config, ResolvedPropertySource::Base(name.clone()))
+                    ).override_model(model_resolved_property).build();
+                (ModelInfo::try_from(&resolved),ResolvedProviderConfig::Google(resolved))
+            },
+            BaseProviderConfigSource::OpenRouter(source_config) => {
+                let resolved = providers::openrouter::ResolvedProviderConfigBuilder::from(
+                        (source_config, ResolvedPropertySource::Base(name.clone()))
+                    ).override_model(model_resolved_property).build();
+                (ModelInfo::try_from(&resolved),ResolvedProviderConfig::OpenRouter(resolved))
+            },
         };
         Self {
             name,
@@ -61,7 +73,11 @@ impl TryFrom<&Base> for (ModelInfo, LLMBuilder) {
             ResolvedProviderConfig::Anthropic(resolved) =>
                 Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
             ResolvedProviderConfig::OpenAI(resolved) =>
-                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?))
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
+            ResolvedProviderConfig::Google(resolved) =>
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
+            ResolvedProviderConfig::OpenRouter(resolved) =>
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
         }
     }
 }

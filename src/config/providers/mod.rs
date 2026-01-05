@@ -3,6 +3,8 @@ pub mod error;
 pub mod ollama;
 pub mod anthropic;
 pub mod openai;
+pub mod google;
+pub mod openrouter;
 pub mod constants;
 
 

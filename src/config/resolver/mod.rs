@@ -8,12 +8,15 @@ use crate::config::appconfig::{AppConfig, GroupProviderConfig, LongGroupProvider
 use crate::config::providers::ollama;
 use crate::config::providers::openai;
 use crate::config::providers::anthropic;
+use crate::config::providers::google;
+use crate::config::providers::openrouter;
 
 pub use variant::Variant;
 pub use base::Base;
 pub use group::{Group, GroupMember};
 
 use log::debug;
+
 
 #[derive(Debug)]
 pub enum ResolvedConfig {
@@ -26,16 +29,16 @@ pub enum BaseProviderConfigSource<'a> {
     Ollama(&'a ollama::Config),
     Anthropic(&'a anthropic::Config),
     OpenAI(&'a  openai::Config),
-    // OpenRouter(&'a OpenRouterConfig),
-    // Google(&'a GoogleConfig),
+    Google(&'a google::Config),
+    OpenRouter(&'a openrouter::Config),
 }
 
 pub enum VariantProviderConfigSource<'a> {
     Ollama(&'a ollama::Config, &'a ollama::Config),
     Anthropic(&'a anthropic::Config, &'a anthropic::Config),
     OpenAI(&'a openai::Config, &'a openai::Config),
-    // OpenRouter(&'a OpenRouterConfig),
-    // Google(&'a GoogleConfig),
+    Google(&'a google::Config, &'a google::Config),
+    OpenRouter(&'a openrouter::Config, &'a openrouter::Config),
 }
 
 #[derive(Debug)]
@@ -43,8 +46,8 @@ pub enum ResolvedProviderConfig {
     Ollama(ollama::ResolvedProviderConfig),
     Anthropic(anthropic::ResolvedProviderConfig),
     OpenAI(openai::ResolvedProviderConfig),
-    // OpenRouter(ResolvedAnthropicConfig),
-    // Google(ResolvedGoogleConfig),
+    Google(google::ResolvedProviderConfig),
+    OpenRouter(openrouter::ResolvedProviderConfig),
 }
 
 #[derive(Clone, Debug)]
@@ -109,28 +112,23 @@ fn resolve_base(appconfig: &AppConfig, base_name: &str,
                 BaseProviderConfigSource::OpenAI(&appconfig.providers.openai.config),
                 model_resolved_property
             ))
-        }
-        // "openai" => {
-        //     debug!("Resolved {base_name} as OpenAI Base");
-        //     Some(Base {
-        //         name: "openai",
-        //         conf: ProviderConfig::OpenAI("openai", &appconfig.providers.openai.config)
-        //     })
-        // }
-        // "openrouter" => {
-        //     debug!("Resolved {base_name} as OpenRouter Base");
-        //     Some(Base {
-        //         name: "openrouter",
-        //         conf: ProviderConfig::OpenRouter("openrouter", &appconfig.providers.openrouter.config)
-        //     })
-        // }
-        // "google" => {
-        //     debug!("Resolved {base_name} as Google Base");
-        //     Some(Base {
-        //         name: "google",
-        //         conf: ProviderConfig::Google("google", &appconfig.providers.google.config)
-        //     })
-        // }
+        },
+        "google" => {
+            debug!("Resolving {base_name} as Google Base");
+            Ok(Base::new(
+                provider.to_string(),
+                BaseProviderConfigSource::Google(&appconfig.providers.google.config),
+                model_resolved_property
+            ))
+        },
+        "openrouter" => {
+            debug!("Resolving {base_name} as OpenRouter Base");
+            Ok(Base::new(
+                provider.to_string(),
+                BaseProviderConfigSource::OpenRouter(&appconfig.providers.openrouter.config),
+                model_resolved_property
+            ))
+        },
         _ => {
             Err(error::ResolveError::NotFound(base_name.to_string()))
         }

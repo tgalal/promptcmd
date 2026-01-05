@@ -7,11 +7,8 @@ use crate::config::providers;
 pub struct Variant {
     pub name: String,
     pub base_name: String,
-    // pub source: VariantProviderConfigSource<'a>,
     pub resolved: ResolvedProviderConfig,
     pub model_info: Result<ModelInfo, ToModelInfoError>,
-    // pub conf: ResolvedProviderConfig,
-    // pub base_config: ProviderConfigSource<'a>,
 }
 
 impl Variant {
@@ -53,6 +50,26 @@ impl Variant {
 
                     (ModelInfo::try_from(&resolved), ResolvedProviderConfig::OpenAI(resolved))
             },
+            VariantProviderConfigSource::Google(variant_config, base_config) => {
+                let resolved = providers::google::ResolvedProviderConfigBuilder::from(
+                    (base_config, ResolvedPropertySource::Base(base_name.clone()))
+                ).override_from(
+                        &providers::google::ResolvedProviderConfigBuilder::from((variant_config, ResolvedPropertySource::Variant(name.clone())))
+                            .build()
+                    ).override_model(model_resolved_property).build();
+
+                    (ModelInfo::try_from(&resolved), ResolvedProviderConfig::Google(resolved))
+            },
+            VariantProviderConfigSource::OpenRouter(variant_config, base_config) => {
+                let resolved = providers::openrouter::ResolvedProviderConfigBuilder::from(
+                    (base_config, ResolvedPropertySource::Base(base_name.clone()))
+                ).override_from(
+                        &providers::openrouter::ResolvedProviderConfigBuilder::from((variant_config, ResolvedPropertySource::Variant(name.clone())))
+                            .build()
+                    ).override_model(model_resolved_property).build();
+
+                    (ModelInfo::try_from(&resolved), ResolvedProviderConfig::OpenRouter(resolved))
+            },
         };
 
         Self {
@@ -75,6 +92,10 @@ impl TryFrom<&Variant> for (ModelInfo, LLMBuilder) {
             ResolvedProviderConfig::Anthropic(resolved) =>
                 Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
             ResolvedProviderConfig::OpenAI(resolved) =>
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
+            ResolvedProviderConfig::Google(resolved) =>
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
+            ResolvedProviderConfig::OpenRouter(resolved) =>
                 Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
         }
     }

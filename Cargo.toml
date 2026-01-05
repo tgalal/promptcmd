@@ -1,11 +1,11 @@
 [package]
 name = "promptcmd"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 repository = "https://github.com/tgalal/promptcmd"
 authors = ["Tarek Galal"]
-description = "Command Prompt Generator"
-homepage = "https://tgalal.com"
+description = "Turn GenAI prompts into runnable programs"
+homepage = "https://promptcmd.sh"
 
 [[bin]]
 name = "promptctl"

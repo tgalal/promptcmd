@@ -1,17 +1,15 @@
 # promptcmd
 
-promptcmd transforms your LLM prompts into runnable programs:
+promptcmd turns your LLM prompts into runnable programs:
 
 ```bash
 $ askrust "What's the code for creating a loop again"
 $ echo "How is it going?" | translate --to German
 ```
 
-Or use in VIM without plugins:
+Or use in vim without plugins:
 
-```
-TODO video showing selection of code and fixing it with a command
-```
+![askrust_demo](./docs/img/askrust.gif)
 
 It doesn't even need to "look like" a command per se:
 

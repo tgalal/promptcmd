@@ -91,7 +91,7 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     let stdin = std::io::stdin();
-    let mut handle = stdin.lock();
+    //let mut handle = stdin.lock();
     let mut stdout = std::io::stdout();
     let lb = WeightedLoadBalancer {
         stats: &store
@@ -99,7 +99,7 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Edit(cmd) => cmd.exec(
-            &mut handle,
+            &mut stdin.lock(),
             &mut stdout,
             &mut prompts_storage,
             &editor,),
@@ -111,7 +111,7 @@ fn main() -> Result<()> {
         Commands::Disable(cmd) => cmd.exec(&mut installer),
 
         Commands::Create(cmd) => cmd.exec(
-            &mut handle,
+            &mut stdin.lock(),
             &mut stdout,
             &mut prompts_storage,
             &mut installer,
@@ -127,7 +127,7 @@ fn main() -> Result<()> {
             &mut std::io::stdout()),
 
         Commands::Run(cmd) => cmd.exec(
-            &mut handle,
+            &mut stdin.lock(),
             &mut stdout,
             &store,
             &prompts_storage,

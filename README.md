@@ -1,177 +1,229 @@
-# Command? Prompt!
+# promptcmd
 
-Command? Prompt! integrates AI into your terminal. Why leave your terminal when
-you can come up with any command to run a prompt, like:
+promptcmd transforms your LLM prompts into runnable programs:
 
-```
+```bash
 $ askrust "What's the code for creating a loop again"
 $ echo "How is it going?" | translate --to German
 ```
 
-Or use in VIM w/o plugins:
+Or use in VIM without plugins:
 
 ```
-video showing selection of code and fixing it with a command 
+TODO video showing selection of code and fixing it with a command
 ```
 
 It doesn't even need to "look like" a command per se:
 
-```
+```bash
 $ How can I create a loop in rust
 ```
 
 ## What?
 
-Lets take a look at `translate` from above, using the `promptctl` tool:
+Prompts are described within [Dotprompt]() files.
+Use `promptctl` to create a `translate` prompt file:
+
+```bash
+$ promptctl create translate
+```
+
+Insert the following:
 
 ```
-$ promptctl edit translate
+---
+model: anthropic/claude-sonnet-4 #(or another model of your choice)
+input:
+  schema:
+    to: string, Target language
+---
+Translate the following to {{to}}:
+{{STDIN}}
 ```
 
-This is a [dotprompt]() file. The schema of `input` is used to generate on the fly a command
-with the same name (by default), accepting the arguments described above:
+Save, and close. Follow the printed instructions for configuring your model,
+then you can run:
 
-```
+```bash
 $ translate --help
+
+Usage: translate --to <to>
+
+Options:
+      --to <to>   Target language
+  -h, --help     Print help
+```
+
+And execute:
+
+```
+$ echo " Hello world!" | translate --to German
+
+Hallo Welt
 ```
 
 To uninstall the program (remove from path):
 
-```
+```bash
 $ promptctl disable translate
 ```
 
 To enable again:
 
-```
+```bash
 $ promptctl enable translate
 ```
 
 To create a new one:
 
-```
+```bash
 $ promptctl create How
 ```
 
 This bootstraps a configuration for a command called `How` and opens it in your
-favorite editor. Lets put the following:
-
-```
----
-model: ollama/gpt-oss:20b
-input:
-  schema:
-    question!: string, A question to ask AI
-output:
-  format: text
----
-Following is a question from the user. Be brief, and straight to the point:
-
-How {{question}}?
-```
-
-Save, quit. Now you can run:
-
-```
-$ How can I stop relying on AI
-```
-
-## Names
-
-- PromptCtl
-- Prompt Commander
-- Command Prompt
-- Command & Prompt
-- CmdPrompt
-- cmdprmpt
-- cmdpmpt
-- Command: Prompted
-- BYOCommand
-- BYOPrompt
+favorite editor. Lets put in the following:
 
 ## Usage
 
-### Run
-
-```
-promptctl run [--dry] translate -- --from en --to german
-promptbox promptname [promptboxargs] [promptargs]
-translate [promptboxargs][promptargs]
-```
-
 ### Read
 
-```
-promptctl read translate
+```bash
+promptctl cat translate
 ```
 
 ### Make own Prompts
 
-```
-promptctl new translate
+```bash
+promptctl create translate
 ```
 
 This opens up an editor for the translate prompt, saves config to home
-and creates a symlink
+and creates a symlink.
 
 ### Override Existing Prompts
 
-```
+```bash
 promptctl edit translate
 ```
 
-Like systemd, creates translate.override
+### Schema Modifiers
 
-### List
+Input schema fields support modifiers:
+
+- `field`: Required, named argument
+- `field?`: Optional, named argument
+- `field!`: Required, positional argument
+- `field?!` or `field!?`: Optional, positional argument
+
+### Supported Data Types
+
+- `string`: Text input
+- `boolean`: Flag/switch argument
+- `integer`: Integer
+- `number`: Integer or float
+
+## Monitoring Usage
+
+## Configuration
+
+Configuration is stored in TOML format and searched in the following locations:
+
+TODO
+
+### Example Configuration
+
+```toml
+[providers]
+temperature = 0.7
+max_tokens = 1000
+
+[providers.anthropic]
+api_key = "sk-ant-..."
+
+[providers.openai]
+endpoint = "https://api.openai.com/v1"
+
+[providers.ollama]
+endpoint = "http://localhost:11434"
 
 ```
-# Option 1
-promptctl ls --enabled --disabled --long --prompts | --commands
-
-/home/tarek/asdsad/translate.prompt -> /home/tarek/.bin/translate
-/home/tarek/asdsad/askrust.prompt [disabled]
-
-# Option 2
-
-translate -> /home/tarek/asdas/translate.prompt
-N/A -> /home/tarek/adsasd/ask.prompt
-
-
-# --commands
-translate ask-rust
-
-# --commands -l
-translate -> /home/tarke/asdasd/translate.prompt
-
-
-# --commands --paths
-/home/tarek/bin/translate 
-/home/tarek/bin/askrust 
-
-# --commands -l  --paths
-
-/usr/local/bin/translate -> /home/tarke/asdasd/translate.prompt
-
-```
-
 
 ## Paths
 
-Dynamic Symlinks Paths (must be writable)
+### Config Paths
+
+Linux
 
 ```
-CWD
-/home/USER/.aibox/bin/
-/home/USER/.local/bin/
-/usr/local/bin/
+~/.config/promptcmd/config.toml
+/etc/config.toml
+~/.promptcmd/config.toml
 ```
 
-Binary Paths (symlinked)
+MAC
 
 ```
-CURR BIN DIR/runner (maybe only that?)
-/home/USER/.aibox/bin/
-/home/USER/.local/bin/
-/usr/local/bin/
+```
+
+### Prompt File Search Paths
+
+TODO:
+
+Linux:
+
+```
+~/.local/share/promptcmd/prompts/
+```
+
+MAC:
+
+```
+```
+
+### Installation Paths
+
+Linux:
+
+```
+~/.promptcmd/installers/symlink/
+~/.local/bin/
+```
+
+MAC:
+
+```
+```
+
+
+## License
+
+See LICENSE file for details.
+
+## Troubleshooting/FAQ
+
+TODO
+
+Other models
+
+Not in path/Notfound
+
+ENV
+
+Defaults/Frontmatter required?
+
+## Advanced Configurations
+
+### Variants
+
+### Load Balancing
+
+TODO
+
+## Examples
+
+Import and use any of the examples under [examples]() using `promptctl import`:
+
+```
+promptctl import TODO
 ```
 

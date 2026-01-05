@@ -20,7 +20,6 @@ pub struct AppConfig {
 #[derive(Debug, Deserialize, Default)]
 pub struct GlobalProviderProperties {
     pub temperature: Option<f32>,
-    pub stream: Option<bool>,
     pub max_tokens: Option<u32>,
     pub model: Option<String>,
     pub system: Option<String>,
@@ -28,6 +27,7 @@ pub struct GlobalProviderProperties {
 
 #[derive(Debug, Deserialize, Default)]
 pub struct Providers {
+    pub default: Option<String>,
     #[serde(flatten)]
     pub globals: GlobalProviderProperties,
 
@@ -137,7 +137,6 @@ mod tests {
             [providers]
             temperature = 0.8
             max_tokens = 2000
-            stream = true
             system = "You are a helpful assistant"
 
             [providers.anthropic]

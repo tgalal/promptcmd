@@ -5,7 +5,6 @@ macro_rules! create_provider {
         create_provider!(@internal $provider_name { $($field : $type),* };
             temperature: f32,
             system: String,
-            stream: bool,
             max_tokens: u32,
             model: String
         );

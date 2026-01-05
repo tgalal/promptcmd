@@ -53,7 +53,8 @@ r#"Warning: The install directory:
 
 {path}
 
-is not in your PATH environment variable. You can temporarily update your PATH for this session:
+is not in your PATH environment variable. You can temporarily update your PATH
+for this session:
 
 export PATH=$PATH:"{path}"
 
@@ -62,13 +63,11 @@ which will make `{}` available right away. Alternatively you can run one of:
 promptctl run {} --
 "{installed_path}"
 
-For simplicity, consider updating your shell's PATH to persistently run prompts without requiring their full path,
-
-"#,
+For simplicity, consider updating your shell's PATH to persistently run prompts
+without requiring their full path."#,
                     &self.promptname, &self.promptname);
-                let rendered_wm = textwrap::wrap(&warning_message, 80).join("\n");
                 println!();
-                println!("{}", rendered_wm);
+                println!("{}", &warning_message);
             }
         } else {
             bail!("Could not find an existing prompt file");

@@ -26,6 +26,10 @@ impl TryFrom<&ResolvedProviderConfig> for LLMBuilder {
             builder = builder.system(&system.value);
         }
 
+        if let Some(max_tokens) = config.max_tokens.as_ref() {
+            builder = builder.max_tokens(max_tokens.value);
+        }
+
         builder = builder.model(
             config.model.as_ref().ok_or(
                 error::ToLLMBuilderError::RequiredConfiguration("model")

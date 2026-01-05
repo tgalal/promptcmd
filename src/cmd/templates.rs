@@ -44,7 +44,7 @@ You can create/edit your configuration file at:
 
 pub const ONBOARDING_GOOGLE: &str = r#"
 You have successfully created a prompt file using Google as the LLM provider.
-An API key and a Google model is required by not yet configured. To configure an Api key:
+An API key and a Google model is required by not yet configured. To configure an API key:
 
 1. Go to https://aistudio.google.com/api-keys
 2. Sign up or log in to your account
@@ -53,6 +53,34 @@ An API key and a Google model is required by not yet configured. To configure an
 
 [providers.google]
 api_key="sk-xxxxx..."
+
+You can create/edit your configuration file at:
+
+"#;
+
+pub const ONBOARDING_OPENROUTER: &str = r#"
+You have successfully created a prompt file using OpenRouter as the LLM provider.
+An API key and a supported model is required by not yet configured. To configure an API key:
+
+1. Go to https://openrouter.ai/settings/keys
+2. Sign up or log in to your account
+3. Create a new key
+4. Copy the key and add it to your configuration file:
+
+[providers.openrouter]
+api_key="sk-xxxxx..."
+
+You can create/edit your configuration file at:
+
+"#;
+
+pub const ONBOARDING_OLLAMA: &str = r#"
+You have successfully created a prompt file using Ollama as the LLM provider.
+An endpoint and model are required by not yet configured. Update your
+configuration file:
+
+[providers.ollama]
+endpoint="http://ollama_address:11434"
 
 You can create/edit your configuration file at:
 

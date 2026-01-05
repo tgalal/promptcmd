@@ -103,12 +103,18 @@ impl CreateCmd {
                                     .iter().map(|path| path.to_string_lossy())
                                     .collect::<Vec<_>>()
                                     .join("\n");
-                                match model_name.as_str() {
-                                    "anthropic" => writeln!(out, "{}{}", templates::ONBOARDING_ANTHROPIC, config_paths)?,
-                                    "openai" => writeln!(out, "{}{}", templates::ONBOARDING_OPENAI, config_paths)?,
-                                    "google" => writeln!(out, "{}{}", templates::ONBOARDING_GOOGLE, config_paths)?,
-                                    _ => {}
-                                };
+
+                                if model_name.starts_with("anthropic") {
+                                    writeln!(out, "{}{}", templates::ONBOARDING_ANTHROPIC, config_paths)?
+                                } else if model_name.starts_with("openai") {
+                                    writeln!(out, "{}{}", templates::ONBOARDING_OPENAI, config_paths)?
+                                } else if model_name.starts_with("google") {
+                                    writeln!(out, "{}{}", templates::ONBOARDING_GOOGLE, config_paths)?
+                                } else if model_name.starts_with("openrouter") {
+                                    writeln!(out, "{}{}", templates::ONBOARDING_OPENROUTER, config_paths)?
+                                } else if model_name .starts_with("ollama") {
+                                    writeln!(out, "{}{}", templates::ONBOARDING_OLLAMA, config_paths)?
+                                }
                             }
                         }
                     }

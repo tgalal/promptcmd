@@ -30,7 +30,7 @@ pub struct RunCmd {
     pub promptname: String,
 
     #[arg(long, short, help="Dry run" )]
-    pub dryrun: bool,
+    pub dry: bool,
 
     #[arg(trailing_var_arg = true)]
     pub prompt_args: Vec<String>,
@@ -134,7 +134,7 @@ impl RunCmd {
             llmbuilder = llmbuilder.schema(output_schema);
         }
 
-        if self.dryrun {
+        if self.dry {
             println!("Dry run mode.");
             println!("=============");
 

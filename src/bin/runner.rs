@@ -85,7 +85,7 @@ fn main() -> Result<()> {
 
         let runcmd = RunCmd {
             promptname,
-            dryrun: false,
+            dry: false,
             prompt_args: Vec::new()
         };
 

@@ -7,6 +7,7 @@ use log::{error};
 use crate::cmd::enable::EnableCmd;
 use crate::cmd::{templates, TextEditor};
 use crate::config::appconfig::{AppConfig};
+use crate::config::appconfig_locator;
 use crate::installer::DotPromptInstaller;
 use crate::storage::PromptFilesStorage;
 use crate::{dotprompt::DotPrompt};
@@ -97,11 +98,15 @@ impl CreateCmd {
 
                         match resolved_config {
                             Ok(_) => {},
-                            Err(error::ToLLMBuilderError::RequiredConfiguration(_)) | Err(error::ToLLMBuilderError::ModelError(error::ToModelInfoError::RequiredConfiguration(_))) => {
+                            Err(error::ToLLMBuilderError::RequiredConfiguration(_name)) | Err(error::ToLLMBuilderError::ModelError(error::ToModelInfoError::RequiredConfiguration(_name))) => {
+                                let config_paths = appconfig_locator::search_paths()
+                                    .iter().map(|path| path.to_string_lossy())
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
                                 match model_name.as_str() {
-                                    "anthropic" => writeln!(out, "{}", templates::ONBOARDING_ANTHROPIC)?,
-                                    "openai" => writeln!(out, "{}", templates::ONBOARDING_OPENAI)?,
-                                    "google" => writeln!(out, "{}", templates::ONBOARDING_GOOGLE)?,
+                                    "anthropic" => writeln!(out, "{}{}", templates::ONBOARDING_ANTHROPIC, config_paths)?,
+                                    "openai" => writeln!(out, "{}{}", templates::ONBOARDING_OPENAI, config_paths)?,
+                                    "google" => writeln!(out, "{}{}", templates::ONBOARDING_GOOGLE, config_paths)?,
                                     _ => {}
                                 };
                             }

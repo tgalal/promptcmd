@@ -30,15 +30,15 @@ impl TryFrom<&ResolvedProviderConfig> for LLMBuilder {
             builder = builder.max_tokens(max_tokens.value);
         }
 
-        builder = builder.model(
-            config.model.as_ref().ok_or(
-                error::ToLLMBuilderError::RequiredConfiguration("model")
-            )?.value.clone()
-        );
-
         builder = builder.base_url(
             config.endpoint.as_ref().ok_or(
                 error::ToLLMBuilderError::RequiredConfiguration("endpoint")
+            )?.value.clone()
+        );
+
+        builder = builder.model(
+            config.model.as_ref().ok_or(
+                error::ToLLMBuilderError::RequiredConfiguration("model")
             )?.value.clone()
         );
 

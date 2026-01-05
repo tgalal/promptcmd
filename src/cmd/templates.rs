@@ -1,7 +1,7 @@
 pub const PROMPTFILE: &str = r#"---
 # model: openai-ollama/gpt-4o-2024-08-06
 # input:
-#  schema:
+#   schema:
 # output:
 #   format: text
 ---
@@ -12,7 +12,7 @@ You are a useful assistant
 
 pub const ONBOARDING_ANTHROPIC: &str = r#"
 You have successfully created a prompt file using Anthropic as the LLM provider.
-An API key for Anthropic is required by not yet configured. To configure an Api key:
+An API key and an Anthropic model are required by not yet configured. To configure an API key:
 
 1. Go to https://console.anthropic.com/settings/keys
 2. Sign up or log in to your account
@@ -22,15 +22,13 @@ An API key for Anthropic is required by not yet configured. To configure an Api 
 [providers.anthropic]
 api_key="sk-ant-xxxxx..."
 
-5. Any of the following paths can be used your configuration file:
+You can create/edit your configuration file at:
 
-- Path 1
-- Path 2
 "#;
 
 pub const ONBOARDING_OPENAI: &str = r#"
 You have successfully created a prompt file using OpenAI as the LLM provider.
-An API key for Anthropic is required by not yet configured. To configure an Api key:
+An API key and an OpenAI model are required by not yet configured. To configure an API key:
 
 1. Go to https://platform.openai.com/settings/organization/api-keys
 2. Sign up or log in to your account
@@ -40,15 +38,13 @@ An API key for Anthropic is required by not yet configured. To configure an Api 
 [providers.openai]
 api_key="sk-xxxxx..."
 
-5. Any of the following paths can be used your configuration file:
+You can create/edit your configuration file at:
 
-- Path 1
-- Path 2
 "#;
 
 pub const ONBOARDING_GOOGLE: &str = r#"
-You have successfully created a prompt file using OpenAI as the LLM provider.
-An API key for Anthropic is required by not yet configured. To configure an Api key:
+You have successfully created a prompt file using Google as the LLM provider.
+An API key and a Google model is required by not yet configured. To configure an Api key:
 
 1. Go to https://aistudio.google.com/api-keys
 2. Sign up or log in to your account
@@ -58,8 +54,6 @@ An API key for Anthropic is required by not yet configured. To configure an Api 
 [providers.google]
 api_key="sk-xxxxx..."
 
-5. Any of the following paths can be used your configuration file:
+You can create/edit your configuration file at:
 
-- Path 1
-- Path 2
 "#;

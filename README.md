@@ -1,6 +1,6 @@
 # promptcmd
 
-promptcmd turns your LLM prompts into runnable programs:
+promptcmd turns your GenAI prompts into runnable programs:
 
 ```bash
 $ askrust "What's the code for creating a loop again"

@@ -235,7 +235,7 @@ Basic Prompt Here: {{message}}
 
     #[test]
     fn test_import_invalid_should_fail() {
-        let mut state = setup("invalid data", false);
+        let mut state = setup("---invalid data", false);
 
         let promptname = "myprompt";
         let cmd = ImportCmd {
@@ -255,7 +255,7 @@ Basic Prompt Here: {{message}}
 
     #[test]
     fn test_import_invalid_should_fail_even_with_force() {
-        let mut state = setup("invalid data", false);
+        let mut state = setup("---invalid data", false);
 
         let promptname = "myprompt";
         let cmd = ImportCmd {

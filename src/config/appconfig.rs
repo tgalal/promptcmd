@@ -11,7 +11,9 @@ use crate::config::resolver;
 
 #[derive(Debug, Deserialize, Default)]
 pub struct AppConfig {
+    #[serde(default)]
     pub providers: Providers,
+    #[serde(default)]
     pub groups: HashMap<String, GroupConfig>,
 }
 
@@ -115,11 +117,8 @@ mod tests {
     #[test]
     fn test_parse_config_with_multiple_providers() {
         let toml_content = r#"
-            default_model = "gpt-4"
-            editor = "nano"
-
             [providers.openai]
-            endpoint = "https://api.openai.com/v1"
+            api_key = "api_key"
 
             [providers.anthropic]
             api_key = "anthropic-key"
@@ -135,9 +134,6 @@ mod tests {
     #[test]
     fn test_parse_config_with_global_settings() {
         let toml_content = r#"
-            default_model = "claude-3-5-sonnet-20241022"
-            editor = "vim"
-
             [providers]
             temperature = 0.8
             max_tokens = 2000
@@ -165,21 +161,8 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_missing_required_fields() {
-        let incomplete_toml = r#"
-            editor = "vim"
-        "#;
-
-        let config = AppConfig::try_from(&incomplete_toml.to_string());
-        assert!(config.is_err(), "Should fail when required fields are missing");
-    }
-
-    #[test]
     fn test_empty_providers_section() {
         let toml_content = r#"
-            default_model = "test"
-            editor = "vim"
-
             [providers]
         "#;
 
@@ -190,14 +173,12 @@ mod tests {
     #[test]
     fn test_groups() {
         let toml_content = r#"
-[providers]
-
 [groups.group1]
 providers = [
     "openai", "anthropic"
 ]
 
-[groups.group1]
+[groups.group2]
 providers = [
     { name = "openai", weight = 1 },
     { name = "ollama", weight = 2 },

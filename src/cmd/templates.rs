@@ -1,5 +1,5 @@
 pub const PROMPTFILE: &str = r#"---
-# model: openai-ollama/gpt-4o-2024-08-06
+# model: model
 # input:
 #   schema:
 # output:

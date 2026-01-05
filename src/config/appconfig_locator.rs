@@ -16,29 +16,6 @@ pub fn search_paths() -> Vec<PathBuf> {
         paths.push(config_dir.join(APP_NAME).join(CONFIG_NAME));
     }
 
-    // 2. System config directory (platform-specific)
-    #[cfg(target_os = "linux")]
-    {
-        paths.push(PathBuf::from("/etc").join(APP_NAME).join(CONFIG_NAME));
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        paths.push(PathBuf::from("/Library/Application Support")
-            .join(APP_NAME).join(CONFIG_NAME));
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        if let Some(program_data) = dirs::data_dir() {
-            // ProgramData is typically accessed via a different function on Windows
-            // For system-wide config, you might use a hardcoded path or environment variable
-            let system_config = PathBuf::from("C:\\ProgramData")
-                .join(APP_NAME).join(CONFIG_NAME);
-            paths.push(system_config);
-        }
-    }
-
     paths
 }
 
@@ -112,42 +89,6 @@ mod tests {
     fn test_path_returns_some() {
         let result = path();
         assert!(result.is_some(), "path() should return Some value");
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn test_linux_system_path_included() {
-        let paths = search_paths();
-
-        let has_etc_path = paths.iter().any(|p| {
-            p.to_string_lossy().contains("/etc/promptcmd")
-        });
-
-        assert!(has_etc_path, "Should include /etc/promptcmd path on Linux");
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn test_macos_system_path_included() {
-        let paths = search_paths();
-
-        let has_library_path = paths.iter().any(|p| {
-            p.to_string_lossy().contains("/Library/Application Support/aibox")
-        });
-
-        assert!(has_library_path, "Should include Library path on macOS");
-    }
-
-    #[cfg(target_os = "windows")]
-    #[test]
-    fn test_windows_system_path_included() {
-        let paths = search_paths();
-
-        let has_program_data = paths.iter().any(|p| {
-            p.to_string_lossy().contains("ProgramData")
-        });
-
-        assert!(has_program_data, "Should include ProgramData path on Windows");
     }
 }
 

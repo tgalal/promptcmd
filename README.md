@@ -27,7 +27,6 @@ $ How can I create a loop in rust
   - [Variants](#variants)
   - [Load Balancing](#load-balancing)
 - [Roadmap](#roadmap)
-- [Examples](#examples)
 - [License](#license)
 
 ## What?
@@ -317,15 +316,6 @@ providers = [
 - [ ] File Inputs
 - [ ] Web UI Installer
 
-
-## Examples
-
-Import and use any of the examples under [examples]() using `promptctl import`:
-
-```
-curl https://raw.githubusercontent.com/tgalal/promptcmd/refs/heads/main/examples/commitmsg.toml | \
-promptctl import -pe commitmsg -
-```
 
 ## License
 

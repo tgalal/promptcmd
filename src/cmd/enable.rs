@@ -1,6 +1,7 @@
 use clap::{Parser};
 use log::{debug};
 use anyhow::{bail, Result};
+use log::error;
 
 use crate::{installer::DotPromptInstaller, storage::PromptFilesStorage};
 
@@ -18,7 +19,7 @@ impl EnableCmd {
         ) -> Result<()> {
 
         if let Some(path) = installer.is_installed(&self.promptname) {
-            println!("{} is already installed at {}", &self.promptname, &path);
+            error!("Install path {} already exists", path);
             return Ok(());
         }
 

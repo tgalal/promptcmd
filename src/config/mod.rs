@@ -10,7 +10,6 @@ use thiserror::Error;
 pub const RUNNER_BIN_NAME: &str = "promptcmd";
 pub const APP_NAME: &str = "promptcmd";
 pub const PROMPTS_STORAGE_DIR: &str = "prompts.d";
-pub const PROMPTS_INSTALL_DIR: &str = "bin";
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -28,6 +27,9 @@ pub enum ConfigError {
 
     #[error("Could not find data directory")]
     DataDirNotAvailable,
+
+    #[error("Could not find a bin directory")]
+    BinDirNotAvailable,
 }
 
 pub fn base_storage_dir() -> Result<PathBuf, ConfigError>  {
@@ -47,7 +49,11 @@ pub fn data_dir() -> Result<PathBuf, ConfigError> {
 }
 
 pub fn prompt_install_dir() -> Result<PathBuf, ConfigError> {
-    Ok(base_storage_dir()?.join(PROMPTS_INSTALL_DIR))
+    if let Some(bin_dir) = dirs::executable_dir() {
+        Ok(bin_dir)
+    } else {
+        Err(ConfigError::BinDirNotAvailable)
+    }
 }
 
 pub fn prompt_storage_dir() -> Result<PathBuf, ConfigError> {

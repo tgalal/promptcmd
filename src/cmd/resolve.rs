@@ -5,12 +5,12 @@ use crate::config::resolver::{self, ResolvedPropertySource};
 
 
 #[derive(Parser)]
-pub struct ResolveModelCmd {
+pub struct ResolveCmd {
     #[arg()]
     pub name: String
 }
 
-impl ResolveModelCmd {
+impl ResolveCmd {
     pub fn exec(&self, appconfig: &AppConfig, out: &mut impl std::io::Write) -> Result<()> {
         let source = Some(ResolvedPropertySource::Input(self.name.clone()));
         match resolver::resolve(appconfig, &self.name, source) {

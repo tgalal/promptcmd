@@ -7,7 +7,7 @@ pub mod cat;
 pub mod run;
 pub mod import;
 pub mod stats;
-pub mod resolve_model;
+pub mod resolve;
 
 mod templates;
 

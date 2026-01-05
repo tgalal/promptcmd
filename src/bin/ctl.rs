@@ -52,7 +52,7 @@ enum Commands {
     Stats(cmd::stats::StatsCmd),
 
     #[clap(about = "Resolve model name")]
-    ResolveModel(cmd::resolve_model::ResolveModelCmd),
+    Resolve(cmd::resolve::ResolveCmd),
 }
 
 fn main() -> Result<()> {
@@ -143,7 +143,7 @@ fn main() -> Result<()> {
             &store
         ),
 
-        Commands::ResolveModel(cmd) => cmd.exec(
+        Commands::Resolve(cmd) => cmd.exec(
             &appconfig,
             &mut stdout
         ),

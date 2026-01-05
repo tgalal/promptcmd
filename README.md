@@ -102,7 +102,7 @@ Commands:
   run            Run promptfile
   import         Import promptfile
   stats          Print statistics
-  resolve-model  Resolve model name
+  resolve        Resolve model name
   help           Print this message or the help of the given subcommand(s)
 ```
 
@@ -222,8 +222,12 @@ Linux
 
 ```
 ~/.config/promptcmd/config.toml
-/etc/config.toml
-~/.promptcmd/config.toml
+```
+
+MAC
+
+```
+~/Library/Application Support/promptcmd/config.toml
 ```
 
 ### Prompt File Search Paths
@@ -234,14 +238,22 @@ Linux:
 ~/.local/share/promptcmd/prompts/
 ```
 
+MAC
+
+```
+~/Library/Application Support/promptscmd/prompts/
+```
 
 ### Installation Paths
 
-Linux:
+```
+~/.local/share/promptcmd/installed/symlink/
+```
+
+MAC
 
 ```
-~/.promptcmd/installers/symlink/
-~/.local/bin/
+~/Library/Application Support/promptcmd/installed/symlink/
 ```
 
 ## Advanced Configurations
@@ -251,7 +263,7 @@ Linux:
 You can define custom "instances" of an already configured model, and refer to
 it by name:
 
-```
+```toml
 [providers.anthropic.rust-coder]
 system = """You are a rust coding assistant helping me with rust questions.
 Be brief, do not use markdown in your answers. Prefer to answer with pure code
@@ -296,7 +308,7 @@ providers = [
 - [x] Groups and Load balancing
 - [x] Symlink Installer
 - [x] Shebang Support
-- [ ] MAC suppport
+- [x] MAC suppport
 - [ ] Windows suppport
 - [ ] Support tools
 - [ ] Better statistics

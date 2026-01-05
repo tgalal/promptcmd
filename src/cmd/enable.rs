@@ -1,7 +1,10 @@
+use std::path::{Path, PathBuf};
+
 use clap::{Parser};
 use log::{debug};
 use anyhow::{bail, Result};
 use log::error;
+use std::env;
 
 use crate::{installer::DotPromptInstaller, storage::PromptFilesStorage};
 
@@ -10,6 +13,20 @@ pub struct EnableCmd {
     #[arg()]
     pub promptname: String,
 }
+
+fn is_in_path(dir: &str) -> bool {
+    let dir_path = Path::new(dir);
+
+    if let Some(path_var) = env::var_os("PATH") {
+        for path in env::split_paths(&path_var) {
+            if path == dir_path {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 
 impl EnableCmd {
     pub fn exec(
@@ -29,6 +46,30 @@ impl EnableCmd {
             let installed_path = installer.install(&self.promptname)?;
             println!("Installed {installed_path}");
 
+            if let Some(path) = PathBuf::from(&installed_path).parent() && !is_in_path(&path.to_string_lossy()) {
+                let path = path.to_string_lossy();
+                let warning_message = format!(
+r#"Warning: The install directory:
+
+{path}
+
+is not in your PATH environment variable. You can temporarily update your PATH for this session:
+
+export PATH=$PATH:"{path}"
+
+which will make `{}` available right away. Alternatively you can run one of:
+
+promptctl run {} --
+"{installed_path}"
+
+For simplicity, consider updating your shell's PATH to persistently run prompts without requiring their full path,
+
+"#,
+                    &self.promptname, &self.promptname);
+                let rendered_wm = textwrap::wrap(&warning_message, 80).join("\n");
+                println!();
+                println!("{}", rendered_wm);
+            }
         } else {
             bail!("Could not find an existing prompt file");
         }

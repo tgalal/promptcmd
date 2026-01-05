@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     );
 
     let store = RusqliteStore::new(
-        config::data_dir()?
+        config::base_storage_dir()?
     )?;
 
     let appconfig = if let Some(appconfig_path) = appconfig_locator::path() {

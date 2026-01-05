@@ -10,6 +10,7 @@ use thiserror::Error;
 pub const RUNNER_BIN_NAME: &str = "promptcmd";
 pub const APP_NAME: &str = "promptcmd";
 pub const PROMPTS_STORAGE_DIR: &str = "prompts.d";
+pub const PROMPTS_INSTALL_DIR: &str = "installed/symlink";
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -27,33 +28,19 @@ pub enum ConfigError {
 
     #[error("Could not find data directory")]
     DataDirNotAvailable,
-
-    #[error("Could not find a bin directory")]
-    BinDirNotAvailable,
 }
 
 pub fn base_storage_dir() -> Result<PathBuf, ConfigError>  {
-    if let Some(config_dir) = dirs::config_dir() {
-        Ok(config_dir.join(APP_NAME))
-    } else {
-        Err(ConfigError::BaseConfigDirNotAvailable)
-    }
-}
-
-pub fn data_dir() -> Result<PathBuf, ConfigError> {
     if let Some(data_dir) = dirs::data_dir() {
         Ok(data_dir.join(APP_NAME))
     } else {
-        Err(ConfigError::DataDirNotAvailable)
+        Err(ConfigError::StorageDirectoryNotAvailable)
     }
 }
 
 pub fn prompt_install_dir() -> Result<PathBuf, ConfigError> {
-    if let Some(bin_dir) = dirs::executable_dir() {
-        Ok(bin_dir)
-    } else {
-        Err(ConfigError::BinDirNotAvailable)
-    }
+    // Ok(base_storage_dir()?.join(PROMPTS_INSTALL_DIR))
+    Ok(base_storage_dir()?.join(PROMPTS_INSTALL_DIR))
 }
 
 pub fn prompt_storage_dir() -> Result<PathBuf, ConfigError> {
@@ -63,11 +50,9 @@ pub fn prompt_storage_dir() -> Result<PathBuf, ConfigError> {
 pub fn bootstrap_directories() -> Result<(), ConfigError> {
     let prompts_install_dir = prompt_install_dir()?;
     let prompts_storage_dir = prompt_storage_dir()?;
-    let data_dir = data_dir()?;
 
     std::fs::create_dir_all(prompts_storage_dir)?;
     std::fs::create_dir_all(prompts_install_dir)?;
-    std::fs::create_dir_all(data_dir)?;
 
     Ok(())
 }

@@ -64,7 +64,7 @@ fn main() -> Result<()> {
     );
 
     let store = RusqliteStore::new(
-        config::data_dir()?
+        config::base_storage_dir()?
     )?;
 
     let target_bin = env::current_exe()

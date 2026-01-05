@@ -2,7 +2,7 @@ use anyhow::Result;
 use promptcmd::cmd;
 use promptcmd::cmd::BasicTextEditor;
 use promptcmd::config::{self, RUNNER_BIN_NAME};
-use promptcmd::lb::weighted_lb::WeightedLoadBalancer;
+use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::RusqliteStore;
 use std::env;
 use promptcmd::installer::symlink::SymlinkInstaller;

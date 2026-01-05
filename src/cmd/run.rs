@@ -2,10 +2,10 @@ use chrono::Utc;
 use clap::{Parser};
 use log::{error, debug};
 use clap::{Arg, ArgMatches, Command};
-use std::collections::HashMap;
+use std::{collections::HashMap};
 use std::time::Instant;
 use std::convert::TryFrom;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use thiserror::Error;
 use llm::{
     builder::{LLMBuilder},
@@ -13,9 +13,11 @@ use llm::{
 };
 use llm::chat::StructuredOutputFormat;
 use tokio::runtime::Runtime;
-use crate::{config::appconfig::AppConfig, lb::{weighted_lb::{WeightedLoadBalancer}},
+use crate::config::appconfig::AppConfig;
+use crate::lb::{
+    BalanceLevel, BalanceScope, WeightedLoadBalancer, Choice
 };
-use crate::config::resolver::{self, ResolvedPropertySource};
+use crate::config::resolver::{self, ResolvedConfig, ResolvedPropertySource};
 use crate::config::providers::ModelInfo;
 use crate::dotprompt::DotPrompt;
 use crate::dotprompt::render::Render;
@@ -45,19 +47,6 @@ pub fn generate_arguments_from_dotprompt(mut command: Command, dotprompt: &DotPr
        command = command.arg(arg);
     }
     Ok(command)
-}
-
-pub enum UsageMode {
-    // Load balances over all usages of the same model (Model is the shared resource, usage of
-    // another model under the same provider does not count)
-    Model,
-    // Load balances over all models under the same provider. (Provider is the shared resource)
-    Provider,
-    // Load balances over variant. (Variant is the shared resource, usage of referenced
-    // provider/model outside the variant do not count)
-    Variant,
-    // Load balances over group. Usages of any referenced model outside the group does not count
-    Group, //
 }
 
 #[derive(Error, Debug)]
@@ -95,33 +84,25 @@ impl RunCmd {
         let resolved_config = resolver::resolve(
             appconfig, &requested_name, Some(ResolvedPropertySource::Dotprompt(requested_name.clone())))?;
 
-        let (model_info, mut llmbuilder) = match &resolved_config {
-           resolver::ResolvedConfig::Base(base)  => {
-                <(ModelInfo, LLMBuilder)>::try_from(base)
+        let (group_choice, variant_name, (model_info, mut llmbuilder)) = match &resolved_config {
+            ResolvedConfig::Base(base)  => {
+                (None, None, <(ModelInfo, LLMBuilder)>::try_from(base)?)
             },
-           resolver::ResolvedConfig::Variant(variant)  => {
-                <(ModelInfo, LLMBuilder)>::try_from(variant)
-                // (ModelInfo,LLMBuilder)::try_from(variant)
+            ResolvedConfig::Variant(variant)  => {
+                (None, Some(variant.name.clone()), <(ModelInfo, LLMBuilder)>::try_from(variant)?)
             },
-           resolver::ResolvedConfig::Group(group)  => {
-                bail!("TODO: implement groups")
-                // Do the Loadbalancing here!
-
-                // group.members.iter().map(|member| {
-                //     match member {
-                //         resolver::group::GroupMember::Base(base) => {
-                //             // LLMBuilder::try_from(base);
-                //         }
-                //         resolver::group::GroupMember::Variant(variant) => {
-                //             // LLMBuilder::try_from(variant);
-                //         }
-                //     }
-                // }).collect();
-           }
-        }?;
-
-        // let (provider, model) = RunCmd::decide_model(
-        //     &dotprompt.frontmatter, appconfig, store, lb)?;
+            ResolvedConfig::Group(group) => {
+                let choice = lb.choose(group, BalanceScope::Group , BalanceLevel::Variant)?;
+                match choice {
+                    Choice::Base(base) => {
+                        (Some((group.name.clone(), choice)), None, <(ModelInfo, LLMBuilder)>::try_from(base)?)
+                    }
+                    Choice::Variant(variant) => {
+                        (Some((group.name.clone(), choice)), Some(variant.name.clone()), <(ModelInfo, LLMBuilder)>::try_from(variant)?)
+                    }
+                }
+            }
+        };
 
         debug!("Model Provider: {}, Model Name: {}", &model_info.provider, &model_info.model);
 
@@ -140,6 +121,11 @@ impl RunCmd {
 
             println!(">>> Resolved Config");
             println!("{}\n", &resolved_config);
+
+            if let Some((_, choice)) = group_choice {
+                println!(">>> LB Choice");
+                println!("{}\n", choice);
+            }
 
             println!(">>> Rendered Prompt");
             println!("{}", &output);
@@ -182,8 +168,8 @@ impl RunCmd {
                 promptname: self.promptname.clone(),
                 provider: model_info.provider,
                 model: model_info.model,
-                variant: None,
-                group: None,
+                variant: variant_name,
+                group: group_choice.map(|(n, _)| n),
                 prompt_tokens,
                 completion_tokens,
                 result: response_text,

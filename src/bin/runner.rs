@@ -2,7 +2,7 @@ use promptcmd::config::{self, appconfig_locator};
 use promptcmd::config::appconfig::{AppConfig};
 use promptcmd::dotprompt::DotPrompt;
 use promptcmd::cmd::run::{self, RunCmd};
-use promptcmd::lb::weighted_lb::WeightedLoadBalancer;
+use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::RusqliteStore;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use clap::{Arg, Command};

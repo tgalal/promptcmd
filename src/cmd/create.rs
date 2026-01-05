@@ -65,7 +65,11 @@ impl CreateCmd {
                         }.exec(storage, installer)?;
                     }
 
-                    let model_name = dotprompt.frontmatter.model.or( appconfig.providers.globals.model.clone());
+                    let model_name = dotprompt.frontmatter.model.or(
+                        appconfig.providers.default.clone().or(
+                            appconfig.providers.globals.model.clone()
+                        )
+                    );
 
                     if let Some(model_name) = model_name {
 

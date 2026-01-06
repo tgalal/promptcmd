@@ -14,7 +14,7 @@ impl SymlinkInstaller {
     pub fn new(target: PathBuf, install_dir: PathBuf) -> Self {
         Self {
             target,
-            install_dir 
+            install_dir
         }
     }
 
@@ -34,7 +34,11 @@ impl DotPromptInstaller for SymlinkInstaller {
             return Err(InstallError::AlreadyExists(name.to_string(), install_path_str.clone()));
         }
 
+        #[cfg(unix)]
         symlink_file(&self.target, &install_path)?;
+
+        #[cfg(target_os="windows")]
+        fs::hard_link(&self.target, &install_path)?;
 
         Ok(install_path_str)
     }
@@ -46,7 +50,11 @@ impl DotPromptInstaller for SymlinkInstaller {
             return Err(UninstallError::NotInstalled(name.to_string()));
         }
 
+        #[cfg(unix)]
         remove_symlink_file(&install_path)?;
+
+        #[cfg(target_os="windows")]
+        fs::remove_file(&install_path)?;
 
         Ok(install_path_str)
     }
@@ -78,7 +86,7 @@ impl DotPromptInstaller for SymlinkInstaller {
                 actual_target == self.target &&
                 let Some(promptname) = path.file_stem() {
                     result.insert(
-                        promptname.to_string_lossy().into_owned(), 
+                        promptname.to_string_lossy().into_owned(),
                         path.to_string_lossy().into_owned());
                 }
         }

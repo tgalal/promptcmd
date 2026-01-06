@@ -308,14 +308,13 @@ providers = [
 - [x] Symlink Installer
 - [x] Shebang Support
 - [x] MAC suppport
-- [ ] Windows suppport
+- [x] Windows suppport
 - [ ] Support tools
 - [ ] Better statistics
 - [ ] Advanced Load balancing
 - [ ] Interactive Input Program Installer
 - [ ] File Inputs
 - [ ] Web UI Installer
-
 
 ## License
 

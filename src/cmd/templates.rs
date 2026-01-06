@@ -22,7 +22,11 @@ An API key and an Anthropic model are required by not yet configured. To configu
 [providers.anthropic]
 api_key="sk-ant-xxxxx..."
 
-You can create/edit your configuration file at:
+Edit your configuration file by running:
+
+promptctl config --edit
+
+Or manually create/edit the file at:
 
 "#;
 
@@ -38,7 +42,11 @@ An API key and an OpenAI model are required by not yet configured. To configure 
 [providers.openai]
 api_key="sk-xxxxx..."
 
-You can create/edit your configuration file at:
+Edit your configuration file by running:
+
+promptctl config --edit
+
+Or manually create/edit the file at:
 
 "#;
 
@@ -54,7 +62,11 @@ An API key and a Google model is required by not yet configured. To configure an
 [providers.google]
 api_key="sk-xxxxx..."
 
-You can create/edit your configuration file at:
+Edit your configuration file by running:
+
+promptctl config --edit
+
+Or manually create/edit the file at:
 
 "#;
 
@@ -70,7 +82,11 @@ An API key and a supported model is required by not yet configured. To configure
 [providers.openrouter]
 api_key="sk-xxxxx..."
 
-You can create/edit your configuration file at:
+Edit your configuration file by running:
+
+promptctl config --edit
+
+Or manually create/edit the file at:
 
 "#;
 
@@ -82,7 +98,11 @@ configuration file:
 [providers.ollama]
 endpoint="http://ollama_address:11434"
 
-You can create/edit your configuration file at:
+Edit your configuration file by running:
+
+promptctl config --edit
+
+Or manually create/edit the file at:
 
 "#;
 

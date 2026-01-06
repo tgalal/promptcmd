@@ -85,6 +85,10 @@ impl CreateCmd {
                             appconfig.providers.globals.model.clone()
                         )
                     );
+                    let config_paths = appconfig_locator::search_paths()
+                        .iter().map(|path| path.to_string_lossy())
+                        .collect::<Vec<_>>()
+                        .join("\n");
 
                     if let Some(model_name) = model_name {
 
@@ -113,10 +117,6 @@ impl CreateCmd {
                         match resolved_config {
                             Ok(_) => {},
                             Err(error::ToLLMBuilderError::RequiredConfiguration(_name)) | Err(error::ToLLMBuilderError::ModelError(error::ToModelInfoError::RequiredConfiguration(_name))) => {
-                                let config_paths = appconfig_locator::search_paths()
-                                    .iter().map(|path| path.to_string_lossy())
-                                    .collect::<Vec<_>>()
-                                    .join("\n");
 
                                 if model_name.starts_with("anthropic") {
                                     writeln!(out, "{}{}", templates::ONBOARDING_ANTHROPIC, config_paths)?
@@ -131,6 +131,10 @@ impl CreateCmd {
                                 }
                             }
                         }
+                    } else if appconfig_locator::path().is_none() {
+                        writeln!(out, "\nWarining: You do not have yet configuration file. Consider creating one at:")?;
+                        writeln!(out, "\n{}\n", config_paths)?;
+                        writeln!(out, "Or simply run `promptctl config --edit`")?;
                     }
 
                     break;

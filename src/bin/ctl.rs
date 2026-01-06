@@ -68,11 +68,16 @@ fn main() -> Result<()> {
         config::base_storage_dir()?
     )?;
 
+    let runner_binary_name = RUNNER_BIN_NAME;
+
+    #[cfg(target_os="windows")]
+    let runner_binary_name = runner_binary_name.to_string() + ".exe";
+
     let target_bin = env::current_exe()
         .context("Could not determine current bin")?
         .parent()
         .context("Could not determine parent of current bin")?
-        .join(RUNNER_BIN_NAME);
+        .join(runner_binary_name);
 
     let mut installer = SymlinkInstaller::new(
         target_bin,

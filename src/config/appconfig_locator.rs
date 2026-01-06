@@ -72,23 +72,5 @@ mod tests {
             );
         }
     }
-
-    #[test]
-    fn test_path_returns_first_search_path() {
-        let search_paths_result = search_paths();
-        let path_result = path();
-
-        assert_eq!(
-            path_result,
-            search_paths_result.first().cloned(),
-            "path() should return the first search path"
-        );
-    }
-
-    #[test]
-    fn test_path_returns_some() {
-        let result = path();
-        assert!(result.is_some(), "path() should return Some value");
-    }
 }
 

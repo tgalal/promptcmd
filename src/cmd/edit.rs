@@ -2,7 +2,7 @@ use clap::{Parser};
 use anyhow::{bail, Result};
 
 use crate::cmd::create::{validate_and_write, WriteResult};
-use crate::cmd::TextEditor;
+use crate::cmd::{TextEditor, TextEditorFileType};
 use crate::storage::PromptFilesStorage;
 
 #[derive(Parser)]
@@ -29,7 +29,7 @@ impl EditCmd {
             let mut edited = content.clone();
             println!("Editing {path}");
             loop {
-                edited = editor.edit(&edited)?;
+                edited = editor.edit(&edited, TextEditorFileType::Dotprompt)?;
                 if content != edited {
                     match validate_and_write(
                         inp,
@@ -61,7 +61,7 @@ impl EditCmd {
 
 #[cfg(test)]
 mod tests {
-    use crate::{cmd::{self, edit::EditCmd, TextEditor}, config::appconfig::AppConfig, installer::{tests::InMemoryInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
+    use crate::{cmd::{self, edit::EditCmd, TextEditor, TextEditorFileType}, config::appconfig::AppConfig, installer::tests::InMemoryInstaller, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
 
     const PROMPTFILE_BASIC_VALID_1: &str = r#"
 ---
@@ -111,7 +111,7 @@ Basic Prompt Here: {{message}}
     }
 
     impl TextEditor for TestingTextEditor {
-        fn edit(&self, _: &str) -> Result<String, cmd::TextEditorError> {
+        fn edit(&self, _: &str, _: TextEditorFileType) -> Result<String, cmd::TextEditorError> {
             Ok(self.user_input.clone())
         }
     }

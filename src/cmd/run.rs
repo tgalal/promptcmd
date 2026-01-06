@@ -197,7 +197,7 @@ impl RunCmd {
         let appconfig = if let Some(appconfig_path) = appconfig_locator::path() {
             debug!("Config Path: {}",appconfig_path.display());
             AppConfig::try_from(
-                &fs::read_to_string(&appconfig_path)?
+                fs::read_to_string(&appconfig_path)?.as_str()
             )?
         } else {
             AppConfig::default()

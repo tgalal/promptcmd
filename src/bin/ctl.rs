@@ -51,6 +51,9 @@ enum Commands {
 
     #[clap(about = "Resolve model name")]
     Resolve(cmd::resolve::ResolveCmd),
+
+    #[clap(about = "Display and edit your config.toml")]
+    Config(cmd::config::ConfigCmd),
 }
 
 fn main() -> Result<()> {
@@ -81,7 +84,7 @@ fn main() -> Result<()> {
     let appconfig = if let Some(appconfig_path) = config::appconfig_locator::path() {
         debug!("Config Path: {}",appconfig_path.display());
         config::appconfig::AppConfig::try_from(
-            &fs::read_to_string(&appconfig_path)?
+            fs::read_to_string(&appconfig_path)?.as_str()
         )?
     } else {
         config::appconfig::AppConfig::default()
@@ -143,6 +146,12 @@ fn main() -> Result<()> {
         Commands::Resolve(cmd) => cmd.exec(
             &appconfig,
             &mut stdout
+        ),
+
+        Commands::Config(cmd) => cmd.exec(
+            &mut stdin.lock(),
+            &mut stdout,
+            &editor
         ),
     }
 }

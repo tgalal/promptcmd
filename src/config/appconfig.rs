@@ -100,10 +100,10 @@ pub enum AppConfigError {
     ReadConfigError(#[from] TomlError)
 }
 
-impl TryFrom<&String> for AppConfig {
+impl TryFrom<&str> for AppConfig {
     type Error = AppConfigError;
 
-    fn try_from(contents: &String) -> Result<Self, Self::Error> {
+    fn try_from(contents: &str) -> Result<Self, Self::Error> {
         Ok(toml::from_str::<AppConfig>(contents)?)
     }
 }
@@ -129,7 +129,7 @@ mod tests {
             api_key = "test-key-123"
         "#;
 
-        let config = AppConfig::try_from(&toml_content.to_string());
+        let config = AppConfig::try_from(toml_content);
         assert!(config.is_ok(), "Should parse valid TOML");
     }
 
@@ -146,7 +146,7 @@ mod tests {
             endpoint = "http://localhost:11434"
         "#;
 
-        let config = AppConfig::try_from(&toml_content.to_string());
+        let config = AppConfig::try_from(toml_content);
         assert!(config.is_ok(), "Should parse config with multiple providers");
     }
 
@@ -162,7 +162,7 @@ mod tests {
             api_key = "test-key"
         "#;
 
-        let config = AppConfig::try_from(&toml_content.to_string());
+        let config = AppConfig::try_from(toml_content);
         assert!(config.is_ok(), "Should parse config with global provider settings");
     }
 
@@ -174,7 +174,7 @@ mod tests {
             this is not valid toml
         "#;
 
-        let config = AppConfig::try_from(&invalid_toml.to_string());
+        let config = AppConfig::try_from(invalid_toml);
         assert!(config.is_err(), "Should fail on invalid TOML");
     }
 
@@ -184,7 +184,7 @@ mod tests {
             [providers]
         "#;
 
-        let config = AppConfig::try_from(&toml_content.to_string());
+        let config = AppConfig::try_from(toml_content);
         assert!(config.is_ok(), "Should parse config with empty providers section");
     }
 
@@ -202,7 +202,7 @@ providers = [
     { name = "ollama", weight = 2 },
 ]
 "#;
-        let config = AppConfig::try_from(&toml_content.to_string()).unwrap();
+        let config = AppConfig::try_from(toml_content).unwrap();
         let groups = config.groups;
 
         println!("{:?}", groups);

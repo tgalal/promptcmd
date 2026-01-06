@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use log::{error, info};
 
 use crate::cmd::enable::EnableCmd;
-use crate::cmd::{templates, TextEditor};
+use crate::cmd::{templates, TextEditor, TextEditorFileType};
 use crate::config::appconfig::{AppConfig};
 use crate::config::appconfig_locator;
 use crate::installer::DotPromptInstaller;
@@ -65,7 +65,7 @@ impl CreateCmd {
 
         let mut edited = templates::PROMPTFILE.to_string();
         loop {
-            edited = editor.edit(&edited)?;
+            edited = editor.edit(&edited, TextEditorFileType::Dotprompt)?;
 
             match validate_and_write(inp, storage, &self.promptname, edited.as_str(), force)? {
                 // Validated means written without errors.
@@ -218,7 +218,7 @@ pub fn validate_and_write(
 
 #[cfg(test)]
 mod tests {
-    use crate::{cmd::{self, create::CreateCmd, TextEditor}, config::appconfig::AppConfig, installer::{tests::InMemoryInstaller, DotPromptInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
+    use crate::{cmd::{self, create::CreateCmd, TextEditor, TextEditorFileType}, config::appconfig::AppConfig, installer::{tests::InMemoryInstaller, DotPromptInstaller}, storage::{promptfiles_mem::InMemoryPromptFilesStorage, PromptFilesStorage}};
 
     const PROMPTFILE_BASIC_VALID: &str = r#"
 ---
@@ -262,7 +262,7 @@ Basic Prompt Here: {{message}}
     }
 
     impl TextEditor for TestingTextEditor {
-        fn edit(&self, _: &str) -> Result<String, cmd::TextEditorError> {
+        fn edit(&self, _: &str, _: TextEditorFileType) -> Result<String, cmd::TextEditorError> {
             Ok(self.user_input.clone())
         }
     }

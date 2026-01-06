@@ -2,7 +2,6 @@ use clap::{Parser};
 use anyhow::{ Result};
 use prettytable::{row, Table};
 use prettytable::format;
-use crate::config::{appconfig_locator};
 use crate::storage::{PromptFilesStorage};
 
 
@@ -10,8 +9,6 @@ use crate::storage::{PromptFilesStorage};
 pub struct ListCmd {
     #[arg(short, long, help="Print in long format")]
     pub long: bool,
-    #[arg(long, help="List config.toml lookup paths")]
-    pub config: bool,
 }
 
 impl ListCmd {
@@ -20,24 +17,6 @@ impl ListCmd {
         &self,
         storage: &impl PromptFilesStorage,
     ) -> Result<()> {
-        if self.config {
-            self.exec_for_config()
-        } else {
-            self.exec_for_prompts(storage)
-        }
-    }
-    fn exec_for_config(&self) -> Result<()> {
-        let paths : Vec<String>= appconfig_locator::search_paths()
-            .iter().map(|path| path.display().to_string()).collect();
-        println!("{}", paths.join("\n"));
-        Ok(())
-    }
-
-    fn exec_for_prompts(
-        &self,
-        storage: &impl PromptFilesStorage,
-    ) -> Result<()> {
-
         let prompts = storage.list()?;
 
         if self.long {

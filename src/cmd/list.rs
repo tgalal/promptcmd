@@ -56,7 +56,9 @@ impl ListCmd {
 
         } else {
             let joined = prompts.keys().cloned().collect::<Vec<_>>().join(" ");
-            println!("{joined}");
+            if !joined.is_empty() {
+                println!("{joined}");
+            }
         }
 
         Ok(())

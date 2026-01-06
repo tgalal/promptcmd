@@ -7,6 +7,12 @@ authors = ["Tarek Galal"]
 description = "Turn GenAI prompts into runnable programs"
 homepage = "https://promptcmd.sh"
 
+[package.metadata.wix]
+upgrade-guid = "97645D5F-DD9C-4186-BFC5-D23561558708"
+path-guid = "988825FB-0405-4029-92F7-1790458FDF78"
+license = false
+eula = false
+
 [[bin]]
 name = "promptctl"
 path = "src/bin/ctl.rs"

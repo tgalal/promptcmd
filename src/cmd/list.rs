@@ -8,93 +8,60 @@ use crate::storage::{PromptFilesStorage};
 
 #[derive(Parser)]
 pub struct ListCmd {
-    #[arg(short, long)]
+    #[arg(short, long, help="Print in long format")]
     pub long: bool,
-
-    #[arg(short, long)]
-    pub enabled: bool,
-
-    #[arg(short, long)]
-    pub disabled: bool,
-
-    #[arg(short, long)]
-    pub fullpath: bool,
-
-    #[arg(short, long)]
-    pub prompts: bool,
-
-    #[arg(short, long)]
-    pub commands: bool,
-
-    /// List lookup paths for configuration files
-    #[arg(long)]
+    #[arg(long, help="List config.toml lookup paths")]
     pub config: bool,
 }
 
-pub fn exec(
-    storage: &impl PromptFilesStorage,
-    long: bool,
-    enabled: bool,
-    disabled: bool,
-    fullpath: bool,
-    commands: bool,
-    config: bool
-) -> Result<()> {
-    if config {
-        exec_for_config()
-    } else if commands {
-        exec_for_commands(long, fullpath)
-    } else {
-        exec_for_prompts(storage, long, enabled, disabled, fullpath, commands, config)
+impl ListCmd {
+
+    pub fn exec(
+        &self,
+        storage: &impl PromptFilesStorage,
+    ) -> Result<()> {
+        if self.config {
+            self.exec_for_config()
+        } else {
+            self.exec_for_prompts(storage)
+        }
     }
-}
+    fn exec_for_config(&self) -> Result<()> {
+        let paths : Vec<String>= appconfig_locator::search_paths()
+            .iter().map(|path| path.display().to_string()).collect();
+        println!("{}", paths.join("\n"));
+        Ok(())
+    }
 
-fn exec_for_config() -> Result<()> {
-    let paths : Vec<String>= appconfig_locator::search_paths()
-        .iter().map(|path| path.display().to_string()).collect();
-    println!("{}", paths.join("\n"));
-    Ok(())
-}
+    fn exec_for_prompts(
+        &self,
+        storage: &impl PromptFilesStorage,
+    ) -> Result<()> {
 
-fn exec_for_prompts(
-    storage: &impl PromptFilesStorage,
-    long: bool,
-    _enabled: bool,
-    _disabled: bool,
-    _fullpath: bool,
-    _commands: bool,
-    _config: bool
-) -> Result<()> {
+        let prompts = storage.list()?;
 
-    let prompts = storage.list()?;
+        if self.long {
 
-    if long {
+            let mut table = Table::new();
+            let format = format::FormatBuilder::new()
+                .padding(0, 5)
+                .build();
+            table.set_format(format);
 
-        let mut table = Table::new();
-        let format = format::FormatBuilder::new()
-            .padding(0, 5)
-            .build();
-        table.set_format(format);
+            for (identifier, path) in prompts {
+                table.add_row(row![identifier, path]);
+            }
 
-        for (identifier, path) in prompts {
-            table.add_row(row![identifier, path]);
+            table.printstd();
+
+        } else {
+            let joined = prompts.keys().cloned().collect::<Vec<_>>().join(" ");
+            println!("{joined}");
         }
 
-        table.printstd();
+        Ok(())
 
-    } else {
-        let joined = prompts.keys().cloned().collect::<Vec<_>>().join(" ");
-        println!("{joined}");
     }
-
-    Ok(())
-
 }
 
-fn exec_for_commands(
-    _long: bool,
-    _fullpath: bool,
-) -> Result<()> {
-    Ok(())
-}
 

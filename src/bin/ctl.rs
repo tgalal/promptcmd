@@ -116,9 +116,7 @@ fn main() -> Result<()> {
             &editor,
             &appconfig),
 
-        Commands::List(cmd) => cmd::list::exec(
-            &prompts_storage, cmd.long, cmd.enabled, cmd.disabled, cmd.fullpath, cmd.commands, cmd.config
-        ),
+        Commands::List(cmd) => cmd.exec(&prompts_storage),
 
         Commands::Cat(cmd) => cmd.exec(
             &prompts_storage,

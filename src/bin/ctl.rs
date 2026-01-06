@@ -14,12 +14,10 @@ use anyhow::Context;
 
 
 #[derive(Parser)]
+#[command(version)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
-
-    #[arg(short, long)]
-    verbose: bool
 }
 
 #[derive(Subcommand)]

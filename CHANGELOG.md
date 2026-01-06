@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 0.4.10 (2026-01-06)
+
+### Changed
+
+- Install using hardlinks on Windows.
+
 ## Version 0.4.9 (2026-01-06)
 
 ### Added
@@ -12,7 +18,7 @@
 
 ### Removed
 
-- Remove `list --config` in favor of `config --list`
+- `list --config` in favor of `config --list`
 
 ### Fixed
 

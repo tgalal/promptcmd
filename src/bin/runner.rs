@@ -47,7 +47,7 @@ fn main() -> Result<()> {
         .into();
 
     let invoked_binname: String = path
-        .file_name()
+        .file_stem()
         .context("Could not get filename")?
         .to_string_lossy()
         .into();

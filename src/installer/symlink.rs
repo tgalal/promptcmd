@@ -34,6 +34,8 @@ impl SymlinkInstaller {
 
 impl DotPromptInstaller for SymlinkInstaller {
     fn install(&mut self, name: &str) -> Result<String, InstallError> {
+        fs::create_dir_all(&self.install_dir)?;
+
         let (install_path, install_path_str) = self.resolve(name);
 
         if install_path.exists() {

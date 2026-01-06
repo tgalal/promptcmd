@@ -2,8 +2,10 @@ use std::{collections::HashMap, fs, path::PathBuf};
 use symlink::remove_symlink_file;
 use ::symlink::symlink_file;
 
-
 use crate::installer::{DotPromptInstaller, InstallError, UninstallError};
+
+
+const INSTALLER_ID: &str = "symlink";
 
 pub struct SymlinkInstaller {
     target: PathBuf,
@@ -14,11 +16,15 @@ impl SymlinkInstaller {
     pub fn new(target: PathBuf, install_dir: PathBuf) -> Self {
         Self {
             target,
-            install_dir
+            install_dir: install_dir.join(INSTALLER_ID)
         }
     }
 
     fn resolve(&self, name: &str) -> (PathBuf, String) {
+
+        #[cfg(target_os="windows")]
+        let name = name.to_string() + ".exe";
+
         let install_path = self.install_dir.join(name);
         let install_path_str = install_path.to_string_lossy().into_owned();
 

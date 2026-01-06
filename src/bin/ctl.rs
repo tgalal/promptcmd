@@ -135,6 +135,7 @@ fn main() -> Result<()> {
         Commands::Import(cmd) => cmd.exec(
             &mut prompts_storage,
             &mut installer,
+            &appconfig
         ),
 
         Commands::Stats(cmd) => cmd.exec(

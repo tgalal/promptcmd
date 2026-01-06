@@ -2,7 +2,7 @@ use clap::{Parser};
 use anyhow::{bail, Result};
 use llm::builder::LLMBuilder;
 use std::io::{self, Write};
-use log::{error};
+use log::{error, info};
 
 use crate::cmd::enable::EnableCmd;
 use crate::cmd::{templates, TextEditor};
@@ -17,13 +17,13 @@ use crate::config::providers::{ModelInfo, error};
 
 #[derive(Parser)]
 pub struct CreateCmd {
-    #[arg(short, long, default_value_t=false)]
-    pub no_enable: bool,
+    #[arg(short, long, default_value_t=false, help="Auto enable the prompt file after creation")]
+    pub enable: bool,
 
-    #[arg(short, long, default_value_t=false)]
+    #[arg(short, long, default_value_t=false, help="Force save the prompt file without even with validation errors")]
     pub force: bool,
 
-    #[arg()]
+    #[arg(help="What to call the prompt being created.")]
     pub promptname: String,
 }
 
@@ -49,18 +49,32 @@ impl CreateCmd {
             bail!("Prompt file already exists: {path}");
         }
 
+        let enable = if appconfig.create.enable {
+            info!("auto enable is set by config");
+            true
+        } else {
+            self.enable
+        };
+
+        let force = if appconfig.create.force {
+            info!("force is set by config");
+            true
+        } else {
+            self.force
+        };
+
         let mut edited = templates::PROMPTFILE.to_string();
         loop {
             edited = editor.edit(&edited)?;
 
-            match validate_and_write(inp, storage, &self.promptname, edited.as_str(), self.force)? {
+            match validate_and_write(inp, storage, &self.promptname, edited.as_str(), force)? {
                 // Validated means written without errors.
                 // In this case:
                 // - we also enable it (if `enable`` is true)
                 // - we give out user help if provider has no available configuration
                 WriteResult::Validated(dotprompt, path) => {
                     writeln!(out, "Saved {}", path)?;
-                    if !self.no_enable {
+                    if enable {
                         EnableCmd {
                             promptname: self.promptname.clone()
                         }.exec(storage, installer)?;
@@ -125,7 +139,7 @@ impl CreateCmd {
                 // In this case we don't enable the prompt automatically, even if requested.
                 WriteResult::Written(path) => {
                     writeln!(out, "Saved {}", path)?;
-                    if !self.no_enable {
+                    if enable {
                         writeln!(out, "Not enabling due to errors")?;
                     }
                     break;
@@ -282,7 +296,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            no_enable: false,
+            enable: true,
             force: false
         }.exec(
                 &mut &state.inp[..],
@@ -314,7 +328,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            no_enable: true,
+            enable: false,
             force: false
         }.exec(
             &mut &state.inp[..],
@@ -346,7 +360,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            no_enable: true,
+            enable: false,
             force: false
         }.exec(
             &mut &state.inp[..],
@@ -377,7 +391,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            no_enable: true,
+            enable: false,
             force: true
         }.exec(
             &mut &state.inp[..],

@@ -12,9 +12,29 @@ use crate::config::resolver;
 #[derive(Debug, Deserialize, Default)]
 pub struct AppConfig {
     #[serde(default)]
+    pub create: Create,
+    #[serde(default)]
+    pub import: Import,
+    #[serde(default)]
     pub providers: Providers,
     #[serde(default)]
     pub groups: HashMap<String, GroupConfig>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct Create {
+    #[serde(default)]
+    pub enable: bool,
+    #[serde(default)]
+    pub force: bool,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct Import {
+    #[serde(default)]
+    pub enable: bool,
+    #[serde(default)]
+    pub force: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]

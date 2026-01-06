@@ -1,5 +1,5 @@
 use std::{path::PathBuf, str::FromStr};
-use crate::cmd::enable::EnableCmd;
+use crate::{cmd::enable::EnableCmd, config::appconfig::AppConfig};
 use crate::installer::DotPromptInstaller;
 use crate::storage::PromptFilesStorage;
 use crate::dotprompt::DotPrompt;
@@ -7,7 +7,7 @@ use crate::dotprompt::DotPrompt;
 use clap::{Parser};
 use anyhow::{bail, Context, Result};
 use clap_stdin::FileOrStdin;
-use log::{debug};
+use log::{debug, info};
 
 
 #[derive(Parser)]
@@ -34,8 +34,23 @@ impl ImportCmd {
     pub fn exec(
         self,
         storage: &mut impl PromptFilesStorage,
-        installer: &mut impl DotPromptInstaller
+        installer: &mut impl DotPromptInstaller,
+        appconfig: &AppConfig,
         ) -> Result<()> {
+
+        let enable = if appconfig.import.enable {
+            info!("auto enable is set by config");
+            true
+        } else {
+            self.enable
+        };
+
+        let force = if appconfig.import.force {
+            info!("force is set by config");
+            true
+        } else {
+            self.force
+        };
 
         let filename = self.promptfile.filename();
 
@@ -60,7 +75,7 @@ impl ImportCmd {
         let contents = self.promptfile.contents()?;
 
         if let Some(path) = storage.exists(&promptname) {
-            if self.force {
+            if force {
                 println!("Overwriting existing file at {path}");
             } else {
                 bail!("{path} already exists, use -f/--force to overwrite");
@@ -75,7 +90,7 @@ impl ImportCmd {
 
         debug!("Imported {promptname} to {path}");
 
-        if self.enable {
+        if enable {
             debug!("Enabling {promptname}");
             EnableCmd {
                 promptname
@@ -91,6 +106,7 @@ impl ImportCmd {
 mod tests {
     use std::str::FromStr;
 
+    use crate::config::appconfig::AppConfig;
     use crate::{cmd::import::ImportCmd, installer::tests::InMemoryInstaller, storage::promptfiles_mem::InMemoryPromptFilesStorage};
     use crate::storage::PromptFilesStorage;
     use crate::installer::DotPromptInstaller;
@@ -111,6 +127,7 @@ Basic Prompt Here: {{message}}
     struct TestState {
         storage: InMemoryPromptFilesStorage,
         installer: InMemoryInstaller,
+        config: AppConfig,
         promptfile: NamedTempFile
     }
 
@@ -129,6 +146,7 @@ Basic Prompt Here: {{message}}
         TestState {
             storage: InMemoryPromptFilesStorage::default(),
             installer: InMemoryInstaller::default(),
+            config: AppConfig::default(),
             promptfile: temp
 
         }
@@ -146,7 +164,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer).unwrap();
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -172,7 +190,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer).unwrap();
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -198,7 +216,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer).unwrap();
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -225,7 +243,7 @@ Basic Prompt Here: {{message}}
         };
 
         // should fail because no name is given, and file path is not .prompt
-        cmd.exec(&mut state.storage, &mut state.installer).unwrap_err();
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap_err();
 
         state.storage.load(promptname).unwrap_err();
 
@@ -245,7 +263,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer).unwrap_err();
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap_err();
 
         state.storage.load(promptname).unwrap_err();
 
@@ -265,7 +283,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer).unwrap_err();
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap_err();
 
         state.storage.load(promptname).unwrap_err();
 
@@ -286,7 +304,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer).unwrap_err();
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap_err();
 
         // Existing prompt should not have been changed
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
@@ -312,7 +330,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer).ok();
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).ok();
 
         // Existing prompt should not have been changed
         let actual_promptdata = state.storage.load(promptname).unwrap().1;

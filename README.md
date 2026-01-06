@@ -1,48 +1,53 @@
-# promptcmd
-
-promptcmd turns your GenAI prompts into runnable programs:
+![promptcmd](./docs/img/banner.png)
 
 ```bash
 $ askrust "What's the code for creating a loop again"
 $ echo "How is it going?" | translate --to German
 ```
 
-Or use within an editor without plugins:
+Use prompts directly from your editor without plugins:
 
 ![askrust_vim_demo](./docs/img/askrust.gif)
 
-It doesn't even need to "look like" a command per se:
+Natural language commands work too:
 
 ```bash
 $ How can I create a loop in rust
 ```
 
+---
+
 ## Table of Contents
 
-- [What](#what)
-- [Usage](#usage)
-- [Monitoring Usage](#monitoring-usage)
+- [Getting Started](#getting-started)
+- [Command Reference](#command-reference)
+- [Dotprompt Files](#dotprompt-files)
+  - [Schema Syntax](#schema-syntax)
+  - [Supported Data Types](#supported-data-types)
 - [Configuration](#configuration)
-- [Advanced](#advanced-configuration)
+  - [Example Configuration](#example-configuration)
+  - [File Locations](#file-locations)
+- [Advanced Configuration](#advanced-configuration)
   - [Variants](#variants)
   - [Load Balancing](#load-balancing)
-- [Roadmap](#roadmap)
+- [Monitoring Usage](#monitoring-usage)
 - [License](#license)
 
-## What?
+---
 
-Prompts are described within [Dotprompt](https://google.github.io/dotprompt/) files.
-Use `promptctl` to create a `translate` prompt file:
+## Getting Started
+
+Prompts are defined using [Dotprompt](https://google.github.io/dotprompt/) files. Create a new prompt with `promptctl`:
 
 ```bash
 $ promptctl create translate
 ```
 
-Insert the following:
+Define your prompt template:
 
-```
+```yaml
 ---
-model: anthropic/claude-sonnet-4 #(or another model of your choice)
+model: anthropic/claude-sonnet-4
 input:
   schema:
     to: string, Target language
@@ -51,8 +56,7 @@ Translate the following to {{to}}:
 {{STDIN}}
 ```
 
-Save, and close. Follow the printed instructions for configuring your model,
-then you can run:
+After saving, follow the configuration instructions, then use your new command:
 
 ```bash
 $ translate --help
@@ -64,70 +68,65 @@ Options:
   -h, --help     Print help
 ```
 
-And execute:
+Execute the command:
 
-```
-$ echo " Hello world!" | translate --to German
-
+```bash
+$ echo "Hello world!" | translate --to German
 Hallo Welt
 ```
 
-To uninstall the program (remove from path):
+Manage your commands:
 
 ```bash
+# Disable a command
 $ promptctl disable translate
-```
 
-To enable again:
-
-```bash
+# Re-enable a command
 $ promptctl enable translate
 ```
 
-## Usage
+---
 
-```bash
-$ promptctl --help
+## Command Reference
 
-Usage: promptctl [OPTIONS] <COMMAND>
+Available commands:
 
-Commands:
-  edit           Edit an existing prompt file
-  enable         Enable a prompt
-  disable        Disable a prompt
-  create         Create a new prompt file [aliases: new]
-  list           List commands and prompts [aliases: ls]
-  cat            Print promptfile contents
-  run            Run promptfile
-  import         Import promptfile
-  stats          Print statistics
-  resolve        Resolve model name
-  help           Print this message or the help of the given subcommand(s)
-```
+| Command | Description |
+|---------|-------------|
+| `create` | Create a new prompt file |
+| `edit` | Edit an existing prompt file |
+| `enable` | Enable a prompt command |
+| `disable` | Disable a prompt command |
+| `list` | List all commands and prompts |
+| `cat` | Display prompt file contents |
+| `run` | Execute a prompt file |
+| `import` | Import an existing prompt file |
+| `stats` | View usage statistics |
+| `resolve` | Resolve model name to provider |
 
-### dotprompt Files
+---
 
-These are files based on [dotprompt](https://google.github.io/dotprompt/) where
-prompts are described in the following format:
+## Dotprompt Files
 
+Dotprompt files define your prompt templates using a YAML frontmatter format:
 
-```
+```yaml
 ---
 model: model_name
 input:
   schema:
     input1: string, This is a required string input
-    input2: string, This is an optional string input
+    input2?: string, This is an optional string input
     input3: boolean, This is true/false input
     input4: integer, This is an integer input
     input5: number, This is an integer or a float input
 output:
-  format: text # can also be json
+  format: text  # Can also be 'json'
 ---
-This is the template section. You can inject any of the declared inputs
-like {{input1}} or {{input4}}.
+This is the template section. You can inject declared inputs using
+handlebars syntax: {{input1}} or {{input4}}.
 
-You can generally make use of handlebar syntax like conditional checks:
+Conditional logic is supported:
 
 {{#if (eq input3 "true")}}
 input3 is set
@@ -136,64 +135,39 @@ input3 is set
 {{#if (gt input4 5)}}
 input4 is greater than 5
 {{else}}
-input4 is less than 5
+input4 is less than or equal to 5
 {{/if}}
 
-Or render stdin:
+You can also render stdin:
 
 {{STDIN}}
 ```
 
-Input schema fields modifiers:
+### Schema Syntax
 
-- `field`: Required, named argument
-- `field?`: Optional, named argument
-- `field!`: Required, positional argument
-- `field?!` or `field!?`: Optional, positional argument
+Field modifiers control how arguments are parsed:
+
+| Syntax | Description |
+|--------|-------------|
+| `field` | Required, named argument (`--field value`) |
+| `field?` | Optional, named argument (`--field value`) |
+| `field!` | Required, positional argument |
+| `field?!` or `field!?` | Optional, positional argument |
 
 ### Supported Data Types
 
-- `string`: Text input
-- `boolean`: Flag/switch argument
-- `integer`: Integer
-- `number`: Integer or float
+| Type | Description |
+|------|-------------|
+| `string` | Text input |
+| `boolean` | Flag or switch argument |
+| `integer` | Whole numbers |
+| `number` | Integers or floating-point numbers |
 
-## Monitoring Usage
-
-Monitor all use of provider + model:
-
-```
-$ promptctl stats
-
-provider      model                     runs     prompt tokens     completion tokens     avg tps
-anthropic     claude-opus-4-5           15       1988              1562                  31
-openai        gpt-5-mini-2025-08-07     2        88                380                   42
-```
-
-Get information of the last execution:
-
-```
-$ promptctl stats --last
-
-provider      model               prompt tokens     completion tokens     time
-anthropic     claude-opus-4-5     206               168                   5
-```
-
-Perform dry runs (simulate runs without querying the model provider):
-
-```
-$ promptctl run --dry PROMPTNAME -- [PROMPT ARGS]
-```
+---
 
 ## Configuration
 
-Configuration is stored in TOML format and is looked up at:
-
-Linux:
-
-```
-~/.config/promptcmd/config.toml
-```
+Configuration files use TOML format.
 
 ### Example Configuration
 
@@ -210,111 +184,106 @@ endpoint = "https://api.openai.com/v1"
 
 [providers.ollama]
 endpoint = "http://localhost:11434"
-
 ```
 
-### Paths
+For full reference see [config.example.toml](./config.example.toml).
 
-### Config Paths
+### File Locations
 
-Linux
+**Configuration File**
 
-```
-~/.config/promptcmd/config.toml
-```
+| Platform | Path |
+|----------|------|
+| Linux | `~/.config/promptcmd/config.toml` |
+| macOS | `~/Library/Application Support/promptcmd/config.toml` |
 
-MAC
+**Prompt Files**
 
-```
-~/Library/Application Support/promptcmd/config.toml
-```
+| Platform | Path |
+|----------|------|
+| Linux | `~/.local/share/promptcmd/prompts/` |
+| macOS | `~/Library/Application Support/promptcmd/prompts/` |
 
-### Prompt File Search Paths
+**Installed Commands**
 
-Linux:
+| Platform | Path |
+|----------|------|
+| Linux | `~/.local/share/promptcmd/installed/symlink/` |
+| macOS | `~/Library/Application Support/promptcmd/installed/symlink/` |
 
-```
-~/.local/share/promptcmd/prompts/
-```
+---
 
-MAC
-
-```
-~/Library/Application Support/promptscmd/prompts/
-```
-
-### Installation Paths
-
-```
-~/.local/share/promptcmd/installed/symlink/
-```
-
-MAC
-
-```
-~/Library/Application Support/promptcmd/installed/symlink/
-```
-
-## Advanced Configurations
+## Advanced Configuration
 
 ### Variants
 
-You can define custom "instances" of an already configured model, and refer to
-it by name:
+Create specialized model configurations that inherit from base providers:
 
 ```toml
 [providers.anthropic.rust-coder]
-system = """You are a rust coding assistant helping me with rust questions.
-Be brief, do not use markdown in your answers. Prefer to answer with pure code
-(no before and after explanation unless very appropriate)."""
+system = """You are a Rust coding assistant.
+Be brief, avoid markdown formatting.
+Provide code-first answers without unnecessary explanations."""
 ```
 
-`rust-coder` is referred to as Variant of the Base Anthrophic. A Variant
-inherits all properties of its Base, and optionally overrides any of them.
-It can be referred to in dotprompt files by name:
+Reference variants by name in your prompt files:
 
-```
+```yaml
 ---
 model: rust-coder
 ---
-
-Template here
+{{STDIN}}
 ```
+
+Variants inherit all properties from their base provider and can override any settings.
 
 ### Load Balancing
 
-You can group several bases or variants together into a group, load balancing
-executions across them:
+Distribute requests across multiple providers using groups:
 
-```
-[groups.group1]
+```toml
+# Equal distribution
+[groups.balanced]
+providers = ["anthropic", "openai"]
+
+# Weighted distribution (by token count)
+[groups.weighted]
 providers = [
-  "anthropic", "openai"
-]
-
-# or vary the ratio of execution in terms of total number of tokens:
-
-[groups.group2]
-providers = [
-  { "name": "openai", "weight": 1 },
-  { "name": "anthropic", "weight": 2 },
+  { name = "openai", weight = 1 },
+  { name = "anthropic", weight = 2 }
 ]
 ```
 
-## Roadmap
+---
 
-- [x] Google, Anthropic, OpenRouter, Ollama, OpenAI
-- [x] Groups and Load balancing
-- [x] Symlink Installer
-- [x] Shebang Support
-- [x] MAC suppport
-- [x] Windows suppport
-- [ ] Support tools
-- [ ] Better statistics
-- [ ] Advanced Load balancing
-- [ ] Interactive Input Program Installer
-- [ ] File Inputs
-- [ ] Web UI Installer
+## Monitoring Usage
+
+Track usage across all providers and models:
+
+```bash
+$ promptctl stats
+
+provider      model                     runs     prompt tokens     completion tokens     avg tps
+anthropic     claude-opus-4-5           15       1988              1562                  31
+openai        gpt-5-mini-2025-08-07     2        88                380                   42
+```
+
+View statistics for the most recent execution:
+
+```bash
+$ promptctl stats --last
+
+provider      model               prompt tokens     completion tokens     time
+anthropic     claude-opus-4-5     206               168                   5
+```
+
+Test prompts without calling the API:
+
+```bash
+$ promptctl run --dry PROMPTNAME -- [PROMPT ARGS]
+```
+
+---
 
 ## License
 

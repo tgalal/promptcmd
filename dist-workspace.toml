@@ -16,7 +16,7 @@ install-path = ["$XDG_BIN_HOME/", "$HOME/.local/bin", "~/.local/bin"]
 # Whether to install an updater program
 install-updater = false
 # A GitHub repo to push Homebrew formulas to
-tap = "tgalal/promptcmd"
+tap = "tgalal/homebrew-tap"
 # Publish jobs to run in CI
 publish-jobs = ["homebrew"]
 

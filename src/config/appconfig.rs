@@ -96,7 +96,7 @@ impl GroupProviderConfig {
 
 #[derive(Error, Debug)]
 pub enum AppConfigError {
-    #[error("Error Reading Config file")]
+    #[error("Config file has invalid format: {0}")]
     ReadConfigError(#[from] TomlError)
 }
 

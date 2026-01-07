@@ -176,30 +176,23 @@ fn resolve_variant(
             VariantProviderConfigSource::OpenAI(conf, &appconfig.providers.openai.config),
             model_resolved_property
         ))
+    } else if let Some(conf) = appconfig.providers.google.named.get(provider) {
+        Ok(Variant::new(
+            provider.into(),
+            "google".into(),
+            VariantProviderConfigSource::Google(conf, &appconfig.providers.google.config),
+            model_resolved_property
+        ))
+    } else if let Some(conf) = appconfig.providers.openrouter.named.get(provider) {
+        Ok(Variant::new(
+            provider.into(),
+            "openrouter".into(),
+            VariantProviderConfigSource::OpenRouter(conf, &appconfig.providers.openrouter.config),
+            model_resolved_property
+        ))
     } else {
         Err(error::ResolveError::NotFound(variant_name.to_string()))
     }
-    // else if let Some(conf) = appconfig.providers.google.named.get(variant_name) {
-    //     Some(Variant {
-    //         name: variant_name.to_string(),
-    //         conf: ProviderConfig::Google("google", conf),
-    //         base: resolve_base(appconfig, "google")?
-    //     })
-    // } else if let Some(conf) = appconfig.providers.openrouter.named.get(variant_name) {
-    //     Some(Variant {
-    //         name: variant_name.to_string(),
-    //         conf: ProviderConfig::OpenRouter("openrouter", conf),
-    //         base: resolve_base(appconfig, "openrouter")?
-    //     })
-    // } else  {
-    //     appconfig.providers.openai.named.get(variant_name).map(|conf| {
-    //         Variant {
-    //             name: variant_name.to_string(),
-    //             conf: ProviderConfig::OpenAI("openai", conf),
-    //             base: resolve_base(appconfig, "openai").unwrap()
-    //         }
-    //     })
-    // }
 }
 
 fn resolve_group(appconfig: &AppConfig, group_name: &str) -> Result<Group, error::ResolveError> {

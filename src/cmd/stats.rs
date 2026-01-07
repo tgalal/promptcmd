@@ -36,11 +36,16 @@ fn print_last(store: &impl StatsStore) -> Result<()> {
         .padding(0, 5)
         .build();
     table.set_format(format);
-    table.add_row(row!["provider", "model", "prompt tokens", "completion tokens", "time"]);
+    table.add_row(row!["provider", "model", "prompt tokens", "completion tokens", "time", "succeeded"]);
 
     for item in records {
+        let succeeded = if item.success {
+            "yes"
+        } else {
+            "no"
+        };
         table.add_row(
-            row![item.provider, item.model, item.prompt_tokens, item.completion_tokens, item.time_taken]
+            row![item.provider, item.model, item.prompt_tokens, item.completion_tokens, item.time_taken, succeeded]
         );
     }
     table.printstd();

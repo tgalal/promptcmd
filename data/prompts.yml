@@ -1,0 +1,19 @@
+- name: How
+  filename: How.prompt
+  description: Ask "how" questions and get brief, straight-to-the-point answers from AI
+
+- name: commitmsg
+  filename: commitmsg.prompt
+  description: Generate commit messages from git diffs in conventional or simple format
+
+- name: render-md
+  filename: render-md.prompt
+  description: Render markdown content with different styles
+
+- name: sqlhelper
+  filename: sqlhelper.prompt
+  description: SQL query assistant and helper
+
+- name: what
+  filename: what.prompt
+  description: Ask "what" questions and get concise answers

@@ -1,0 +1,18 @@
+baseURL = 'https://promptcmd.sh/'
+languageCode = 'en-us'
+title = 'promptcmd'
+
+[params]
+  email = 'noreply@promptcmd.sh'
+  description = 'GenAI prompts as runnable programs. Create custom CLI commands powered by AI. No plugins, no friction. Just pure command-line magic.'
+  twitter_username = 'tgalal'
+  github_username = 'tgalal'
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+[outputs]
+  home = ["HTML"]
+  page = ["HTML"]

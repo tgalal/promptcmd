@@ -1,0 +1,53 @@
+{{ define "main" }}
+<div class="home-header">
+    <h1>promptcmd</h1>
+    <p class="tagline">GenAI prompts as runnable programs</p>
+    <p class="subtitle">Create custom CLI commands powered by AI. No plugins, no friction. Just pure command-line magic.</p>
+
+    <div class="header-links">
+        <a href="{{ "/creator/" | relURL }}" class="link-btn create">
+            Create Prompts
+        </a>
+        <a href="{{ "/prompts/" | relURL }}" class="link-btn library">
+            Browse Library
+        </a>
+        <a href="https://github.com/{{ .Site.Params.github_username }}/promptcmd" class="link-btn github" target="_blank" rel="noopener">
+            View on GitHub
+        </a>
+    </div>
+</div>
+
+<div class="install-section">
+    <div class="install-header">
+        <h2 class="install-title">Get Started in Seconds</h2>
+        <p class="install-subtitle">One command to install</p>
+    </div>
+
+    <div class="command-box">
+        <code class="command-text" id="installCommand">curl -LsSf https://installer.promptcmd.sh | sh</code>
+        <button class="copy-btn" onclick="copyCommand()">Copy</button>
+    </div>
+
+    <div class="examples">
+        <div class="example">
+            <div class="example-title">Translate on the fly</div>
+            <code class="example-code">$ echo "Hello!" | translate --to German</code>
+        </div>
+        <div class="example">
+            <div class="example-title">Code assistance</div>
+            <code class="example-code">$ askrust "How do I create a loop?"</code>
+        </div>
+        <div class="example">
+            <div class="example-title">Natural language</div>
+            <code class="example-code">$ How can I sort this JSON file</code>
+        </div>
+    </div>
+</div>
+
+<div class="demo-section">
+    <div class="demo-header">
+        <h2 class="demo-title">See It In Action</h2>
+    </div>
+    <script src="https://asciinema.org/a/xfkheZPIujfYm7OzyIawTvIkk.js" id="asciicast-xfkheZPIujfYm7OzyIawTvIkk" async="true"></script>
+</div>
+{{ end }}

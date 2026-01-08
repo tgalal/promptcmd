@@ -1,0 +1,10 @@
+main:
+  - title: Home
+    url: /
+  - title: Creator
+    url: /creator.html
+  - title: Library
+    url: /prompts.html
+  - title: GitHub
+    url: https://github.com/tgalal/promptcmd
+    external: true

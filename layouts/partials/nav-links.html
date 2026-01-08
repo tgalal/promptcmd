@@ -1,0 +1,12 @@
+<div class="nav-links">
+    {{ if ne .RelPermalink "/" }}
+    <a href="{{ "/" | relURL }}" class="nav-btn">← Home</a>
+    {{ end }}
+    {{ if ne .RelPermalink "/creator/" }}
+    <a href="{{ "/creator/" | relURL }}" class="nav-btn">Creator</a>
+    {{ end }}
+    {{ if ne .RelPermalink "/prompts/" }}
+    <a href="{{ "/prompts/" | relURL }}" class="nav-btn">Library</a>
+    {{ end }}
+    <a href="https://github.com/{{ .Site.Params.github_username }}/promptcmd" class="nav-btn" target="_blank" rel="noopener">GitHub</a>
+</div>

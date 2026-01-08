@@ -1,0 +1,281 @@
+{{ define "main" }}
+<div class="model-selector">
+    <div class="selector-row">
+        <div class="selector-group">
+            <label class="selector-label" for="providerSelect">Provider</label>
+            <select id="providerSelect" onchange="updateProvider()">
+                <option value="none">None/Default</option>
+                {{ range $key, $provider := .Site.Data.providers }}
+                <option value="{{ $key }}">{{ $provider.name }}</option>
+                {{ end }}
+                <option value="other">Other (manual)</option>
+            </select>
+        </div>
+        <div class="selector-group">
+            <label class="selector-label" for="modelSelect">Model</label>
+            <select id="modelSelect" onchange="updateModel()">
+                <option value="">None/Default</option>
+            </select>
+            <input type="text" id="modelInput" placeholder="Enter model name" oninput="updateModel()">
+        </div>
+    </div>
+</div>
+
+<div class="prompts-grid">
+    {{ range $index, $prompt := .Site.Data.prompts }}
+    {{ $loadPath := printf "p/%s" $prompt.filename }}
+    {{ $content := readFile (printf "static/%s" $loadPath) }}
+    <div class="prompt-card" data-prompt-index="{{ $index }}" onclick="if(!event.target.closest('.prompt-actions')) openModal({{ $index }})">
+        <div class="prompt-header">
+            <div class="prompt-name">{{ $prompt.name }}</div>
+            <div class="prompt-description">{{ $prompt.description }}</div>
+        </div>
+        <div class="prompt-snippet">
+            <pre class="prompt-content">{{ $content | htmlEscape }}</pre>
+        </div>
+        <div class="prompt-actions">
+            <button class="import-snippet-btn" onclick="event.stopPropagation(); copyImport(this, {{ $index }})">Import</button>
+            <a href="{{ printf "/p/%s" $prompt.filename | relURL }}" download class="download-btn" onclick="event.stopPropagation(); downloadPrompt(this, {{ $index }}); event.preventDefault()">Download</a>
+            <button class="copy-snippet-btn" onclick="event.stopPropagation(); copySnippet(this, {{ $index }})">Copy</button>
+        </div>
+    </div>
+    {{ end }}
+</div>
+
+<!-- Modal for expanded prompt view -->
+<div id="promptModal" class="modal">
+    <div class="modal-overlay" onclick="closeModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <div>
+              <h2 class="modal-title" id="modalTitle"></h2>
+              <p class="modal-description" id="modalDescription"></p>
+            </div>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+
+            <div class="modal-prompt-container">
+                <pre id="modalPromptContent"></pre>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="modal-footer-section">
+                <h3 class="modal-section-title">Quick Import</h3>
+                <div class="command-box">
+                    <code class="command-text" id="modalCurlCommand"></code>
+                </div>
+            </div>
+            <div class="modal-footer-actions">
+                <button class="action-btn import-snippet-btn" id="modalImportBtn">Import</button>
+                <button class="action-btn" id="modalDownloadBtn">Download</button>
+                <button class="action-btn secondary" id="modalCopyBtn">Copy Prompt</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Bundled data at build time
+window.providerData = {{ .Site.Data.providers }};
+window.promptsData = {{ .Site.Data.prompts }};
+
+window.promptContents = {};
+
+{{ range $prompt := .Site.Data.prompts }}
+{{ $loadPath := printf "p/%s" $prompt.filename }}
+{{ $content := readFile (printf "static/%s" $loadPath) }}
+window.promptContents["{{$prompt.filename}}"] = {{ $content }};
+{{ end }}
+
+let currentProvider = 'none';
+let currentModel = null;
+
+// Update model in prompt content
+function updatePromptModel(content, model) {
+    const lines = content.split('\n');
+    let inFrontmatter = false;
+    let updatedLines = [];
+
+    let model_inserted = false;
+    for (let line of lines) {
+        const trimmed = line.trim();
+
+        if (inFrontmatter && model && !model_inserted && !trimmed.startsWith("#")) {
+            updatedLines.push(`model: ${model}`);
+            model_inserted = true;
+        }
+        if (trimmed === '---') {
+            updatedLines.push(line);
+            inFrontmatter = !inFrontmatter;
+        } else {
+            updatedLines.push(line);
+        }
+    }
+
+    return updatedLines.join('\n');
+}
+
+// Syntax highlighting
+function highlightPrompt(content) {
+    const lines = content.split('\n');
+    let inFrontmatter = false;
+    let frontmatterEnded = false;
+    let html = '';
+
+    lines.forEach((line, index) => {
+        const trimmed = line.trim();
+
+        if (trimmed === '---') {
+            if (!inFrontmatter) {
+                inFrontmatter = true;
+                html += `<span class="yaml-comment">${escapeHtml(line)}</span>`;
+            } else {
+                inFrontmatter = false;
+                frontmatterEnded = true;
+                html += `<span class="yaml-comment">${escapeHtml(line)}</span>`;
+            }
+        } else if (frontmatterEnded) {
+            html += `<span class="template-text">${escapeHtml(line)}</span>`;
+        } else if (inFrontmatter) {
+            if (trimmed.startsWith('#')) {
+                html += `<span class="yaml-comment">${escapeHtml(line)}</span>`;
+            } else if (line.includes(':')) {
+                const colonIndex = line.indexOf(':');
+                const key = line.substring(0, colonIndex);
+                const value = line.substring(colonIndex + 1);
+                html += `<span class="yaml-key">${escapeHtml(key)}:</span>`;
+                if (value) {
+                    html += `<span class="yaml-value">${escapeHtml(value)}</span>`;
+                }
+            } else {
+                html += escapeHtml(line);
+            }
+        } else {
+            html += escapeHtml(line);
+        }
+
+        if (index < lines.length - 1) {
+            html += '\n';
+        }
+    });
+
+    return html;
+}
+
+// Render all prompts with current model
+function renderAllPrompts() {
+    document.querySelectorAll('.prompt-card').forEach(card => {
+        const index = card.dataset.promptIndex;
+        const meta = window.promptsData[index];
+        const originalContent = window.promptContents[meta.filename];
+        const updatedContent = updatePromptModel(originalContent, currentModel);
+        const pre = card.querySelector('.prompt-content');
+        pre.innerHTML = highlightPrompt(updatedContent);
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    // Set up model selector as disabled with "None/Default" since "none" is selected
+    const modelSelect = document.getElementById('modelSelect');
+    modelSelect.innerHTML = '<option value="">None/Default</option>';
+    modelSelect.disabled = true;
+    document.getElementById('modelInput').style.display = 'none';
+    renderAllPrompts();
+});
+
+// Modal functions
+function openModal(index) {
+    const meta = window.promptsData[index];
+    const originalContent = window.promptContents[meta.filename];
+    const updatedContent = updatePromptModel(originalContent, currentModel);
+
+    document.getElementById('modalTitle').textContent = meta.name;
+    document.getElementById('modalDescription').textContent = meta.description;
+    document.getElementById('modalPromptContent').innerHTML = highlightPrompt(updatedContent);
+
+    // Set curl command
+    const baseUrl = window.location.origin;
+    const promptUrl = `${baseUrl}{{ "/assets/prompts/" | relURL }}${meta.filename}`;
+    const curlCommand = getImportCommand(meta);
+    document.getElementById('modalCurlCommand').textContent = curlCommand;
+
+    const downloadBtn = document.getElementById('modalDownloadBtn');
+    const importBtn = document.getElementById('modalImportBtn');
+    const copyBtn = document.getElementById('modalCopyBtn');
+
+    downloadBtn.onclick = () => {
+        const link = document.createElement('a');
+        link.href = `{{ "/assets/prompts/" | relURL }}${meta.filename}`;
+        link.download = meta.filename;
+        link.click();
+    };
+
+    copyBtn.onclick = () => {
+        copyToClipboard(updatedContent, copyBtn);
+    };
+
+    importBtn.onclick = () => {
+        copyToClipboard(getImportCommand(meta), importBtn);
+    };
+
+    document.getElementById('promptModal').classList.add('active');
+    document.body.classList.add('modal-open');
+}
+
+function copyCurlCommand() {
+    const curlCommand = document.getElementById('modalCurlCommand').textContent;
+    const btn = document.getElementById('modalCurlCopyBtn');
+    copyToClipboard(curlCommand, btn);
+}
+
+function closeModal() {
+    document.getElementById('promptModal').classList.remove('active');
+    document.body.classList.remove('modal-open');
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+});
+
+function copySnippet(btn, index) {
+    const meta = window.promptsData[index];
+    const originalContent = window.promptContents[meta.filename];
+    const updatedContent = updatePromptModel(originalContent, currentModel);
+    copyToClipboard(updatedContent, btn);
+}
+
+function downloadPrompt(btn, index) {
+    const meta = window.promptsData[index];
+    const originalContent = window.promptContents[meta.filename];
+    const content = updatePromptModel(originalContent, currentModel);
+
+    const filename = meta.filename;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function getImportCommand(promptobj) {
+  if (currentModel) {
+    return `curl  -LsSf https://promptcmd.sh/p/${promptobj.filename} | promptctl i -m "${currentModel}" -ep ${promptobj.name} -`;
+  } else {
+    return `curl  -LsSf https://promptcmd.sh/p/${promptobj.filename} | promptctl i -ep ${promptobj.name} -`;
+  }
+}
+
+function copyImport(btn, index) {
+    const meta = window.promptsData[index];
+    let cmd = getImportCommand(meta)
+    copyToClipboard(cmd, btn);
+}
+</script>
+{{ end }}

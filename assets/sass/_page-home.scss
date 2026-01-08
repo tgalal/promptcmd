@@ -1,0 +1,192 @@
+// Home Page Styles
+
+.home-header {
+    text-align: center;
+    padding: $spacing-2xl 0 $spacing-xl;
+
+    h1 {
+        font-size: 3.5rem;
+        font-weight: 900;
+        margin-bottom: 0.75rem;
+        background: linear-gradient(135deg, $color-purple 0%, $color-pink 50%, $color-green 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.03em;
+        line-height: 1;
+
+        &::before {
+            content: '$ ';
+            color: $color-green;
+            opacity: 0.7;
+            -webkit-text-fill-color: $color-green;
+        }
+    }
+
+    .tagline {
+        font-size: 1.25rem;
+        color: $color-text-primary;
+        margin-bottom: $spacing-sm;
+        font-weight: 600;
+    }
+
+    .subtitle {
+        font-size: 0.95rem;
+        color: $color-text-muted;
+        max-width: 600px;
+        margin: 0 auto $spacing-lg;
+        line-height: 1.5;
+    }
+}
+
+.header-links {
+    display: flex;
+    gap: $spacing-lg;
+    justify-content: center;
+    margin-bottom: $spacing-2xl;
+}
+
+.link-btn {
+    &::before {
+        content: '';
+        width: 16px;
+        height: 16px;
+    }
+
+    &.create::before {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23f8f8f2' viewBox='0 0 16 16'%3E%3Cpath d='M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z'/%3E%3C/svg%3E");
+    }
+
+    &.library::before {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23f8f8f2' viewBox='0 0 16 16'%3E%3Cpath d='M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811V2.828zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492V2.687zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783z'/%3E%3C/svg%3E");
+    }
+
+    &.github::before {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23f8f8f2' viewBox='0 0 16 16'%3E%3Cpath d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z'/%3E%3C/svg%3E");
+    }
+}
+
+.examples {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0;
+}
+
+.example {
+    background: $color-bg-black;
+    padding: 0.75rem;
+    border-radius: $border-radius-md;
+    border: 1px solid $color-border;
+    border-left: 3px solid $color-pink;
+}
+
+.example-title {
+    color: $color-pink;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    font-family: $font-mono;
+
+    &::before {
+        content: '// ';
+        color: $color-text-muted;
+    }
+}
+
+.example-code {
+    font-family: $font-mono;
+    color: $color-text-primary;
+    font-size: 0.85rem;
+}
+
+.demo-section {
+    margin-top: $spacing-2xl;
+}
+
+.demo-header {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+
+.demo-title {
+    font-size: 1.5rem;
+    color: $color-pink;
+    font-weight: 700;
+    margin-bottom: $spacing-sm;
+
+    &::before {
+        content: '# ';
+        color: $color-text-muted;
+    }
+}
+
+.install-section {
+    background: $color-bg-panel;
+    border-radius: $border-radius-lg;
+    padding: 1.75rem;
+    margin-bottom: $spacing-2xl;
+    border: 1px solid $color-border;
+    box-shadow: 0 0 40px rgba(189, 147, 249, 0.1);
+}
+
+.install-header {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+
+.install-title {
+    font-size: 1.25rem;
+    color: $color-purple;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+
+    &::before {
+        content: '# ';
+        color: $color-text-muted;
+    }
+}
+
+.install-subtitle {
+    color: $color-text-muted;
+    font-size: 0.85rem;
+}
+
+.command-box {
+    display: flex;
+    align-items: center;
+    background: $color-bg-black;
+    border-radius: $border-radius-lg;
+    padding: 1.25rem;
+    font-size: 1rem;
+    border: 1px solid $color-border;
+    margin-bottom: $spacing-lg;
+    position: relative;
+
+    /*&::before {
+        content: '$';
+        color: $color-green;
+        font-family: $font-mono;
+        font-weight: 700;
+        margin-right: 0.75rem;
+        opacity: 0.8;
+    }*/
+}
+
+.command-text {
+    flex: 1;
+    user-select: all;
+    color: $color-green;
+    font-family: $font-mono;
+    font-weight: 500;
+}
+
+@media (max-width: $breakpoint-md) {
+    .command-box {
+        flex-direction: column;
+        gap: $spacing-lg;
+        padding: 1.25rem;
+    }
+}

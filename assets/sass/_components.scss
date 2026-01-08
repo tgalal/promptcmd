@@ -1,0 +1,458 @@
+// Header
+header {
+    padding: $spacing-lg 0 $spacing-lg;
+    border-bottom: 1px solid $color-border;
+    margin-bottom: $spacing-xl;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: $spacing-lg;
+}
+
+h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  background: linear-gradient(135deg, $color-purple 0%, $color-pink 50%, $color-green 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.03em;
+
+    &::before {
+        content: '$ ';
+        color: $color-text-muted;
+        opacity: 0.7;
+    }
+}
+
+.tagline {
+    font-size: 0.85rem;
+    color: $color-text-muted;
+    font-weight: 400;
+}
+
+.subtitle {
+    font-size: 0.95rem;
+    color: $color-text-muted;
+    max-width: 600px;
+    margin: 0 auto $spacing-lg;
+    line-height: 1.5;
+}
+
+// Navigation
+.nav-links, .header-links {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.nav-btn, .link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-sm;
+    padding: $spacing-sm $spacing-lg;
+    background: $color-bg-black;
+    border: 1px solid $color-border;
+    border-radius: $border-radius-md;
+    color: $color-text-primary;
+    text-decoration: none;
+    font-family: $font-mono;
+    font-size: 0.75rem;
+    transition: $transition-fast;
+
+    &:hover {
+        border-color: $color-purple;
+        box-shadow: 0 0 20px rgba(189, 147, 249, 0.2);
+        transform: translateY(-1px);
+    }
+}
+
+// Sections
+.section {
+    margin-bottom: $spacing-lg;
+}
+
+.section-label {
+    display: block;
+    font-size: 0.75rem;
+    color: $color-text-muted;
+    margin-bottom: $spacing-sm;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+// Panels
+.panel {
+    background: $color-bg-panel;
+    border: 1px solid $color-border;
+    border-radius: $border-radius-lg;
+    padding: $spacing-xl;
+}
+
+.panel-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: $color-pink;
+    margin-bottom: $spacing-lg;
+    font-family: $font-mono;
+}
+
+// Buttons
+.action-btn, .copy-btn, .download-btn, .copy-snippet-btn, .import-snippet-btn {
+    background: $color-purple;
+    border: none;
+    color: $color-bg-input;
+    padding: 0.7rem $spacing-lg;
+    border-radius: $border-radius-sm;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: $transition-fast;
+
+    &:hover {
+        background: $color-pink;
+        color: $color-bg-input;
+    }
+
+    &.secondary {
+        background: $color-bg-black;
+        color: $color-green;
+        border: 1px solid $color-green;
+
+        &:hover {
+            background: $color-green;
+            color: $color-bg-input;
+        }
+    }
+
+    &.copied {
+        background: $color-green;
+        color: $color-bg-input;
+    }
+}
+
+.download-btn {
+    font-size: 0.75rem;
+    padding: $spacing-sm 0.75rem;
+    text-align: center;
+    text-decoration: none;
+}
+
+.copy-snippet-btn {
+    background: $color-bg-black;
+    border: 1px solid $color-green;
+    color: $color-green;
+    padding: $spacing-sm 0.75rem;
+    font-size: 0.75rem;
+
+    &:hover {
+        background: $color-green;
+        color: $color-bg-input;
+    }
+
+    &.copied {
+        background: $color-green;
+        color: $color-bg-input;
+    }
+}
+
+.import-snippet-btn {
+    background: $color-green;
+    color: #000000;
+    padding: $spacing-sm 0.75rem;
+    font-size: 0.75rem;
+    border: 1px solid $color-green;
+
+    &:hover {
+        background: $color-bg-black;
+        color: $color-green;
+    }
+
+    &.copied {
+        background: $color-green;
+        color: $color-bg-input;
+    }
+}
+
+
+// Prompt Cards
+.prompt-card {
+    background: $color-bg-panel;
+    border: 1px solid $color-border;
+    border-radius: $border-radius-lg;
+    overflow: hidden;
+    transition: $transition-medium;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+
+    &:hover {
+        border-color: $color-purple;
+        box-shadow: 0 0 30px rgba(189, 147, 249, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .prompt-actions {
+        cursor: default;
+    }
+}
+
+.prompt-header {
+    padding: 0.75rem $spacing-lg;
+    border-bottom: 1px solid $color-border;
+}
+
+.prompt-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: $color-pink;
+    margin-bottom: 0.25rem;
+    font-family: $font-mono;
+}
+
+.prompt-description {
+    font-size: 0.75rem;
+    color: $color-text-muted;
+    line-height: 1.3;
+}
+
+.prompt-snippet {
+    flex: 1;
+    background: $color-bg-black;
+    padding: 0.75rem;
+    font-family: $font-mono;
+    font-size: 0.65rem;
+    color: $color-text-primary;
+    overflow-x: auto;
+    line-height: 1.5;
+    max-height: 180px;
+    overflow-y: auto;
+
+    pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+}
+
+// Syntax highlighting
+.yaml-key {
+    color: $color-green;
+}
+
+.yaml-value {
+    color: $color-yellow;
+}
+
+.yaml-comment {
+    color: $color-text-muted;
+}
+
+.template-text {
+    color: $color-cyan;
+}
+
+// Footer
+footer {
+    margin-top: $spacing-3xl;
+    padding-top: $spacing-2xl;
+    border-top: 1px solid $color-border;
+    text-align: center;
+    color: $color-text-muted;
+    font-size: 0.85rem;
+}
+
+// Empty state
+.empty-state {
+    text-align: center;
+    padding: $spacing-lg;
+    color: $color-text-muted;
+    font-size: 0.75rem;
+}
+
+// Modal
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+
+    &.active {
+        display: block;
+    }
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    position: relative;
+    max-width: 900px;
+    max-height: 90vh;
+    margin: 5vh auto;
+    background: $color-bg-panel;
+    border: 1px solid $color-border;
+    border-radius: $border-radius-lg;
+    box-shadow: 0 10px 60px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: $spacing-xl;
+    padding-bottom: 0;
+    border-bottom: 1px solid $color-border;
+}
+
+.modal-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: $color-pink;
+    font-family: $font-mono;
+    margin: 0;
+
+    &::before {
+        content: '';
+    }
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: $color-text-muted;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: $border-radius-sm;
+    transition: $transition-fast;
+
+    &:hover {
+        background: $color-bg-black;
+        color: $color-text-primary;
+    }
+}
+
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: $spacing-xl;
+}
+
+.modal-description {
+    color: $color-text-muted;
+    margin-bottom: $spacing-xl;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.modal-section {
+    margin-bottom: $spacing-xl;
+}
+
+.modal-section-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: $color-purple;
+    margin-bottom: $spacing-sm;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.modal-prompt-container {
+    background: $color-bg-black;
+    border: 1px solid $color-border;
+    border-radius: $border-radius-sm;
+    padding: $spacing-xl;
+    font-family: $font-mono;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: $color-text-primary;
+    overflow-x: auto;
+
+    pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+}
+
+.modal-footer {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+    padding: $spacing-xl;
+    border-top: 1px solid $color-border;
+}
+
+.modal-footer-section {
+    width: 100%;
+}
+
+.modal-footer-actions {
+    display: flex;
+    gap: $spacing-lg;
+    width: 100%;
+}
+
+// Prevent body scroll when modal is open
+body.modal-open {
+    overflow: hidden;
+}
+
+@media (max-width: $breakpoint-lg) {
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .nav-links {
+        width: 100%;
+    }
+
+    .nav-btn {
+        flex: 1;
+    }
+}
+
+@media (max-width: $breakpoint-md) {
+    .modal-content {
+        max-width: 95%;
+        max-height: 95vh;
+        margin: 2.5vh auto;
+    }
+
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: $spacing-lg;
+    }
+
+    .modal-prompt-container {
+        font-size: 0.8rem;
+    }
+}

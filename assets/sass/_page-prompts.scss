@@ -1,0 +1,105 @@
+// Prompts Page Styles
+
+h1 {
+
+  background: linear-gradient(135deg, $color-purple 0%, $color-pink 50%, $color-green 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.03em;
+}
+
+.model-selector {
+    background: $color-bg-panel;
+    border: 1px solid $color-border;
+    border-radius: $border-radius-md;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-xl;
+}
+
+.selector-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $spacing-lg;
+}
+
+.selector-group {
+    flex: 1;
+
+    input, select {
+        width: 100%;
+    }
+}
+
+#modelInput {
+    display: none;
+
+    &.active {
+        display: block;
+    }
+}
+
+#modelSelect.hidden {
+    display: none;
+}
+
+.selector-label {
+    display: block;
+    font-size: 0.75rem;
+    color: $color-text-muted;
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.prompts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: $spacing-lg;
+}
+
+.prompt-actions {
+    padding: 0.65rem 0.75rem;
+    display: flex;
+    gap: $spacing-sm;
+    border-top: 1px solid $color-border;
+}
+
+.command-box {
+    display: flex;
+    align-items: center;
+    background: $color-bg-black;
+    border-radius: $border-radius-lg;
+    padding: 1.25rem;
+    font-size: 0.8rem;
+    border: 1px solid $color-border;
+    position: relative;
+
+    /*&::before {
+        content: '$';
+        color: $color-green;
+        font-family: $font-mono;
+        font-weight: 700;
+        margin-right: 0.75rem;
+        opacity: 0.8;
+    }*/
+}
+
+.command-text {
+    flex: 1;
+    user-select: all;
+    color: $color-green;
+    font-family: $font-mono;
+    font-weight: 500;
+}
+
+@media (max-width: $breakpoint-md) {
+    .selector-row {
+        grid-template-columns: 1fr;
+    }
+
+    .prompts-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,89 @@
+{{ define "main" }}
+<div class="editor-container">
+    <!-- Configuration Bar -->
+    <div class="config-section">
+        <div class="config-grid">
+            <div class="config-item">
+                <label>Prompt Name</label>
+                <input type="text" id="promptName" placeholder="my-prompt" value="prompt" oninput="updatePreview()">
+            </div>
+            <div class="config-item">
+                <label>Provider</label>
+                <select id="providerSelect" onchange="updateProvider()">
+                    <option value="">None/Default</option>
+                    {{ range $key, $provider := .Site.Data.providers }}
+                    <option value="{{ $key }}">{{ $provider.name }}</option>
+                    {{ end }}
+                    <option value="other">Other (manual)</option>
+                </select>
+            </div>
+            <div class="config-item">
+                <label>Model</label>
+                <select id="modelSelect" onchange="updateModel()" disabled>
+                    <option value="">None/Default</option>
+                </select>
+                <input type="text" id="modelInput" placeholder="Enter model name" oninput="updateModel()" style="display: none;">
+            </div>
+            <div class="config-item">
+                <label>Output Format</label>
+                <select id="outputFormat" onchange="updatePreview()">
+                    <option value="text">text</option>
+                    <option value="json">json</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Inputs Section -->
+        <div class="inputs-section">
+            <div class="inputs-header">
+                <span class="inputs-title">Input Schema</span>
+                <button class="add-input-btn-inline" onclick="addInput()">+ Add Input</button>
+            </div>
+            <div class="input-list" id="inputList">
+                <div class="empty-state">No inputs yet. Click "Add Input" to get started.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template & Preview Section -->
+    <div class="editor-preview-container">
+        <!-- Template Panel -->
+        <div class="panel template-panel">
+            <div class="panel-title">Template</div>
+            <div class="section" style="flex: 1; display: flex; flex-direction: column;">
+                <textarea id="templateEditor" placeholder="Enter your prompt template here...
+
+You can use handlebars syntax like {{`{{inputName}}`}} to reference your inputs.
+
+Example:
+{{`{{question}}`}}
+
+{{`{{#if condition}}`}}
+  This text appears if condition is true
+{{`{{/if}}`}}" oninput="updatePreview()"></textarea>
+            </div>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="panel">
+            <div class="panel-title">Preview</div>
+            <div class="preview-container">
+                <pre id="preview"><span class="yaml-comment">---</span>
+<span class="yaml-key">output:</span>
+  <span class="yaml-key">format:</span> <span class="yaml-value">text</span>
+<span class="yaml-comment">---</span>
+<span class="template-text">Enter your prompt template...</span></pre>
+            </div>
+            <div class="action-buttons">
+                <button class="action-btn" onclick="downloadPrompt()">Download .prompt</button>
+                <button class="action-btn secondary" id="copyBtn" onclick="copyPrompt()">Copy</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Inject provider data from YAML
+window.providerData = {{ .Site.Data.providers }};
+</script>
+{{ end }}

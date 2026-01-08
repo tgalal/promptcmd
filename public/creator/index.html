@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="twitter:url" content="http://localhost:1313/creator/">
+    <meta name="twitter:title" content="promptcmd - Prompt Creator">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="@tgalal">
+
+    <meta content="Create custom dotprompt files for promptcmd" name="description">
+    <meta name="twitter:description" property="og:description" content="Create custom dotprompt files for promptcmd">
+    <meta property="og:description" content="Create custom dotprompt files for promptcmd">
+
+    <meta property="og:url" content="http://localhost:1313/creator/">
+    <meta property="og:title" content="promptcmd - Prompt Creator">
+    <meta property="og:type" content="website">
+
+    
+    <meta property="og:image" content="http://localhost:1313/img/screen.png">
+    <meta property="twitter:image" content="http://localhost:1313/img/screen.png">
+    
+
+    <title>promptcmd - Prompt Creator</title>
+
+    
+    
+      
+    
+    
+    <link rel="stylesheet" href="/sass/creator.min.86f9562f52abba290a3741be3658275a6131006426ad355c5796f631a6a4ed67.css" integrity="sha256-hvlWL1KruikKN0G&#43;NlgnWmExAGQmrTVcV5b2Maak7Wc=">
+</head>
+
+<body>
+    <div class="container">
+        
+        <header>
+    <div class="header-content">
+        <div>
+            <h1>promptcmd/create</h1>
+            <p class="tagline">Prompt file creator</p>
+            
+        </div>
+        <div class="nav-links">
+    
+    <a href="/" class="nav-btn">← Home</a>
+    
+    
+    
+    <a href="/prompts/" class="nav-btn">Library</a>
+    
+    <a href="https://github.com/tgalal/promptcmd" class="nav-btn" target="_blank" rel="noopener">GitHub</a>
+</div>
+
+    </div>
+</header>
+
+        
+
+        
+<div class="editor-container">
+    
+    <div class="config-section">
+        <div class="config-grid">
+            <div class="config-item">
+                <label>Prompt Name</label>
+                <input type="text" id="promptName" placeholder="my-prompt" value="prompt" oninput="updatePreview()">
+            </div>
+            <div class="config-item">
+                <label>Provider</label>
+                <select id="providerSelect" onchange="updateProvider()">
+                    <option value="">None/Default</option>
+                    
+                    <option value="anthropic">Anthropic</option>
+                    
+                    <option value="google">Google</option>
+                    
+                    <option value="ollama">Ollama</option>
+                    
+                    <option value="openai">OpenAI</option>
+                    
+                    <option value="openrouter">OpenRouter</option>
+                    
+                    <option value="other">Other (manual)</option>
+                </select>
+            </div>
+            <div class="config-item">
+                <label>Model</label>
+                <select id="modelSelect" onchange="updateModel()" disabled>
+                    <option value="">None/Default</option>
+                </select>
+                <input type="text" id="modelInput" placeholder="Enter model name" oninput="updateModel()" style="display: none;">
+            </div>
+            <div class="config-item">
+                <label>Output Format</label>
+                <select id="outputFormat" onchange="updatePreview()">
+                    <option value="text">text</option>
+                    <option value="json">json</option>
+                </select>
+            </div>
+        </div>
+
+        
+        <div class="inputs-section">
+            <div class="inputs-header">
+                <span class="inputs-title">Input Schema</span>
+                <button class="add-input-btn-inline" onclick="addInput()">+ Add Input</button>
+            </div>
+            <div class="input-list" id="inputList">
+                <div class="empty-state">No inputs yet. Click "Add Input" to get started.</div>
+            </div>
+        </div>
+    </div>
+
+    
+    <div class="editor-preview-container">
+        
+        <div class="panel template-panel">
+            <div class="panel-title">Template</div>
+            <div class="section" style="flex: 1; display: flex; flex-direction: column;">
+                <textarea id="templateEditor" placeholder="Enter your prompt template here...
+
+You can use handlebars syntax like {{inputName}} to reference your inputs.
+
+Example:
+{{question}}
+
+{{#if condition}}
+  This text appears if condition is true
+{{/if}}" oninput="updatePreview()"></textarea>
+            </div>
+        </div>
+
+        
+        <div class="panel">
+            <div class="panel-title">Preview</div>
+            <div class="preview-container">
+                <pre id="preview"><span class="yaml-comment">---</span>
+<span class="yaml-key">output:</span>
+  <span class="yaml-key">format:</span> <span class="yaml-value">text</span>
+<span class="yaml-comment">---</span>
+<span class="template-text">Enter your prompt template...</span></pre>
+            </div>
+            <div class="action-buttons">
+                <button class="action-btn" onclick="downloadPrompt()">Download .prompt</button>
+                <button class="action-btn secondary" id="copyBtn" onclick="copyPrompt()">Copy</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+window.providerData = {"anthropic":{"models":["claude-3.5-sonnet","claude-3-opus","claude-3-sonnet","claude-3-haiku"],"name":"Anthropic"},"google":{"models":["gemini-2.0-flash-exp","gemini-1.5-pro","gemini-1.5-flash"],"name":"Google"},"ollama":{"models":["llama3.3","llama3.2","qwen2.5","mistral","codellama"],"name":"Ollama"},"openai":{"models":["gpt-4o","gpt-4o-mini","gpt-4-turbo","gpt-3.5-turbo","o1","o1-mini"],"name":"OpenAI"},"openrouter":{"models":["openai/gpt-4o","anthropic/claude-3.5-sonnet","google/gemini-2.0-flash-exp","meta-llama/llama-3.3-70b-instruct"],"name":"OpenRouter"}};
+</script>
+
+
+        <footer>
+    <p>Open source and GPLv3 licensed.</p>
+    <p><a href="https://github.com/tgalal/promptcmd" target="_blank" rel="noopener">View source on GitHub</a></p>
+</footer>
+
+    </div>
+
+    
+    <script src="/js/common.min.88f8eac11810c06fa8f1f71a740a971305a3aed5158c2ffb625ddf8cea72ba32.js" integrity="sha256-iPjqwRgQwG&#43;o8fcadAqXEwWjrtUVjC/7Yl3fjOpyujI="></script>
+    
+      
+      <script src="/js/creator.min.d9544506b5b726244b74ae3e6ef7c8769427af08ec0055002821255d48e18276.js" integrity="sha256-2VRFBrW3JiRLdK4&#43;bvfIdpQnrwjsAFUAKCElXUjhgnY="></script>
+    
+</body>
+</html>

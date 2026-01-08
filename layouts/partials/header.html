@@ -1,0 +1,12 @@
+<header>
+    <div class="header-content">
+        <div>
+            <h1>{{ .Params.header_title | default .Site.Title }}</h1>
+            <p class="tagline">{{ .Params.tagline | default "Turn GenAI prompts into runnable programs" }}</p>
+            {{ if .Params.subtitle }}
+            <p class="subtitle">{{ .Params.subtitle }}</p>
+            {{ end }}
+        </div>
+        {{ partial "nav-links.html" . }}
+    </div>
+</header>

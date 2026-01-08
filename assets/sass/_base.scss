@@ -1,0 +1,102 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: $font-sans;
+    background: $color-bg-dark;
+    color: $color-text-primary;
+    min-height: 100vh;
+    padding: $spacing-2xl;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.03) 0px,
+        transparent 1px,
+        transparent 2px,
+        rgba(255, 255, 255, 0.03) 3px
+    );
+    pointer-events: none;
+    z-index: 0;
+}
+
+.container {
+    max-width: $breakpoint-xl;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: $font-mono;
+    color: $color-purple;
+}
+
+a {
+    color: $color-purple;
+    text-decoration: none;
+    transition: $transition-fast;
+
+    &:hover {
+        color: $color-pink;
+    }
+}
+
+select, input[type="text"], input[type="email"], textarea {
+    width: 100%;
+    background: $color-bg-black;
+    border: 1px solid $color-border;
+    border-radius: $border-radius-sm;
+    color: $color-text-primary;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.85rem;
+    font-family: $font-mono;
+    transition: $transition-fast;
+
+    &:hover {
+        border-color: $color-purple;
+    }
+
+    &:focus {
+        outline: none;
+        border-color: $color-purple;
+        box-shadow: 0 0 0 2px rgba(189, 147, 249, 0.2);
+    }
+
+    &:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+}
+
+select option {
+    background: $color-bg-panel;
+    color: $color-text-primary;
+}
+
+button {
+    cursor: pointer;
+    font-family: inherit;
+    transition: $transition-fast;
+
+    &:active {
+        transform: scale(0.98);
+    }
+}
+
+// Responsive
+@media (max-width: $breakpoint-md) {
+    body {
+        padding: $spacing-lg;
+    }
+}

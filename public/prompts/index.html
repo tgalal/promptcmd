@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="twitter:url" content="http://localhost:1313/prompts/">
+    <meta name="twitter:title" content="promptcmd - Prompt Library">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="@tgalal">
+
+    <meta content="Download and import ready-to-use prompts for promptcmd" name="description">
+    <meta name="twitter:description" property="og:description" content="Download and import ready-to-use prompts for promptcmd">
+    <meta property="og:description" content="Download and import ready-to-use prompts for promptcmd">
+
+    <meta property="og:url" content="http://localhost:1313/prompts/">
+    <meta property="og:title" content="promptcmd - Prompt Library">
+    <meta property="og:type" content="website">
+
+    
+    <meta property="og:image" content="http://localhost:1313/img/screen.png">
+    <meta property="twitter:image" content="http://localhost:1313/img/screen.png">
+    
+
+    <title>promptcmd - Prompt Library</title>
+
+    
+    
+      
+    
+    
+    <link rel="stylesheet" href="/sass/prompts.min.9f143eac801fb1e1c88d103e53a3c235e6ab8bd4686b09c30175bfde49abd9a5.css" integrity="sha256-nxQ&#43;rIAfseHIjRA&#43;U6PCNeari9RoawnDAXW/3kmr2aU=">
+</head>
+
+<body>
+    <div class="container">
+        
+        <header>
+    <div class="header-content">
+        <div>
+            <h1>promptcmd/lib</h1>
+            <p class="tagline">Library of examples and prompts ready to use</p>
+            
+        </div>
+        <div class="nav-links">
+    
+    <a href="/" class="nav-btn">← Home</a>
+    
+    
+    <a href="/creator/" class="nav-btn">Creator</a>
+    
+    
+    <a href="https://github.com/tgalal/promptcmd" class="nav-btn" target="_blank" rel="noopener">GitHub</a>
+</div>
+
+    </div>
+</header>
+
+        
+
+        
+<div class="model-selector">
+    <div class="selector-row">
+        <div class="selector-group">
+            <label class="selector-label" for="providerSelect">Provider</label>
+            <select id="providerSelect" onchange="updateProvider()">
+                <option value="none">None/Default</option>
+                
+                <option value="anthropic">Anthropic</option>
+                
+                <option value="google">Google</option>
+                
+                <option value="ollama">Ollama</option>
+                
+                <option value="openai">OpenAI</option>
+                
+                <option value="openrouter">OpenRouter</option>
+                
+                <option value="other">Other (manual)</option>
+            </select>
+        </div>
+        <div class="selector-group">
+            <label class="selector-label" for="modelSelect">Model</label>
+            <select id="modelSelect" onchange="updateModel()">
+                <option value="">None/Default</option>
+            </select>
+            <input type="text" id="modelInput" placeholder="Enter model name" oninput="updateModel()">
+        </div>
+    </div>
+</div>
+
+<div class="prompts-grid">
+    
+    
+    
+    <div class="prompt-card" data-prompt-index="0" onclick="if(!event.target.closest('.prompt-actions')) openModal( 0 )">
+        <div class="prompt-header">
+            <div class="prompt-name">How</div>
+            <div class="prompt-description">Ask &#34;how&#34; questions and get brief, straight-to-the-point answers from AI</div>
+        </div>
+        <div class="prompt-snippet">
+            <pre class="prompt-content">---
+input:
+  schema:
+    question!: string, A question to ask
+output:
+  format: text {{hello}}
+---
+Following is a question from the user. Be brief, and straight to the point:
+How {{question}}?
+</pre>
+        </div>
+        <div class="prompt-actions">
+            <button class="import-snippet-btn" onclick="event.stopPropagation(); copyImport(this,  0 )">Import</button>
+            <a href="/p/How.prompt" download class="download-btn" onclick="event.stopPropagation(); downloadPrompt(this,  0 ); event.preventDefault()">Download</a>
+            <button class="copy-snippet-btn" onclick="event.stopPropagation(); copySnippet(this,  0 )">Copy</button>
+        </div>
+    </div>
+    
+    
+    
+    <div class="prompt-card" data-prompt-index="1" onclick="if(!event.target.closest('.prompt-actions')) openModal( 1 )">
+        <div class="prompt-header">
+            <div class="prompt-name">commitmsg</div>
+            <div class="prompt-description">Generate commit messages from git diffs in conventional or simple format</div>
+        </div>
+        <div class="prompt-snippet">
+            <pre class="prompt-content">---
+# Usage Examples:
+#
+# Review the generated commit message before commiting:
+# git diff --staged | commitmsg --style conventional | git commit -e --file -
+#
+# Or commit right away:
+# git diff --staged | commitmsg --style conventional | git commit --file -
+#
+# Add alias for shorthand invocation:
+# alias gc=&amp;#34;git diff --staged | commitmsg --style conventional | git commit -e --file -&amp;#34;
+input:
+ schema:
+   style: string, [conventional | simple]
+output:
+  format: text
+---
+Generate a commit message for the following git diff.
+
+Style: {{style}}
+{{#if (eq style &amp;#34;conventional&amp;#34;)}}
+Use the Conventional Commits format: type(scope): description
+
+Types: feat, fix, docs, style, refactor, test, chore
+{{else}}
+Write a simple, clear commit message in plain English. One line, under 72 characters.
+{{/if}}
+
+Your output will be used directly as the commit message, so you must produce the
+commit message without any formatting syntax like markdown and so on.
+
+Diff:
+
+{{STDIN}}
+</pre>
+        </div>
+        <div class="prompt-actions">
+            <button class="import-snippet-btn" onclick="event.stopPropagation(); copyImport(this,  1 )">Import</button>
+            <a href="/p/commitmsg.prompt" download class="download-btn" onclick="event.stopPropagation(); downloadPrompt(this,  1 ); event.preventDefault()">Download</a>
+            <button class="copy-snippet-btn" onclick="event.stopPropagation(); copySnippet(this,  1 )">Copy</button>
+        </div>
+    </div>
+    
+    
+    
+    <div class="prompt-card" data-prompt-index="2" onclick="if(!event.target.closest('.prompt-actions')) openModal( 2 )">
+        <div class="prompt-header">
+            <div class="prompt-name">render-md</div>
+            <div class="prompt-description">Render markdown content with different styles</div>
+        </div>
+        <div class="prompt-snippet">
+            <pre class="prompt-content">---
+input:
+  schema:
+    style?: string, One of [minimal, github, blog, dark]
+output:
+  format: text
+---
+You are an expert web developer specializing in creating beautiful, readable
+HTML pages from Markdown content.
+
+# Task
+Convert the provided Markdown content into a complete, standalone HTML page
+with embedded CSS styling.
+
+# Style Requirements
+
+{{#if (eq style &amp;#34;github&amp;#34;)}}
+
+GitHub-inspired with blue link colors (#0969da), light gray backgrounds for
+code blocks (#f6f8fa), bordered tables with zebra striping, system fonts,
+inline code with pink/red tint (#cf222e background), blockquotes with left blue
+border, clean sans-serif headings, 16px base font size.
+
+{{else if (eq style &amp;#34;blog&amp;#34;)}}
+
+Blog Style: Large serif headings (Georgia, Cambria, Times), sans-serif body
+text (system fonts), generous line-height (1.75), content max-width 680px,
+subtle drop cap for first paragraph, large opening paragraph font size, ample
+paragraph spacing (1.5em), pull quotes with larger italic text, minimal chrome,
+focus on reading experience.
+
+{{else if (eq style &amp;#34;dark&amp;#34;)}}
+
+Dark theme with #1a1a1a or #0d1117 background, #e6edf3 or #e0e0e0 text, #2d2d2d
+or #161b22 code blocks, cyan/blue accent colors (#58a6ff), reduced contrast for
+comfort, subtle shadows, muted syntax highlighting for code, darker borders
+(#30363d), comfortable for night reading.
+
+{{else}}
+
+Minimalist with ample whitespace, system fonts (system-ui, -apple-system,
+sans-serif), neutral color palette (blacks, grays, single accent color),
+centered content with max-width 800px, generous margins and padding, subtle
+borders, no shadows or gradients, focus on typography and spacing.
+
+{{/if}}
+
+# General Requirements
+- Create a complete HTML5 document with proper DOCTYPE and meta tags
+- Embed all CSS in a &amp;lt;style&amp;gt; tag (no external stylesheets)
+- Ensure responsive design that works on mobile and desktop
+- Use semantic HTML elements
+- Include proper heading hierarchy
+- Style code blocks with syntax highlighting colors
+- Make links visually distinct and tables easy to read
+- Ensure sufficient contrast for accessibility
+- Add appropriate spacing and typography for readability
+
+# Output
+Provide only the complete HTML code, ready to save as an .html file.
+
+# Markdown Content
+
+{{STDIN}}
+</pre>
+        </div>
+        <div class="prompt-actions">
+            <button class="import-snippet-btn" onclick="event.stopPropagation(); copyImport(this,  2 )">Import</button>
+            <a href="/p/render-md.prompt" download class="download-btn" onclick="event.stopPropagation(); downloadPrompt(this,  2 ); event.preventDefault()">Download</a>
+            <button class="copy-snippet-btn" onclick="event.stopPropagation(); copySnippet(this,  2 )">Copy</button>
+        </div>
+    </div>
+    
+    
+    
+    <div class="prompt-card" data-prompt-index="3" onclick="if(!event.target.closest('.prompt-actions')) openModal( 3 )">
+        <div class="prompt-header">
+            <div class="prompt-name">sqlhelper</div>
+            <div class="prompt-description">SQL query assistant and helper</div>
+        </div>
+        <div class="prompt-snippet">
+            <pre class="prompt-content">---
+# Example:
+# sqlite3 ~/database.db .schema | sql-helper --question &amp;#34;Aggregate based on equal model name&amp;#34;
+###################
+input:
+  schema:
+    question: string
+    explain: boolean
+output:
+  format: text
+---
+You are an expert SQL query generator. You will be provided with a database
+schema and questions about the data. Your task is to generate accurate,
+efficient SQL queries that answer the questions.
+
+# Schema
+{{STDIN}}
+
+# Instructions
+- Generate only valid SQL queries as responses
+- Use proper SQL syntax and formatting
+- Include comments only if the query logic is complex
+- Optimize for readability and performance
+- Use appropriate JOINs, WHERE clauses, and aggregations
+- Handle NULL values appropriately
+- If a question is ambiguous, make reasonable assumptions and state them
+briefly
+
+# Question
+{{question}}
+
+# Response Format
+{{#if (eq explain &amp;#34;true&amp;#34;)}}
+Provide the SQL query and explain it.
+{{else}}
+Provide only the SQL query without additional explanation.
+{{/if}}
+</pre>
+        </div>
+        <div class="prompt-actions">
+            <button class="import-snippet-btn" onclick="event.stopPropagation(); copyImport(this,  3 )">Import</button>
+            <a href="/p/sqlhelper.prompt" download class="download-btn" onclick="event.stopPropagation(); downloadPrompt(this,  3 ); event.preventDefault()">Download</a>
+            <button class="copy-snippet-btn" onclick="event.stopPropagation(); copySnippet(this,  3 )">Copy</button>
+        </div>
+    </div>
+    
+    
+    
+    <div class="prompt-card" data-prompt-index="4" onclick="if(!event.target.closest('.prompt-actions')) openModal( 4 )">
+        <div class="prompt-header">
+            <div class="prompt-name">what</div>
+            <div class="prompt-description">Ask &#34;what&#34; questions and get concise answers</div>
+        </div>
+        <div class="prompt-snippet">
+            <pre class="prompt-content">---
+# Usage
+#
+# alias what=&amp;#39;$(fc -ln -1) 2&amp;gt;&amp;amp;1 | promptctl run what&amp;#39;
+#
+# Whenever a program/command fails, run `what` to get
+# explanation and suggestions.
+output:
+  format: text
+---
+Analyze this error and suggest fixes briefly:
+
+{{STDIN}}
+
+Provide: 1) What&amp;#39;s wrong, 2) How to fix it. Keep it under 100 words.
+</pre>
+        </div>
+        <div class="prompt-actions">
+            <button class="import-snippet-btn" onclick="event.stopPropagation(); copyImport(this,  4 )">Import</button>
+            <a href="/p/what.prompt" download class="download-btn" onclick="event.stopPropagation(); downloadPrompt(this,  4 ); event.preventDefault()">Download</a>
+            <button class="copy-snippet-btn" onclick="event.stopPropagation(); copySnippet(this,  4 )">Copy</button>
+        </div>
+    </div>
+    
+</div>
+
+
+<div id="promptModal" class="modal">
+    <div class="modal-overlay" onclick="closeModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <div>
+              <h2 class="modal-title" id="modalTitle"></h2>
+              <p class="modal-description" id="modalDescription"></p>
+            </div>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+
+            <div class="modal-prompt-container">
+                <pre id="modalPromptContent"></pre>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="modal-footer-section">
+                <h3 class="modal-section-title">Quick Import</h3>
+                <div class="command-box">
+                    <code class="command-text" id="modalCurlCommand"></code>
+                </div>
+            </div>
+            <div class="modal-footer-actions">
+                <button class="action-btn import-snippet-btn" id="modalImportBtn">Import</button>
+                <button class="action-btn" id="modalDownloadBtn">Download</button>
+                <button class="action-btn secondary" id="modalCopyBtn">Copy Prompt</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+window.providerData = {"anthropic":{"models":["claude-3.5-sonnet","claude-3-opus","claude-3-sonnet","claude-3-haiku"],"name":"Anthropic"},"google":{"models":["gemini-2.0-flash-exp","gemini-1.5-pro","gemini-1.5-flash"],"name":"Google"},"ollama":{"models":["llama3.3","llama3.2","qwen2.5","mistral","codellama"],"name":"Ollama"},"openai":{"models":["gpt-4o","gpt-4o-mini","gpt-4-turbo","gpt-3.5-turbo","o1","o1-mini"],"name":"OpenAI"},"openrouter":{"models":["openai/gpt-4o","anthropic/claude-3.5-sonnet","google/gemini-2.0-flash-exp","meta-llama/llama-3.3-70b-instruct"],"name":"OpenRouter"}};
+window.promptsData = [{"description":"Ask \"how\" questions and get brief, straight-to-the-point answers from AI","filename":"How.prompt","name":"How"},{"description":"Generate commit messages from git diffs in conventional or simple format","filename":"commitmsg.prompt","name":"commitmsg"},{"description":"Render markdown content with different styles","filename":"render-md.prompt","name":"render-md"},{"description":"SQL query assistant and helper","filename":"sqlhelper.prompt","name":"sqlhelper"},{"description":"Ask \"what\" questions and get concise answers","filename":"what.prompt","name":"what"}];
+
+window.promptContents = {};
+
+
+
+
+window.promptContents["How.prompt"] = "---\ninput:\n  schema:\n    question!: string, A question to ask\noutput:\n  format: text {{hello}}\n---\nFollowing is a question from the user. Be brief, and straight to the point:\nHow {{question}}?\n";
+
+
+
+window.promptContents["commitmsg.prompt"] = "---\n# Usage Examples:\n#\n# Review the generated commit message before commiting:\n# git diff --staged | commitmsg --style conventional | git commit -e --file -\n#\n# Or commit right away:\n# git diff --staged | commitmsg --style conventional | git commit --file -\n#\n# Add alias for shorthand invocation:\n# alias gc=\"git diff --staged | commitmsg --style conventional | git commit -e --file -\"\ninput:\n schema:\n   style: string, [conventional | simple]\noutput:\n  format: text\n---\nGenerate a commit message for the following git diff.\n\nStyle: {{style}}\n{{#if (eq style \"conventional\")}}\nUse the Conventional Commits format: type(scope): description\n\nTypes: feat, fix, docs, style, refactor, test, chore\n{{else}}\nWrite a simple, clear commit message in plain English. One line, under 72 characters.\n{{/if}}\n\nYour output will be used directly as the commit message, so you must produce the\ncommit message without any formatting syntax like markdown and so on.\n\nDiff:\n\n{{STDIN}}\n";
+
+
+
+window.promptContents["render-md.prompt"] = "---\ninput:\n  schema:\n    style?: string, One of [minimal, github, blog, dark]\noutput:\n  format: text\n---\nYou are an expert web developer specializing in creating beautiful, readable\nHTML pages from Markdown content.\n\n# Task\nConvert the provided Markdown content into a complete, standalone HTML page\nwith embedded CSS styling.\n\n# Style Requirements\n\n{{#if (eq style \"github\")}}\n\nGitHub-inspired with blue link colors (#0969da), light gray backgrounds for\ncode blocks (#f6f8fa), bordered tables with zebra striping, system fonts,\ninline code with pink/red tint (#cf222e background), blockquotes with left blue\nborder, clean sans-serif headings, 16px base font size.\n\n{{else if (eq style \"blog\")}}\n\nBlog Style: Large serif headings (Georgia, Cambria, Times), sans-serif body\ntext (system fonts), generous line-height (1.75), content max-width 680px,\nsubtle drop cap for first paragraph, large opening paragraph font size, ample\nparagraph spacing (1.5em), pull quotes with larger italic text, minimal chrome,\nfocus on reading experience.\n\n{{else if (eq style \"dark\")}}\n\nDark theme with #1a1a1a or #0d1117 background, #e6edf3 or #e0e0e0 text, #2d2d2d\nor #161b22 code blocks, cyan/blue accent colors (#58a6ff), reduced contrast for\ncomfort, subtle shadows, muted syntax highlighting for code, darker borders\n(#30363d), comfortable for night reading.\n\n{{else}}\n\nMinimalist with ample whitespace, system fonts (system-ui, -apple-system,\nsans-serif), neutral color palette (blacks, grays, single accent color),\ncentered content with max-width 800px, generous margins and padding, subtle\nborders, no shadows or gradients, focus on typography and spacing.\n\n{{/if}}\n\n# General Requirements\n- Create a complete HTML5 document with proper DOCTYPE and meta tags\n- Embed all CSS in a \u003cstyle\u003e tag (no external stylesheets)\n- Ensure responsive design that works on mobile and desktop\n- Use semantic HTML elements\n- Include proper heading hierarchy\n- Style code blocks with syntax highlighting colors\n- Make links visually distinct and tables easy to read\n- Ensure sufficient contrast for accessibility\n- Add appropriate spacing and typography for readability\n\n# Output\nProvide only the complete HTML code, ready to save as an .html file.\n\n# Markdown Content\n\n{{STDIN}}\n";
+
+
+
+window.promptContents["sqlhelper.prompt"] = "---\n# Example:\n# sqlite3 ~/database.db .schema | sql-helper --question \"Aggregate based on equal model name\"\n###################\ninput:\n  schema:\n    question: string\n    explain: boolean\noutput:\n  format: text\n---\nYou are an expert SQL query generator. You will be provided with a database\nschema and questions about the data. Your task is to generate accurate,\nefficient SQL queries that answer the questions.\n\n# Schema\n{{STDIN}}\n\n# Instructions\n- Generate only valid SQL queries as responses\n- Use proper SQL syntax and formatting\n- Include comments only if the query logic is complex\n- Optimize for readability and performance\n- Use appropriate JOINs, WHERE clauses, and aggregations\n- Handle NULL values appropriately\n- If a question is ambiguous, make reasonable assumptions and state them\nbriefly\n\n# Question\n{{question}}\n\n# Response Format\n{{#if (eq explain \"true\")}}\nProvide the SQL query and explain it.\n{{else}}\nProvide only the SQL query without additional explanation.\n{{/if}}\n";
+
+
+
+window.promptContents["what.prompt"] = "---\n# Usage\n#\n# alias what='$(fc -ln -1) 2\u003e\u00261 | promptctl run what'\n#\n# Whenever a program/command fails, run `what` to get\n# explanation and suggestions.\noutput:\n  format: text\n---\nAnalyze this error and suggest fixes briefly:\n\n{{STDIN}}\n\nProvide: 1) What's wrong, 2) How to fix it. Keep it under 100 words.\n";
+
+
+let currentProvider = 'none';
+let currentModel = null;
+
+
+function updatePromptModel(content, model) {
+    const lines = content.split('\n');
+    let inFrontmatter = false;
+    let updatedLines = [];
+
+    let model_inserted = false;
+    for (let line of lines) {
+        const trimmed = line.trim();
+
+        if (inFrontmatter && model && !model_inserted && !trimmed.startsWith("#")) {
+            updatedLines.push(`model: ${model}`);
+            model_inserted = true;
+        }
+        if (trimmed === '---') {
+            updatedLines.push(line);
+            inFrontmatter = !inFrontmatter;
+        } else {
+            updatedLines.push(line);
+        }
+    }
+
+    return updatedLines.join('\n');
+}
+
+
+function highlightPrompt(content) {
+    const lines = content.split('\n');
+    let inFrontmatter = false;
+    let frontmatterEnded = false;
+    let html = '';
+
+    lines.forEach((line, index) => {
+        const trimmed = line.trim();
+
+        if (trimmed === '---') {
+            if (!inFrontmatter) {
+                inFrontmatter = true;
+                html += `<span class="yaml-comment">${escapeHtml(line)}</span>`;
+            } else {
+                inFrontmatter = false;
+                frontmatterEnded = true;
+                html += `<span class="yaml-comment">${escapeHtml(line)}</span>`;
+            }
+        } else if (frontmatterEnded) {
+            html += `<span class="template-text">${escapeHtml(line)}</span>`;
+        } else if (inFrontmatter) {
+            if (trimmed.startsWith('#')) {
+                html += `<span class="yaml-comment">${escapeHtml(line)}</span>`;
+            } else if (line.includes(':')) {
+                const colonIndex = line.indexOf(':');
+                const key = line.substring(0, colonIndex);
+                const value = line.substring(colonIndex + 1);
+                html += `<span class="yaml-key">${escapeHtml(key)}:</span>`;
+                if (value) {
+                    html += `<span class="yaml-value">${escapeHtml(value)}</span>`;
+                }
+            } else {
+                html += escapeHtml(line);
+            }
+        } else {
+            html += escapeHtml(line);
+        }
+
+        if (index < lines.length - 1) {
+            html += '\n';
+        }
+    });
+
+    return html;
+}
+
+
+function renderAllPrompts() {
+    document.querySelectorAll('.prompt-card').forEach(card => {
+        const index = card.dataset.promptIndex;
+        const meta = window.promptsData[index];
+        const originalContent = window.promptContents[meta.filename];
+        const updatedContent = updatePromptModel(originalContent, currentModel);
+        const pre = card.querySelector('.prompt-content');
+        pre.innerHTML = highlightPrompt(updatedContent);
+    });
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    
+    const modelSelect = document.getElementById('modelSelect');
+    modelSelect.innerHTML = '<option value="">None/Default</option>';
+    modelSelect.disabled = true;
+    document.getElementById('modelInput').style.display = 'none';
+    renderAllPrompts();
+});
+
+
+function openModal(index) {
+    const meta = window.promptsData[index];
+    const originalContent = window.promptContents[meta.filename];
+    const updatedContent = updatePromptModel(originalContent, currentModel);
+
+    document.getElementById('modalTitle').textContent = meta.name;
+    document.getElementById('modalDescription').textContent = meta.description;
+    document.getElementById('modalPromptContent').innerHTML = highlightPrompt(updatedContent);
+
+    
+    const baseUrl = window.location.origin;
+    const promptUrl = `${baseUrl}\/assets\/prompts\/${meta.filename}`;
+    const curlCommand = getImportCommand(meta);
+    document.getElementById('modalCurlCommand').textContent = curlCommand;
+
+    const downloadBtn = document.getElementById('modalDownloadBtn');
+    const importBtn = document.getElementById('modalImportBtn');
+    const copyBtn = document.getElementById('modalCopyBtn');
+
+    downloadBtn.onclick = () => {
+        const link = document.createElement('a');
+        link.href = `\/assets\/prompts\/${meta.filename}`;
+        link.download = meta.filename;
+        link.click();
+    };
+
+    copyBtn.onclick = () => {
+        copyToClipboard(updatedContent, copyBtn);
+    };
+
+    importBtn.onclick = () => {
+        copyToClipboard(getImportCommand(meta), importBtn);
+    };
+
+    document.getElementById('promptModal').classList.add('active');
+    document.body.classList.add('modal-open');
+}
+
+function copyCurlCommand() {
+    const curlCommand = document.getElementById('modalCurlCommand').textContent;
+    const btn = document.getElementById('modalCurlCopyBtn');
+    copyToClipboard(curlCommand, btn);
+}
+
+function closeModal() {
+    document.getElementById('promptModal').classList.remove('active');
+    document.body.classList.remove('modal-open');
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+});
+
+function copySnippet(btn, index) {
+    const meta = window.promptsData[index];
+    const originalContent = window.promptContents[meta.filename];
+    const updatedContent = updatePromptModel(originalContent, currentModel);
+    copyToClipboard(updatedContent, btn);
+}
+
+function downloadPrompt(btn, index) {
+    const meta = window.promptsData[index];
+    const originalContent = window.promptContents[meta.filename];
+    const content = updatePromptModel(originalContent, currentModel);
+
+    const filename = meta.filename;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function getImportCommand(promptobj) {
+  if (currentModel) {
+    return `curl  -LsSf https://promptcmd.sh/p/${promptobj.filename} | promptctl i -m "${currentModel}" -ep ${promptobj.name} -`;
+  } else {
+    return `curl  -LsSf https://promptcmd.sh/p/${promptobj.filename} | promptctl i -ep ${promptobj.name} -`;
+  }
+}
+
+function copyImport(btn, index) {
+    const meta = window.promptsData[index];
+    let cmd = getImportCommand(meta)
+    copyToClipboard(cmd, btn);
+}
+</script>
+
+
+        <footer>
+    <p>Open source and GPLv3 licensed.</p>
+    <p><a href="https://github.com/tgalal/promptcmd" target="_blank" rel="noopener">View source on GitHub</a></p>
+</footer>
+
+    </div>
+
+    
+    <script src="/js/common.min.88f8eac11810c06fa8f1f71a740a971305a3aed5158c2ffb625ddf8cea72ba32.js" integrity="sha256-iPjqwRgQwG&#43;o8fcadAqXEwWjrtUVjC/7Yl3fjOpyujI="></script>
+    
+      
+      <script src="/js/prompts.min.194d9fb30ea7eebc5f72943d4b1ab40e024be82588ece334c4c71aa47ab156be.js" integrity="sha256-GU2fsw6n7rxfcpQ9Sxq0DgJL6CWI7OM0xMcapHqxVr4="></script>
+    
+</body>
+</html>

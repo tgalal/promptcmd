@@ -1,0 +1,104 @@
+How.prompt: |
+  ---
+  input:
+    schema:
+      question!: string, A question to ask
+  output:
+    format: text
+  ---
+  Following is a question from the user. Be brief, and straight to the point:
+
+  How {{question}}?
+
+commitmsg.prompt: |
+  ---
+  # Usage Examples:
+  #
+  # Review the generated commit message before commiting:
+  # git diff --staged | commitmsg --style conventional | git commit -e --file -
+  #
+  # Or commit right away:
+  # git diff --staged | commitmsg --style conventional | git commit --file -
+  #
+  # Add alias for shorthand invocation:
+  # alias gc="git diff --staged | commitmsg --style conventional | git commit -e --file -"
+  model: openai/gpt-4o-2024-08-06
+  input:
+   schema:
+     style: string, [conventional | simple]
+  output:
+    format: text
+  ---
+  Generate a commit message for the following git diff.
+
+  Style: {{style}}
+  {{#if (eq style "conventional")}}
+  Use the Conventional Commits format: type(scope): description
+
+  Types: feat, fix, docs, style, refactor, test, chore
+  {{else}}
+  Write a simple, clear commit message in plain English. One line, under 72 characters.
+  {{/if}}
+
+  Your output will be used directly as the commit message, so you must produce the
+  commit message without any formatting syntax like markdown and so on.
+
+  Diff:
+
+  {{STDIN}}
+
+render-md.prompt: |
+  ---
+  model: openai/gpt-4o
+  input:
+    schema:
+      style: string, markdown rendering style
+  output:
+    format: text
+  ---
+  Render the following markdown with {{style}} style.
+
+  {{#if (eq style "github")}}
+  Use GitHub-flavored markdown styling with code blocks, tables, and task lists.
+  Make it look clean and professional.
+  {{else if (eq style "blog")}}
+  Render in a blog-friendly format with proper headings, paragraphs, and emphasis.
+  Make it engaging and readable.
+  {{else if (eq style "dark")}}
+  Render with a dark theme aesthetic. Use appropriate styling suggestions.
+  {{else}}
+  Render the markdown in standard format.
+  {{/if}}
+
+  Markdown content:
+
+  {{STDIN}}
+
+sqlhelper.prompt: |
+  ---
+  model: openai/gpt-4o
+  input:
+    schema:
+      task: string, SQL task to perform
+  output:
+    format: text
+  ---
+  You are a SQL expert. Help with the following task:
+
+  {{task}}
+
+  Provide clear, efficient SQL queries with explanations.
+
+  {{STDIN}}
+
+what.prompt: |
+  ---
+  input:
+    schema:
+      topic: string, topic to explain
+  output:
+    format: text
+  ---
+  Explain what {{topic}} is. Be clear and concise.
+
+  {{STDIN}}

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+{{ partial "head.html" . }}
+<body>
+    <div class="container">
+        {{ if ne .RelPermalink "/" }}
+        {{ partial "header.html" . }}
+        {{ end }}
+
+        {{ block "main" . }}{{ end }}
+
+        {{ partial "footer.html" . }}
+    </div>
+
+    {{ $commonJS := resources.Get "js/common.js" | minify | fingerprint }}
+    <script src="{{ $commonJS.RelPermalink }}" integrity="{{ $commonJS.Data.Integrity }}"></script>
+    {{ if .Params.page_js }}
+      {{ $pageJS := resources.Get (printf "js/%s.js" .Params.page_js) | minify | fingerprint }}
+      <script src="{{ $pageJS.RelPermalink }}" integrity="{{ $pageJS.Data.Integrity }}"></script>
+    {{ end }}
+</body>
+</html>

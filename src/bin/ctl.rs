@@ -43,7 +43,7 @@ enum Commands {
     #[clap(about = "Run promptfile")]
     Run(cmd::run::RunCmd),
 
-    #[clap(about = "Import promptfile")]
+    #[clap(about = "Import promptfile", alias = "i")]
     Import(cmd::import::ImportCmd),
 
     #[clap(about = "Print statistics")]

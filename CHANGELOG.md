@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Version 0.6.1 (2026-01-08)
+
+### Added
+
+- "i" as alias to import command
+- Allow overriding model during import
+
 ## Version 0.6.0 (2026-01-07)
 
 ### Changed

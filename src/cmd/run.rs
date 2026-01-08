@@ -77,7 +77,7 @@ impl RunCmd {
 
         debug!("{output}");
 
-        let requested_name = dotprompt.frontmatter.model.clone()
+        let requested_name = dotprompt.frontmatter.as_ref().and_then(|fm| fm.model.clone())
             .or(appconfig.providers.default.clone())
             .or(appconfig.providers.globals.model.clone())
             .context("No model specified and no default models set in config")?;

@@ -80,7 +80,8 @@ impl CreateCmd {
                         }.exec(storage, installer)?;
                     }
 
-                    let model_name = dotprompt.frontmatter.model.or(
+                    let model_name = dotprompt.frontmatter.as_ref().and_then(|fm|fm.model.clone())
+                        .or(
                         appconfig.providers.default.clone().or(
                             appconfig.providers.globals.model.clone()
                         )

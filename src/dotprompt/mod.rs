@@ -2,7 +2,7 @@ pub mod args;
 pub mod render;
 use thiserror::Error;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
 use std::{collections::HashMap};
 use std::convert::TryFrom;
 use anyhow::{Result};
@@ -18,7 +18,7 @@ pub enum ParseError {
     FrontmatterNotWellFormed
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct Frontmatter {
     pub model: Option<String>,
     pub input: Option<Input>,
@@ -34,20 +34,20 @@ pub struct SchemaElement {
     pub positional: bool
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct Input {
     pub schema: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct Output {
     pub format: String,
     pub schema: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DotPrompt {
-    pub frontmatter: Frontmatter,
+    pub frontmatter: Option<Frontmatter>,
     pub template: String
 }
 
@@ -96,10 +96,10 @@ impl TryFrom<&str> for DotPrompt {
 
             // Now parse the frontmatter YAML into the typed struct
             let fm: Frontmatter = serde_yaml::from_str(fm_str)?;
-            (fm, template)
+            (Some(fm), template)
         } else {
             // No frontmatter, which is okay.
-            (Frontmatter::default(), s)
+            (None, s)
         };
 
         if template.trim().is_empty() {
@@ -119,7 +119,7 @@ impl DotPrompt {
     }
 
     pub fn output_format(&self) -> String {
-        if let Some(ref output) = self.frontmatter.output {
+        if let Some(output) = self.frontmatter.as_ref().and_then(|fm| fm.output.as_ref()) {
             return output.format.clone();
         }
 
@@ -164,7 +164,7 @@ impl DotPrompt {
     pub fn output_schema(&self) -> HashMap<String, SchemaElement> {
         let mut result: HashMap<String, SchemaElement> = HashMap::new();
 
-        let schema = match &self.frontmatter.output {
+        let schema = match &self.frontmatter.as_ref().and_then(|f| f.output.as_ref())  {
             Some(output) => {
                 &output.schema
             }
@@ -205,7 +205,7 @@ impl DotPrompt {
     pub fn input_schema(&self) -> HashMap<String, SchemaElement> {
         let mut result: HashMap<String, SchemaElement> = HashMap::new();
 
-        let input = &self.frontmatter.input;
+        let input = self.frontmatter.as_ref().and_then(|fm| fm.input.as_ref());
 
         let schema = match input {
             Some(input) => {
@@ -276,9 +276,9 @@ Translate this: {{message}}"#;
         assert!(result.is_ok(), "Should parse valid dotprompt");
 
         let dotprompt = result.unwrap();
-        assert_eq!(dotprompt.frontmatter.model.unwrap(), "anthropic/claude-3-5-sonnet-20241022");
+        assert_eq!(dotprompt.frontmatter.as_ref().unwrap().model.as_ref().unwrap(), "anthropic/claude-3-5-sonnet-20241022");
         assert_eq!(dotprompt.template, "Translate this: {{message}}");
-        assert_eq!(dotprompt.frontmatter.output.unwrap().format, "text");
+        assert_eq!(dotprompt.frontmatter.as_ref().unwrap().output.as_ref().unwrap().format, "text");
     }
 
     #[test]
@@ -300,7 +300,7 @@ Query: {{query}}"#;
         assert!(result.is_ok(), "Should skip comments and parse successfully");
 
         let dotprompt = result.unwrap();
-        assert_eq!(dotprompt.frontmatter.model.unwrap(), "ollama/llama3");
+        assert_eq!(dotprompt.frontmatter.unwrap().model.unwrap(), "ollama/llama3");
     }
 
     #[test]

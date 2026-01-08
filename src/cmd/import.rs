@@ -21,6 +21,9 @@ pub struct ImportCmd {
     #[arg(short, long, help="Force overwrite if a promptfile with same name already exists")]
     pub force: bool,
 
+    #[arg(short, long, help="Override model string")]
+    pub model: Option<String>,
+
     #[arg(help="Filepath or stdin")]
     pub promptfile: FileOrStdin,
 }
@@ -84,9 +87,49 @@ impl ImportCmd {
 
         // Ensure file is actually a dotprompt and we're not importing an arbitrary file
         // DotPrompt::try_from(fs::read_to_string(&fullpath)?)?;
-        DotPrompt::try_from(contents.as_str())?;
+        let dotprompt = DotPrompt::try_from(contents.as_str())?;
 
-        let path = storage.store(&promptname, &contents)?;
+        let final_contents = if let Some(model) = self.model {
+            let model_line = format!("model: {}", &model);
+            if dotprompt.frontmatter.is_none() {
+                format!("---\n{}\n---\n{}", &model_line, contents)
+            } else {
+                // Find optimum place to inject the model:
+                // Find the first frontmatter line that is not starting with a comment
+                // On the way, remove any line starting with model
+                let mut frontmatter_guards= 0;
+                let mut model_inserted = false;
+
+                let mut finalized_lines: Vec<&str> = Vec::new();
+
+                for line in contents.lines() {
+                    let trimmed_line = line.trim();
+
+                    if frontmatter_guards == 1 {
+                        if !model_inserted && !trimmed_line.starts_with("#") {
+                            finalized_lines.push(&model_line);
+                            model_inserted = true;
+                        }
+
+                        if !trimmed_line.starts_with("model:") {
+                            finalized_lines.push(line);
+                        }
+
+                    } else {
+                        finalized_lines.push(line);
+                    }
+
+                    if trimmed_line.starts_with("---") && frontmatter_guards < 2 {
+                        frontmatter_guards += 1;
+                    }
+                }
+                finalized_lines.join("\n")
+            }
+        } else {
+            contents
+        };
+
+        let path = storage.store(&promptname, &final_contents)?;
 
         debug!("Imported {promptname} to {path}");
 
@@ -107,6 +150,7 @@ mod tests {
     use std::str::FromStr;
 
     use crate::config::appconfig::AppConfig;
+    use crate::dotprompt::{self, DotPrompt, Frontmatter};
     use crate::{cmd::import::ImportCmd, installer::tests::InMemoryInstaller, storage::promptfiles_mem::InMemoryPromptFilesStorage};
     use crate::storage::PromptFilesStorage;
     use crate::installer::DotPromptInstaller;
@@ -118,6 +162,25 @@ model: ollama/gpt-oss:20b
 input:
   schema:
     message: string, Message
+output:
+  format: text
+---
+Basic Prompt Here: {{message}}
+"#;
+    const PROMPTFILE_BASIC_VALID_2: &str = r#"Basic Prompt Here: {{message}}
+"#;
+    const PROMPTFILE_BASIC_VALID_3: &str = r#"---
+# comment1
+# comment 2
+# comment 3
+
+
+# comment 4
+#
+input:
+  schema:
+    message: string, Message
+model: ollama/gpt-oss:20b
 output:
   format: text
 ---
@@ -161,6 +224,7 @@ Basic Prompt Here: {{message}}
             promptname: Some(promptname.to_string()),
             enable: true,
             force: false,
+            model: None,
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
@@ -179,6 +243,135 @@ Basic Prompt Here: {{message}}
     }
 
     #[test]
+    fn test_import_by_path_without_fm() {
+        let mut state = setup(PROMPTFILE_BASIC_VALID_2, false);
+
+        let promptname = "myprompt";
+        let cmd = ImportCmd {
+            promptname: Some(promptname.to_string()),
+            enable: true,
+            force: false,
+            model: None,
+            promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
+        };
+
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
+
+        let imported_promptdata = state.storage.load(promptname).unwrap().1;
+
+        // Provided prompt data should be stored as is
+        assert_eq!(
+            PROMPTFILE_BASIC_VALID_2.trim(),
+            imported_promptdata
+        );
+
+        // And should be enabled
+        assert!(state.installer.is_installed(promptname).is_some());
+    }
+
+    #[test]
+    fn test_import_by_path_and_override_model() {
+        let mut state = setup(PROMPTFILE_BASIC_VALID_1, false);
+
+        let promptname = "myprompt";
+        let cmd = ImportCmd {
+            promptname: Some(promptname.to_string()),
+            enable: true,
+            force: false,
+            model: Some("aaaa".to_string()),
+            promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
+        };
+
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
+
+        let imported_promptdata = state.storage.load(promptname).unwrap().1;
+
+        let imported_dotprompt = DotPrompt::try_from(imported_promptdata.as_str()).unwrap();
+        let mut orig_dotprompt = DotPrompt::try_from(PROMPTFILE_BASIC_VALID_1).unwrap();
+
+        orig_dotprompt.frontmatter.as_mut().unwrap().model = Some("aaaa".to_string());
+
+        // Provided prompt data should be stored as is
+        assert_eq!(
+            orig_dotprompt,
+            imported_dotprompt
+        );
+
+        // And should be enabled
+        assert!(state.installer.is_installed(promptname).is_some());
+    }
+
+    #[test]
+    fn test_import_by_path_and_override_model_no_fm() {
+        let mut state = setup(PROMPTFILE_BASIC_VALID_2, false);
+
+        let promptname = "myprompt";
+        let cmd = ImportCmd {
+            promptname: Some(promptname.to_string()),
+            enable: true,
+            force: false,
+            model: Some("aaaa".to_string()),
+            promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
+        };
+
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
+
+        let imported_promptdata = state.storage.load(promptname).unwrap().1;
+
+        let imported_dotprompt = DotPrompt::try_from(imported_promptdata.as_str()).unwrap();
+        let mut orig_dotprompt = DotPrompt::try_from(PROMPTFILE_BASIC_VALID_2).unwrap();
+
+        orig_dotprompt.frontmatter = Some(
+            Frontmatter {
+                model: Some("aaaa".to_string()),
+                input: None,
+                output: None
+            }
+        );
+
+        // Provided prompt data should be stored as is
+        assert_eq!(
+            orig_dotprompt,
+            imported_dotprompt
+        );
+
+        // And should be enabled
+        assert!(state.installer.is_installed(promptname).is_some());
+    }
+
+    #[test]
+    fn test_import_by_path_and_override_model_comments_fm() {
+        let mut state = setup(PROMPTFILE_BASIC_VALID_3, false);
+
+        let promptname = "myprompt";
+        let cmd = ImportCmd {
+            promptname: Some(promptname.to_string()),
+            enable: true,
+            force: false,
+            model: Some("aaaa".to_string()),
+            promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
+        };
+
+        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
+
+        let imported_promptdata = state.storage.load(promptname).unwrap().1;
+
+        let imported_dotprompt = DotPrompt::try_from(imported_promptdata.as_str()).unwrap();
+        let mut orig_dotprompt = DotPrompt::try_from(PROMPTFILE_BASIC_VALID_3).unwrap();
+
+        orig_dotprompt.frontmatter.as_mut().unwrap().model = Some("aaaa".to_string());
+
+        // Provided prompt data should be stored as is
+        assert_eq!(
+            orig_dotprompt,
+            imported_dotprompt
+        );
+
+        // And should be enabled
+        assert!(state.installer.is_installed(promptname).is_some());
+    }
+
+    #[test]
     fn test_import_by_path_without_enabling() {
         let mut state = setup(PROMPTFILE_BASIC_VALID_1, false);
 
@@ -187,6 +380,7 @@ Basic Prompt Here: {{message}}
             promptname: Some(promptname.to_string()),
             enable: false,
             force: false,
+            model: None,
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
@@ -213,6 +407,7 @@ Basic Prompt Here: {{message}}
             promptname: None,
             enable: true,
             force: false,
+            model: None,
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
@@ -239,6 +434,7 @@ Basic Prompt Here: {{message}}
             promptname: None,
             enable: true,
             force: false,
+            model: None,
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
@@ -260,6 +456,7 @@ Basic Prompt Here: {{message}}
             promptname: Some(promptname.to_string()),
             enable: true,
             force: false,
+            model: None,
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
@@ -280,6 +477,7 @@ Basic Prompt Here: {{message}}
             promptname: Some(promptname.to_string()),
             enable: true,
             force: true,
+            model: None,
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
@@ -301,6 +499,7 @@ Basic Prompt Here: {{message}}
             promptname: Some(promptname.to_string()),
             enable: true,
             force: false,
+            model: None,
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
@@ -327,6 +526,7 @@ Basic Prompt Here: {{message}}
             promptname: Some(promptname.to_string()),
             enable: true,
             force: true,
+            model: None,
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 

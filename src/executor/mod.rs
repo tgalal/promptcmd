@@ -1,13 +1,14 @@
 use std::{collections::HashMap, sync::{Arc, Mutex}, time::Instant};
 
 use chrono::Utc;
+use handlebars::HelperDef;
 use llm::{builder::LLMBuilder, chat::{ChatMessage, StructuredOutputFormat}};
 use log::debug;
 use log::error;
 use serde_json::Value;
 use thiserror::Error;
 use tokio::runtime::Runtime;
-use crate::config::appconfig;
+use crate::{config::appconfig, dotprompt::helpers};
 use crate::config::providers;
 use crate::config::resolver;
 use crate::dotprompt;
@@ -95,7 +96,15 @@ impl Executor {
         debug!("Executing dotprompt");
 
         let appconfig = self.appconfig.as_ref();
-        let rendered_dotprompt: String = dotprompt.render(inputs, HashMap::new())?;
+
+        let exec_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ExecHelper);
+
+        let helpers_map: HashMap<&str, Box<dyn HelperDef + Send + Sync>> = HashMap::from([
+            ("exec", exec_helper),
+        ]);
+
+
+        let rendered_dotprompt: String = dotprompt.render(inputs, helpers_map)?;
 
          debug!("{rendered_dotprompt}");
 

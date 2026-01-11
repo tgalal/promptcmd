@@ -1,15 +1,20 @@
+use clap::{Arg, Command};
 use promptcmd::config::{self, appconfig_locator};
 use promptcmd::config::appconfig::{AppConfig};
+use promptcmd::cmd::run;
+use promptcmd::dotprompt::renderers::argmatches::DotPromptArgMatches;
 use promptcmd::dotprompt::DotPrompt;
-use promptcmd::cmd::run::{self, RunCmd};
+use promptcmd::executor::{Executor, PromptInputs};
 use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::RusqliteStore;
+use promptcmd::stats::store::StatsStore;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
-use clap::{Arg, Command};
 use promptcmd::storage::PromptFilesStorage;
+use std::sync::{Arc, Mutex};
 use std::{env};
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use std::path::PathBuf;
+use std::io::{self, Read};
 use std::fs;
 use log::debug;
 
@@ -21,7 +26,7 @@ fn main() -> Result<()> {
         config::prompt_storage_dir()?
     );
 
-    let store = RusqliteStore::new(
+    let stats_store = RusqliteStore::new(
         config::base_storage_dir()?
     )?;
 
@@ -32,10 +37,6 @@ fn main() -> Result<()> {
         )?
     } else {
         AppConfig::default()
-    };
-
-    let lb = WeightedLoadBalancer {
-        stats: &store
     };
 
     // Find the executable name directly from args.
@@ -55,7 +56,6 @@ fn main() -> Result<()> {
     debug!("Executable name: {invoked_binname}");
 
     let mut command: Command = Command::new(&invoked_binname);
-
     let promptname = if invoked_binname == config::RUNNER_BIN_NAME {
         // Not running: via symlink, first positional argument is the prompt name or path
         command = command.arg(Arg::new("promptname"));
@@ -70,38 +70,56 @@ fn main() -> Result<()> {
     };
     /////
     debug!("Prompt name: {promptname}");
+    let (_, promptdata) = prompts_storage.load(&promptname)?;
+    let dotprompt: DotPrompt = DotPrompt::try_from(promptdata.as_str())?;
+
+    command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;
+    command = command.arg(Arg::new("dry")
+        .long("dry")
+        .help("Dry run")
+        .action(clap::ArgAction::SetTrue)
+        .required(false));
+
+    let matches = command.get_matches();
+
+    let arc_statsstore: Arc<Mutex<dyn StatsStore + Send>> = Arc::new(Mutex::new(stats_store));
+    let lb = WeightedLoadBalancer {
+        stats: Arc::clone(&arc_statsstore)
+    };
+    let arc_prompts_storage = Arc::new(Mutex::new(prompts_storage));
+    let arc_appconfig = Arc::new(appconfig);
+    let executor = Executor {
+        loadbalancer: lb,
+        appconfig: arc_appconfig,
+        statsstore: arc_statsstore,
+        prompts_storage: arc_prompts_storage
+    };
+
+    let arc_executor = Arc::new(executor);
 
 
-    if let Some(path) = prompts_storage.exists(&promptname) {
-        debug!("Promptfile path: {path}");
-
-        let (_, promptdata) = prompts_storage.load(&promptname)?;
-
-        let dotprompt: DotPrompt = DotPrompt::try_from(promptdata.as_str())?;
-
-        command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;
-
-        let matches = command.get_matches();
-
-        let runcmd = RunCmd {
-            promptname,
-            dry: false,
-            prompt_args: Vec::new()
-        };
-
-        let stdin = std::io::stdin();
-        let mut handle = stdin.lock();
-        let mut stdout = std::io::stdout();
-
-        runcmd.exec_prompt(
-            &mut handle,
-            &mut stdout,
-            &store,
-            &dotprompt,
-            &appconfig,
-            &lb,
-            &matches)
+    let stdin = if dotprompt.template_needs_stdin() {
+        let mut buffer = String::new();
+        io::stdin().read_to_string(&mut buffer)
+            .context("Failed to read stdin")?;
+        Some(buffer)
     } else {
-        bail!("Could not find prompt file")
-    }
+        None
+    };
+
+    let dry = *matches.get_one::<bool>("dry").unwrap_or(&false);
+
+    let argmatches = DotPromptArgMatches {
+        matches,
+        stdin,
+        dotprompt: &dotprompt
+    };
+
+    let inputs: PromptInputs = argmatches.try_into()?;
+
+
+    let result = arc_executor.execute_dotprompt(&dotprompt, inputs, dry)?;
+    println!("{}", result);
+
+    Ok(())
 }

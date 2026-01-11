@@ -1,5 +1,4 @@
-pub mod args;
-pub mod render;
+pub mod renderers;
 use thiserror::Error;
 
 use serde::{Deserialize};
@@ -47,17 +46,27 @@ pub struct Output {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DotPrompt {
+    pub name: String,
     pub frontmatter: Option<Frontmatter>,
     pub template: String
 }
 
-
 impl TryFrom<&str> for DotPrompt {
     type Error = ParseError;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn try_from(promptdata: &str) -> Result<Self, Self::Error> {
+        DotPrompt::try_from(("prompt", promptdata))
+    }
+}
+
+impl TryFrom<(&str, &str)> for DotPrompt {
+    type Error = ParseError;
+
+    fn try_from(name_promptdata: (&str, &str)) -> Result<Self, Self::Error> {
+
+        let (name, promptdata) = name_promptdata;
         // Skip all lines starting with '#'
-        let s = s.trim_start().lines()
+        let s = promptdata.trim_start().lines()
             .skip_while(
                 |line| {
                     let trimmed = line.trim();
@@ -107,6 +116,7 @@ impl TryFrom<&str> for DotPrompt {
         }
 
         Ok(DotPrompt {
+            name: name.to_string(),
             frontmatter,
             template,
         })

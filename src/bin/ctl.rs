@@ -2,9 +2,12 @@ use anyhow::Result;
 use promptcmd::cmd;
 use promptcmd::cmd::BasicTextEditor;
 use promptcmd::config::{self, RUNNER_BIN_NAME};
+use promptcmd::executor::Executor;
 use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::RusqliteStore;
+use promptcmd::stats::store::StatsStore;
 use std::env;
+use std::sync::{Arc, Mutex};
 use promptcmd::installer::symlink::SymlinkInstaller;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use std::fs;
@@ -64,7 +67,7 @@ fn main() -> Result<()> {
         config::prompt_storage_dir()?
     );
 
-    let store = RusqliteStore::new(
+    let stats_store = RusqliteStore::new(
         config::base_storage_dir()?
     )?;
 
@@ -97,11 +100,7 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     let stdin = std::io::stdin();
-    //let mut handle = stdin.lock();
     let mut stdout = std::io::stdout();
-    let lb = WeightedLoadBalancer {
-        stats: &store
-    };
 
     match cli.command {
         Commands::Edit(cmd) => cmd.exec(
@@ -130,13 +129,25 @@ fn main() -> Result<()> {
             &prompts_storage,
             &mut std::io::stdout()),
 
-        Commands::Run(cmd) => cmd.exec(
-            &mut stdin.lock(),
-            &mut stdout,
-            &store,
-            &prompts_storage,
-            &lb
-        ),
+        Commands::Run(cmd) => {
+            let arc_statsstore: Arc<Mutex<dyn StatsStore + Send>> = Arc::new(Mutex::new(stats_store));
+            let lb = WeightedLoadBalancer {
+                stats: Arc::clone(&arc_statsstore)
+            };
+            let arc_prompts_storage = Arc::new(Mutex::new(prompts_storage));
+            let arc_appconfig = Arc::new(appconfig);
+            let executor = Executor {
+                loadbalancer: lb,
+                appconfig: arc_appconfig,
+                statsstore: arc_statsstore,
+                prompts_storage: arc_prompts_storage
+            };
+            let executor_arc = Arc::new(executor);
+            cmd.exec(
+                &mut stdin.lock(),
+                executor_arc
+            )
+        },
 
         Commands::Import(cmd) => cmd.exec(
             &mut prompts_storage,
@@ -145,7 +156,7 @@ fn main() -> Result<()> {
         ),
 
         Commands::Stats(cmd) => cmd.exec(
-            &store
+            &stats_store
         ),
 
         Commands::Resolve(cmd) => cmd.exec(

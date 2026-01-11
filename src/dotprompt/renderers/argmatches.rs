@@ -1,4 +1,5 @@
 use clap::{value_parser, Arg, ArgMatches};
+use serde_json::{Value};
 
 use crate::{dotprompt::{renderers::{RenderError}, DotPrompt}, executor::PromptInputs};
 
@@ -27,28 +28,28 @@ impl<'a> TryFrom<DotPromptArgMatches<'a>> for PromptInputs {
             let value = if ele.data_type == "boolean" {
                 match matches.get_one::<bool>(&ele.key) {
                     Some(value) => {
-                        value.to_string()
+                       Value::Bool(*value)
                     },
                     None => {
-                        String::from("")
+                       Value::Bool(false)
                     }
                 }
             } else if ele.data_type == "integer" {
-                match matches.get_one::<i128>(&ele.key) {
+                match matches.get_one::<i64>(&ele.key) {
                     Some(value) => {
-                        value.to_string()
+                        Value::from(*value)
                     },
                     None => {
-                        String::from("")
+                        Value::from(0)
                     }
                 }
             } else if ele.data_type == "number" {
                 match matches.get_one::<f32>(&ele.key) {
                     Some(value) => {
-                        value.to_string()
+                        Value::from(*value)
                     },
                     None => {
-                        String::from("")
+                        Value::from(0f32)
                     }
                 }
             }
@@ -56,19 +57,19 @@ impl<'a> TryFrom<DotPromptArgMatches<'a>> for PromptInputs {
                 if ele.positional {
                     match matches.get_many::<String>(&ele.key) {
                         Some(value) => {
-                            value.cloned().collect::<Vec<_>>().join(" ")
+                            Value::from(value.cloned().collect::<Vec<_>>().join(" "))
                         },
                         None => {
-                            String::from("")
+                            Value::from("")
                         }
                     }
                 } else {
                     match matches.get_one::<String>(&ele.key) {
                         Some(value) => {
-                            value.to_string()
+                            Value::from(value.to_string())
                         },
                         None => {
-                            String::from("")
+                            Value::from("")
                         }
                     }
                 }
@@ -76,7 +77,7 @@ impl<'a> TryFrom<DotPromptArgMatches<'a>> for PromptInputs {
             else {
                 return Err(RenderError::UnsupportedDataType { key: ele.key, data_type: ele.data_type })
             };
-            inputs.insert(ele.key, value.into());
+            inputs.insert(ele.key, value);
         }
         Ok(inputs)
     }
@@ -112,7 +113,7 @@ impl TryFrom<&DotPrompt> for Vec<Arg> {
                 }
             } else if inputschema_element.data_type == "integer" {
                 arg.long(inputschema_element.key.clone())
-                    .value_parser(value_parser!(i128))
+                    .value_parser(value_parser!(i64))
             } else if inputschema_element.data_type == "number" {
                 arg.long(inputschema_element.key.clone())
                     .value_parser(value_parser!(f32))

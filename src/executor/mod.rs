@@ -97,10 +97,16 @@ impl Executor {
 
         let appconfig = self.appconfig.as_ref();
 
+        let prompt_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::PromptHelper {
+            executor: self.clone(),
+            dry
+        });
+
         let exec_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ExecHelper);
 
         let helpers_map: HashMap<&str, Box<dyn HelperDef + Send + Sync>> = HashMap::from([
             ("exec", exec_helper),
+            ("prompt", prompt_helper)
         ]);
 
 

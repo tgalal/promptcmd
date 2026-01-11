@@ -23,8 +23,13 @@ impl RusqliteStore {
         let db_path = path.join(DB_NAME).to_string_lossy().to_string();
 
         let mut conn = Connection::open(db_path)?;
+        let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+
+        if version == 1 {
+            conn.pragma_update(None, "journal_mode", "WAL")?;
+        }
+
         let tx = conn.transaction()?;
-        let version: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
 
         if version < 1 {
             tx.execute_batch(
@@ -44,7 +49,7 @@ impl RusqliteStore {
                 );"
             )?;
         }
-        tx.pragma_update(None, "user_version", 1)?;
+        tx.pragma_update(None, "user_version", 2)?;
 
         tx.commit()?;
 

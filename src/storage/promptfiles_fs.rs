@@ -34,13 +34,13 @@ impl PromptFilesStorage for FileSystemPromptFilesStorage {
         for entry in dir_entries {
             let path = entry?.path();
 
-            if path.is_file() && 
-                let Some(e) = path.extension() && 
+            if path.is_file() &&
+                let Some(e) = path.extension() &&
                 e == "prompt" &&
                 let Some(promptname) = path.file_stem() {
 
                 result.insert(
-                    promptname.to_string_lossy().into_owned(), 
+                    promptname.to_string_lossy().into_owned(),
                     path.to_string_lossy().into_owned());
             }
         }
@@ -68,6 +68,10 @@ impl PromptFilesStorage for FileSystemPromptFilesStorage {
 
     fn load(&self, identifier: &str) -> Result<(String, String), PromptFilesStorageError> {
         let filepath = self.resolve(identifier);
+        if !filepath.exists() {
+            return Err(PromptFilesStorageError::PromptNotFound(filepath.to_string_lossy().to_string()));
+        }
+
         let data = fs::read_to_string(&filepath)?;
 
         Ok((filepath.to_string_lossy().into_owned(), data))

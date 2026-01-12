@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## Version 0.7.0 (2026-01-12)
+
+### Added
+
+- concat helper for concatenating strings in a template
+- exec helper for executing commands and rendering output in templates
+- prompt helper for executing other prompts
+- enum support for inputs
+
+### Fixed
+
+- Now types other that stringed are passed properly to handlebars
+- Concurrent access to the sqlite database
+
 ## Version 0.6.1 (2026-01-08)
 
 ### Added

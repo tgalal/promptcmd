@@ -169,7 +169,7 @@ impl Executor {
 
             println!(">>> Rendered Prompt:");
             print!("{}", &rendered_dotprompt);
-            println!("<<< End Rendered Prompt:");
+            println!("<<< End Rendered Prompt");
 
             return Ok("[no response due to dry run]".to_string());
         }

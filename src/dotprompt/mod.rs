@@ -1,7 +1,9 @@
 pub mod renderers;
 pub mod helpers;
+use regex::Regex;
 use thiserror::Error;
 
+use serde_yaml::Value;
 use serde::{Deserialize};
 use std::{collections::HashMap};
 use std::convert::TryFrom;
@@ -13,42 +15,85 @@ pub enum ParseError {
     #[error("A template is required but not found")]
     MissingTemplate,
     #[error("Error parsing frontmatter")]
-    ParseFrontMatterError(#[from] serde_yaml::Error),
+    ParseFrontmatterError(#[from] serde_yaml::Error),
     #[error("Frontmatter not well formed")]
-    FrontmatterNotWellFormed
+    FrontmatterNotWellFormed,
+    #[error("Error parsing schema: {0}")]
+    ParseSchemaError(String),
+    #[error("Enum field '{0}' not well formed: {0}")]
+    EnumFieldNotWellFormed(String, String),
+    #[error("Unsupported output format: {0}")]
+    UnsupportedOutputFormat(String),
 }
 
-#[derive(Debug, Deserialize, Clone, PartialEq)]
-pub struct Frontmatter {
+#[derive(Debug, Deserialize)]
+struct Frontmatter {
     pub model: Option<String>,
     pub input: Option<Input>,
     pub output: Option<Output>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, PartialEq)]
+pub struct ParsedFrontmatter {
+    pub from_frontmatter: bool,
+    pub model: Option<String>,
+    pub input: ParsedInput,
+    pub output: ParsedOutput
+}
+
+impl ParsedFrontmatter {
+    pub fn from_model(model: &str) -> Self {
+        ParsedFrontmatter {
+            model: Some(model.to_string()),
+            from_frontmatter: false,
+            input: ParsedInput::default(),
+            output: ParsedOutput::default()
+        }
+    }
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub struct ParsedInput {
+    pub schema: HashMap<String, SchemaElement>
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub enum OutputFormat {
+    #[default] Text,
+    Json,
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub struct ParsedOutput {
+    pub format: OutputFormat,
+    pub schema: HashMap<String, SchemaElement>
+}
+
+#[derive(Debug, PartialEq)]
 pub struct SchemaElement {
     pub key: String,
-    pub data_type:  String,
+    pub data_type: String,
+    pub choices: Vec<String>,
     pub description: String,
     pub required: bool,
     pub positional: bool
 }
 
-#[derive(Debug, Deserialize, Clone, PartialEq)]
-pub struct Input {
-    pub schema: Option<HashMap<String, String>>,
+#[derive(Deserialize, Debug)]
+struct Input {
+    pub schema: Option<HashMap<String, Value>>,
 }
 
-#[derive(Debug, Deserialize, Clone, PartialEq)]
-pub struct Output {
-    pub format: String,
-    pub schema: Option<HashMap<String, String>>,
+#[derive(Deserialize, Debug)]
+struct Output {
+    pub format: Option<String>,
+    pub schema: Option<HashMap<String, Value>>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct DotPrompt {
     pub name: String,
-    pub frontmatter: Option<Frontmatter>,
+    pub frontmatter: ParsedFrontmatter,
     pub template: String
 }
 
@@ -57,6 +102,121 @@ impl TryFrom<&str> for DotPrompt {
 
     fn try_from(promptdata: &str) -> Result<Self, Self::Error> {
         DotPrompt::try_from(("prompt", promptdata))
+    }
+}
+
+impl TryFrom<&Frontmatter> for ParsedFrontmatter {
+    type Error = ParseError;
+
+
+    fn try_from(fm: &Frontmatter) -> std::result::Result<Self, Self::Error> {
+        fn build_schema(inp: &HashMap<String, Value>) -> Result<HashMap<String, SchemaElement>, ParseError> {
+            let mut out: HashMap<String, SchemaElement> = HashMap::new();
+            let enum_regex = Regex::new(r"^([^()]+)\(enum(?:,\s*([^)]*))?\)$").unwrap();
+            for (key, value) in inp {
+                let mut key_chars = key.chars();
+                let (required, positional) = if key.ends_with("?!") || key.ends_with("!?") {
+                    // optional and positional
+                    key_chars.next_back();
+                    key_chars.next_back();
+                    (false, true)
+                } else if key.ends_with("?") {
+                    // optional
+                    key_chars.next_back();
+                    (false, false)
+                } else if key.ends_with("!") {
+                    // positional
+                    key_chars.next_back();
+                    (true, true)
+                } else {
+                    (true, false)
+                };
+
+                let sanitized_key = key_chars.as_str();
+                let (final_key, data_type, description, choices) =  {
+
+                    let enum_data = enum_regex.captures(sanitized_key).and_then(|caps| {
+                        let name = caps.get(1)?.as_str().to_string();
+                        let description = caps.get(2).map(|m| m.as_str().to_string());
+                        Some((name, description))
+                    });
+
+                    match (value, enum_data) {
+                        (Value::Sequence(value), Some((enum_name, enum_desc))) => {
+                            let choices = value.iter()
+                                .map(|value |
+                                    serde_yaml::to_string(value)
+                                        .map(|strval| strval.trim().to_string())
+                                )
+                                .collect::<Result<Vec<_>, _>>()?;
+
+                            (enum_name, "enum".to_string(), enum_desc.unwrap_or("".to_string()), choices)
+                        }
+                        (Value::String(value), None) => {
+                            let value = value.trim();
+                            let (data_type, description) = value.split_once(",")
+                                .unwrap_or((value, ""));
+
+                            (sanitized_key.to_string(), data_type.to_string(), description.to_string(), Vec::new())
+                        }
+                        (_, _) => {
+                            return Err(ParseError::ParseSchemaError("Incompatible value for field".to_string()))
+                        }
+                    }
+                };
+
+                let input_schema_element = SchemaElement {
+                    key: final_key.clone(),
+                    required,
+                    description: description.to_string(),
+                    data_type: data_type.to_string(),
+                    choices ,
+                    positional
+                };
+                out.insert(final_key, input_schema_element);
+            }
+            Ok(out)
+        }
+
+        let input_schema = fm.input.as_ref().and_then(|inp| inp.schema.as_ref());
+        let parsed_input_schema = if let Some(schema) = input_schema {
+            build_schema(schema)?
+        } else {
+            HashMap::new()
+        };
+
+        let output_schema = fm.output.as_ref().and_then(|out| out.schema.as_ref());
+        let parsed_output_schema = if let Some(schema) = output_schema {
+            build_schema(schema)?
+        } else {
+            HashMap::new()
+        };
+
+        let output_format = fm.output.as_ref()
+            .and_then(|output| output.format.as_ref())
+            .map(|fmt| {
+                match fmt.trim().to_lowercase().as_str() {
+                    "text" => Ok(OutputFormat::Text),
+                    "json" => Ok(OutputFormat::Json),
+                    _=> Err(ParseError::UnsupportedOutputFormat(fmt.clone()))
+                }
+            }).unwrap_or(Ok(OutputFormat::default()))?;
+
+        Ok(
+            ParsedFrontmatter {
+                model: fm.model.clone(),
+                from_frontmatter: true,
+                input: ParsedInput {
+                    schema: parsed_input_schema
+                },
+                output: ParsedOutput {
+                    format: output_format,
+                    schema: parsed_output_schema
+                }
+            }
+        )
+
+
     }
 }
 
@@ -116,9 +276,14 @@ impl TryFrom<(&str, &str)> for DotPrompt {
             return Err(ParseError::MissingTemplate);
         }
 
+        let parsed_frontmatter = frontmatter.map_or_else(
+            || Ok(ParsedFrontmatter::default()),
+            |fm| ParsedFrontmatter::try_from(&fm)
+        )?;
+
         Ok(DotPrompt {
             name: name.to_string(),
-            frontmatter,
+            frontmatter: parsed_frontmatter,
             template,
         })
     }
@@ -129,20 +294,12 @@ impl DotPrompt {
         self.template.contains("{{STDIN}}")
     }
 
-    pub fn output_format(&self) -> String {
-        if let Some(output) = self.frontmatter.as_ref().and_then(|fm| fm.output.as_ref()) {
-            return output.format.clone();
-        }
-
-        String::from("text")
-    }
-
     pub fn output_to_extract_structured_json(&self, name: &str) -> String {
-        let output_schema = self.output_schema();
+        let output_schema = &self.frontmatter.output.schema;
         let mut properties: HashMap<String, serde_json::Value> = HashMap::new();
         let mut required: Vec<String> = Vec::new();
 
-        for (_, element) in output_schema {
+        for element in output_schema.values() {
             let json_data_type: &str = if element.data_type == "number" {
                 "number"
             } else if element.data_type == "boolean" {
@@ -171,100 +328,6 @@ impl DotPrompt {
 
         result2.to_string()
     }
-
-    pub fn output_schema(&self) -> HashMap<String, SchemaElement> {
-        let mut result: HashMap<String, SchemaElement> = HashMap::new();
-
-        let schema = match &self.frontmatter.as_ref().and_then(|f| f.output.as_ref())  {
-            Some(output) => {
-                &output.schema
-            }
-            None => {
-                return result;
-            }
-        };
-
-        if let Some(schema) = schema {
-            for (key, value) in schema {
-                let mut key_chars = key.chars();
-
-                let required = if key.ends_with("?") {
-                    key_chars.next_back();
-                    false
-                } else {
-                    true
-                };
-
-                let sanitized_key = key_chars.as_str();
-
-                let (data_type, description) = value.split_once(",")
-                    .unwrap_or((value, ""));
-
-                let input_schema_element = SchemaElement {
-                    key: sanitized_key.to_string(),
-                    required,
-                    description: description.to_string(),
-                    data_type: data_type.to_string(),
-                    positional: false
-                };
-                result.insert(sanitized_key.to_string(), input_schema_element);
-            }
-        }
-        result
-    }
-
-    pub fn input_schema(&self) -> HashMap<String, SchemaElement> {
-        let mut result: HashMap<String, SchemaElement> = HashMap::new();
-
-        let input = self.frontmatter.as_ref().and_then(|fm| fm.input.as_ref());
-
-        let schema = match input {
-            Some(input) => {
-                &input.schema
-            }
-            None => {
-                return result;
-            }
-        };
-
-
-        if let Some(input_schema) = schema {
-            for (key, value) in input_schema {
-                let mut key_chars = key.chars();
-                let (required, positional) = if key.ends_with("?!") || key.ends_with("!?") {
-                    // optional and positional
-                    key_chars.next_back();
-                    key_chars.next_back();
-                    (false, true)
-                } else if key.ends_with("?") {
-                    // optional
-                    key_chars.next_back();
-                    (false, false)
-                } else if key.ends_with("!") {
-                    // positional
-                    key_chars.next_back();
-                    (true, true)
-                } else {
-                    (true, false)
-                };
-
-                let sanitized_key = key_chars.as_str();
-
-                let (data_type, description) = value.split_once(",")
-                    .unwrap_or((value, ""));
-
-                let input_schema_element = SchemaElement {
-                    key: sanitized_key.to_string(),
-                    required,
-                    description: description.to_string(),
-                    data_type: data_type.to_string(),
-                    positional
-                };
-                result.insert(sanitized_key.to_string(), input_schema_element);
-            }
-        }
-        result
-    }
 }
 
 #[cfg(test)]
@@ -287,9 +350,11 @@ Translate this: {{message}}"#;
         assert!(result.is_ok(), "Should parse valid dotprompt");
 
         let dotprompt = result.unwrap();
-        assert_eq!(dotprompt.frontmatter.as_ref().unwrap().model.as_ref().unwrap(), "anthropic/claude-3-5-sonnet-20241022");
+        assert_eq!(dotprompt.frontmatter.model.as_ref().unwrap(), "anthropic/claude-3-5-sonnet-20241022");
         assert_eq!(dotprompt.template, "Translate this: {{message}}");
-        assert_eq!(dotprompt.frontmatter.as_ref().unwrap().output.as_ref().unwrap().format, "text");
+        assert!(matches!(
+            dotprompt.frontmatter.output.format ,OutputFormat::Text
+        ));
     }
 
     #[test]
@@ -311,7 +376,7 @@ Query: {{query}}"#;
         assert!(result.is_ok(), "Should skip comments and parse successfully");
 
         let dotprompt = result.unwrap();
-        assert_eq!(dotprompt.frontmatter.unwrap().model.unwrap(), "ollama/llama3");
+        assert_eq!(dotprompt.frontmatter.model.unwrap(), "ollama/llama3");
     }
 
     #[test]
@@ -358,7 +423,7 @@ Template"#;
 
         if let Err(e) = result {
             assert!(matches!(
-              e, ParseError::ParseFrontMatterError(_)
+              e, ParseError::ParseFrontmatterError(_)
             ));
         }
     }
@@ -388,7 +453,7 @@ output:
 Hello {{name}}"#;
 
         let dotprompt = DotPrompt::try_from(content).unwrap();
-        let schema = dotprompt.input_schema();
+        let schema = &dotprompt.frontmatter.input.schema;
 
         assert_eq!(schema.len(), 1);
         let name_field = schema.get("name").unwrap();
@@ -412,7 +477,7 @@ output:
 Age: {{age}}"#;
 
         let dotprompt = DotPrompt::try_from(content).unwrap();
-        let schema = dotprompt.input_schema();
+        let schema = &dotprompt.frontmatter.input.schema;
 
         let age_field = schema.get("age").unwrap();
         assert_eq!(age_field.key, "age");
@@ -433,7 +498,7 @@ output:
 Files: {{files}}"#;
 
         let dotprompt = DotPrompt::try_from(content).unwrap();
-        let schema = dotprompt.input_schema();
+        let schema = &dotprompt.frontmatter.input.schema;
 
         let files_field = schema.get("files").unwrap();
         assert_eq!(files_field.key, "files");
@@ -454,7 +519,7 @@ output:
 Args: {{args}}"#;
 
         let dotprompt = DotPrompt::try_from(content).unwrap();
-        let schema = dotprompt.input_schema();
+        let schema = &dotprompt.frontmatter.input.schema;
 
         let args_field = schema.get("args").unwrap();
         assert_eq!(args_field.key, "args");
@@ -475,7 +540,7 @@ output:
 Args: {{args}}"#;
 
         let dotprompt = DotPrompt::try_from(content).unwrap();
-        let schema = dotprompt.input_schema();
+        let schema = &dotprompt.frontmatter.input.schema;
 
         let args_field = schema.get("args").unwrap();
         assert_eq!(args_field.key, "args");
@@ -493,7 +558,7 @@ output:
 No input needed"#;
 
         let dotprompt = DotPrompt::try_from(content).unwrap();
-        let schema = dotprompt.input_schema();
+        let schema = &dotprompt.frontmatter.input.schema;
 
         assert_eq!(schema.len(), 0, "Should return empty schema");
     }
@@ -514,7 +579,7 @@ output:
 Template"#;
 
         let dotprompt = DotPrompt::try_from(content).unwrap();
-        let schema = dotprompt.input_schema();
+        let schema = &dotprompt.frontmatter.input.schema;
 
         assert_eq!(schema.len(), 4);
         assert!(schema.contains_key("name"));
@@ -562,7 +627,7 @@ output:
 Template"#;
 
         let dotprompt = DotPrompt::try_from(content).unwrap();
-        let schema = dotprompt.input_schema();
+        let schema = &dotprompt.frontmatter.input.schema;
 
         let name_field = schema.get("name").unwrap();
         assert_eq!(name_field.data_type, "string");
@@ -588,6 +653,73 @@ Multiple lines supported."#;
         assert!(dotprompt.template.contains("Hello {{name}}"));
         assert!(dotprompt.template.contains("{{language}}"));
         assert!(dotprompt.template.contains("Multiple lines"));
+    }
+
+    #[test]
+    fn test_valid_input_enum_type() {
+        let content = r#"---
+input:
+  schema:
+    title: string,
+    style(enum): [academic, technical, modern]
+    style_with_desc(enum, description is here): [academic, technical, modern]
+    style_with_desc_commas(enum, description is here with, comma): [academic, technical, modern]
+    optional_template(enum)?: [markdown, html]
+    empty(enum)?: []
+    integers(enum)?: [1, 2, 3]
+    numbers(enum)?: [0.1, 0.2, 0.3]
+---
+Template here
+"#;
+        let dotprompt = DotPrompt::try_from(content).unwrap();
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style").unwrap().data_type, "enum");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style").unwrap().key, "style");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style").unwrap().description, "");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style").unwrap().choices, vec!["academic", "technical", "modern"]);
+        assert!(dotprompt.frontmatter.input.schema.get("style").unwrap().required);
+        assert!(!dotprompt.frontmatter.input.schema.get("style").unwrap().positional);
+
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style_with_desc").unwrap().data_type, "enum");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style_with_desc").unwrap().key, "style_with_desc");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style_with_desc").unwrap().description, "description is here");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style_with_desc").unwrap().choices, vec!["academic", "technical", "modern"]);
+        assert!(dotprompt.frontmatter.input.schema.get("style_with_desc").unwrap().required);
+        assert!(!dotprompt.frontmatter.input.schema.get("style_with_desc").unwrap().positional);
+
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style_with_desc_commas").unwrap().data_type, "enum");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style_with_desc_commas").unwrap().key, "style_with_desc_commas");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style_with_desc_commas").unwrap().description, "description is here with, comma");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("style_with_desc_commas").unwrap().choices, vec!["academic", "technical", "modern"]);
+        assert!(dotprompt.frontmatter.input.schema.get("style_with_desc_commas").unwrap().required);
+        assert!(!dotprompt.frontmatter.input.schema.get("style_with_desc_commas").unwrap().positional);
+
+        assert_eq!(dotprompt.frontmatter.input.schema.get("optional_template").unwrap().data_type, "enum");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("optional_template").unwrap().key, "optional_template");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("optional_template").unwrap().description, "");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("optional_template").unwrap().choices, vec!["markdown", "html"]);
+        assert!(!dotprompt.frontmatter.input.schema.get("optional_template").unwrap().required);
+        assert!(!dotprompt.frontmatter.input.schema.get("optional_template").unwrap().positional);
+
+        assert_eq!(dotprompt.frontmatter.input.schema.get("empty").unwrap().data_type, "enum");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("empty").unwrap().key, "empty");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("empty").unwrap().description, "");
+        assert!(dotprompt.frontmatter.input.schema.get("empty").unwrap().choices.is_empty());
+        assert!(!dotprompt.frontmatter.input.schema.get("empty").unwrap().required);
+        assert!(!dotprompt.frontmatter.input.schema.get("empty").unwrap().positional);
+
+        assert_eq!(dotprompt.frontmatter.input.schema.get("integers").unwrap().data_type, "enum");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("integers").unwrap().key, "integers");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("integers").unwrap().description, "");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("integers").unwrap().choices, vec!["1", "2", "3"]);
+        assert!(!dotprompt.frontmatter.input.schema.get("integers").unwrap().required);
+        assert!(!dotprompt.frontmatter.input.schema.get("integers").unwrap().positional);
+
+        assert_eq!(dotprompt.frontmatter.input.schema.get("numbers").unwrap().data_type, "enum");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("numbers").unwrap().key, "numbers");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("numbers").unwrap().description, "");
+        assert_eq!(dotprompt.frontmatter.input.schema.get("numbers").unwrap().choices, vec!["0.1", "0.2", "0.3"]);
+        assert!(!dotprompt.frontmatter.input.schema.get("numbers").unwrap().required);
+        assert!(!dotprompt.frontmatter.input.schema.get("numbers").unwrap().positional);
     }
 }
 

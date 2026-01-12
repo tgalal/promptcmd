@@ -1341,6 +1341,7 @@ dependencies = [
  "llm",
  "log",
  "prettytable",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",

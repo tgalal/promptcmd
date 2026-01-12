@@ -86,12 +86,12 @@ impl ImportCmd {
         }
 
         // Ensure file is actually a dotprompt and we're not importing an arbitrary file
-        // DotPrompt::try_from(fs::read_to_string(&fullpath)?)?;
         let dotprompt = DotPrompt::try_from(contents.as_str())?;
 
         let final_contents = if let Some(model) = self.model {
             let model_line = format!("model: {}", &model);
-            if dotprompt.frontmatter.is_none() {
+            // If the file has no frontmatter, we just create it
+            if !dotprompt.frontmatter.from_frontmatter {
                 format!("---\n{}\n---\n{}", &model_line, contents)
             } else {
                 // Find optimum place to inject the model:
@@ -150,7 +150,7 @@ mod tests {
     use std::str::FromStr;
 
     use crate::config::appconfig::AppConfig;
-    use crate::dotprompt::{self, DotPrompt, Frontmatter};
+    use crate::dotprompt::{DotPrompt};
     use crate::{cmd::import::ImportCmd, installer::tests::InMemoryInstaller, storage::promptfiles_mem::InMemoryPromptFilesStorage};
     use crate::storage::PromptFilesStorage;
     use crate::installer::DotPromptInstaller;
@@ -167,7 +167,22 @@ output:
 ---
 Basic Prompt Here: {{message}}
 "#;
+    const PROMPTFILE_BASIC_VALID_1_WITH_OVERRIDDEN_MODEL: &str = r#"---
+model: aaaa
+input:
+  schema:
+    message: string, Message
+output:
+  format: text
+---
+Basic Prompt Here: {{message}}
+"#;
     const PROMPTFILE_BASIC_VALID_2: &str = r#"Basic Prompt Here: {{message}}
+"#;
+    const PROMPTFILE_BASIC_VALID_2_WITH_MODEL: &str = r#"---
+model: aaaa
+---
+Basic Prompt Here: {{message}}
 "#;
     const PROMPTFILE_BASIC_VALID_3: &str = r#"---
 # comment1
@@ -181,6 +196,23 @@ input:
   schema:
     message: string, Message
 model: ollama/gpt-oss:20b
+output:
+  format: text
+---
+Basic Prompt Here: {{message}}
+"#;
+    const PROMPTFILE_BASIC_VALID_3_WITH_OVERRIDDEN_MODEL: &str = r#"---
+# comment1
+# comment 2
+# comment 3
+
+
+# comment 4
+#
+model: aaaa
+input:
+  schema:
+    message: string, Message
 output:
   format: text
 ---
@@ -231,6 +263,8 @@ Basic Prompt Here: {{message}}
         cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
+        let imported_dotprompt = DotPrompt::try_from(imported_promptdata.as_str()).unwrap();
+        assert!(imported_dotprompt.frontmatter.from_frontmatter);
 
         // Provided prompt data should be stored as is
         assert_eq!(
@@ -258,6 +292,8 @@ Basic Prompt Here: {{message}}
         cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
+        let imported_dotprompt = DotPrompt::try_from(imported_promptdata.as_str()).unwrap();
+        assert!(!imported_dotprompt.frontmatter.from_frontmatter);
 
         // Provided prompt data should be stored as is
         assert_eq!(
@@ -287,9 +323,9 @@ Basic Prompt Here: {{message}}
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
 
         let imported_dotprompt = DotPrompt::try_from(imported_promptdata.as_str()).unwrap();
-        let mut orig_dotprompt = DotPrompt::try_from(PROMPTFILE_BASIC_VALID_1).unwrap();
+        assert!(imported_dotprompt.frontmatter.from_frontmatter);
 
-        orig_dotprompt.frontmatter.as_mut().unwrap().model = Some("aaaa".to_string());
+        let orig_dotprompt = DotPrompt::try_from(PROMPTFILE_BASIC_VALID_1_WITH_OVERRIDDEN_MODEL).unwrap();
 
         // Provided prompt data should be stored as is
         assert_eq!(
@@ -319,15 +355,10 @@ Basic Prompt Here: {{message}}
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
 
         let imported_dotprompt = DotPrompt::try_from(imported_promptdata.as_str()).unwrap();
-        let mut orig_dotprompt = DotPrompt::try_from(PROMPTFILE_BASIC_VALID_2).unwrap();
+        // because an overriding model will inject a frontmatter
+        assert!(imported_dotprompt.frontmatter.from_frontmatter);
 
-        orig_dotprompt.frontmatter = Some(
-            Frontmatter {
-                model: Some("aaaa".to_string()),
-                input: None,
-                output: None
-            }
-        );
+        let orig_dotprompt = DotPrompt::try_from(PROMPTFILE_BASIC_VALID_2_WITH_MODEL).unwrap();
 
         // Provided prompt data should be stored as is
         assert_eq!(
@@ -357,9 +388,8 @@ Basic Prompt Here: {{message}}
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
 
         let imported_dotprompt = DotPrompt::try_from(imported_promptdata.as_str()).unwrap();
-        let mut orig_dotprompt = DotPrompt::try_from(PROMPTFILE_BASIC_VALID_3).unwrap();
-
-        orig_dotprompt.frontmatter.as_mut().unwrap().model = Some("aaaa".to_string());
+        assert!(imported_dotprompt.frontmatter.from_frontmatter);
+        let orig_dotprompt = DotPrompt::try_from(PROMPTFILE_BASIC_VALID_3_WITH_OVERRIDDEN_MODEL).unwrap();
 
         // Provided prompt data should be stored as is
         assert_eq!(

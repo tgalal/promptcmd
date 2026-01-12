@@ -22,9 +22,9 @@ impl<'a> TryFrom<DotPromptArgMatches<'a>> for PromptInputs {
 
         let matches = &dp_matches.matches;
 
-        let inputschema = dp.input_schema();
+        let inputschema = &dp.frontmatter.input.schema;
 
-        for (_, ele) in inputschema {
+        for ele in inputschema.values() {
             let value = if ele.data_type == "boolean" {
                 match matches.get_one::<bool>(&ele.key) {
                     Some(value) => {
@@ -73,11 +73,21 @@ impl<'a> TryFrom<DotPromptArgMatches<'a>> for PromptInputs {
                         }
                     }
                 }
+            } else if ele.data_type == "enum" {
+                match matches.get_one::<String>(&ele.key) {
+                    Some(value) => {
+                        Value::from(value.to_string())
+                    },
+                    None => {
+                        Value::from("")
+                    }
+                }
             }
             else {
-                return Err(RenderError::UnsupportedDataType { key: ele.key, data_type: ele.data_type })
+                return Err(RenderError::UnsupportedDataType {
+                    key: ele.key.clone(), data_type: ele.data_type.clone()})
             };
-            inputs.insert(ele.key, value);
+            inputs.insert(ele.key.clone(), value);
         }
         Ok(inputs)
     }
@@ -89,10 +99,10 @@ impl TryFrom<&DotPrompt> for Vec<Arg> {
 
     fn try_from(dotprompt: &DotPrompt) -> Result<Self, RenderError> {
 
-        let inputschema = dotprompt.input_schema();
+        let inputschema = &dotprompt.frontmatter.input.schema;
         let mut args: Vec<Arg> = Vec::new();
 
-        for (_, inputschema_element) in inputschema {
+        for inputschema_element in inputschema.values() {
             let mut arg =  Arg::new(inputschema_element.key.clone())
                 .help(inputschema_element.description.clone())
                 .required(inputschema_element.required);
@@ -117,12 +127,15 @@ impl TryFrom<&DotPrompt> for Vec<Arg> {
             } else if inputschema_element.data_type == "number" {
                 arg.long(inputschema_element.key.clone())
                     .value_parser(value_parser!(f32))
+            } else if inputschema_element.data_type == "enum" {
+                arg.long(inputschema_element.key.clone())
+                    .value_parser(inputschema_element.choices.clone())
             }
             else {
                 return Err(
                     RenderError::UnsupportedDataType {
-                            key: inputschema_element.key,
-                            data_type: inputschema_element.data_type
+                            key: inputschema_element.key.clone(),
+                            data_type: inputschema_element.data_type.clone()
                         }
                     );
             };

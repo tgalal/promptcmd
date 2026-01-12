@@ -8,7 +8,7 @@ use log::error;
 use serde_json::Value;
 use thiserror::Error;
 use tokio::runtime::Runtime;
-use crate::{config::appconfig, dotprompt::helpers};
+use crate::{config::appconfig, dotprompt::{helpers, OutputFormat}};
 use crate::config::providers;
 use crate::config::resolver;
 use crate::dotprompt;
@@ -114,7 +114,7 @@ impl Executor {
 
          debug!("{rendered_dotprompt}");
 
-        let requested_name = dotprompt.frontmatter.as_ref().and_then(|fm| fm.model.clone())
+        let requested_name = dotprompt.frontmatter.model.clone()
             .or(appconfig.providers.default.clone())
             .or(appconfig.providers.globals.model.clone())
             .ok_or(ExecutorErorr::Other("No model specified and no default model set in config".to_string()))?;
@@ -147,7 +147,7 @@ impl Executor {
             }
         };
 
-        if dotprompt.output_format() == "json" {
+        if matches!(dotprompt.frontmatter.output.format, OutputFormat::Json) {
             let output_schema: StructuredOutputFormat = serde_json::from_str(
                 dotprompt.output_to_extract_structured_json("").as_str())?;
             llmbuilder = llmbuilder.schema(output_schema);

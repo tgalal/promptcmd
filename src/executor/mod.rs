@@ -103,10 +103,12 @@ impl Executor {
         });
 
         let exec_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ExecHelper);
+        let concat_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ConcatHelper);
 
         let helpers_map: HashMap<&str, Box<dyn HelperDef + Send + Sync>> = HashMap::from([
             ("exec", exec_helper),
-            ("prompt", prompt_helper)
+            ("prompt", prompt_helper),
+            ("concat", concat_helper)
         ]);
 
 

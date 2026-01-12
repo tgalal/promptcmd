@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 0.7.1 (2026-01-12)
+
+### Fixed
+
+- Typos in help messages
+
 ## Version 0.7.0 (2026-01-12)
 
 ### Added

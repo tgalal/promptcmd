@@ -133,9 +133,9 @@ impl CreateCmd {
                             }
                         }
                     } else if appconfig_locator::path().is_none() {
-                        writeln!(out, "\nWarining: You do not have yet configuration file. Consider creating one at:")?;
+                        writeln!(out, "\nWarning: You do not have yet configuration file. Consider creating one at:")?;
                         writeln!(out, "\n{}\n", config_paths)?;
-                        writeln!(out, "Or simply run `promptctl config --edit`")?;
+                        writeln!(out, "Or simply run `promptctl config edit`")?;
                     }
 
                     break;

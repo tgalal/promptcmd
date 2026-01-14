@@ -330,7 +330,7 @@ does one thing and does it (hopefully) right.
 - Load balancing and auto selecting next model based on token consumption
 - Caching responses for a defined number of seconds
 
-Check out this [comparison table](https://promptcmd.sh/#compare) for more details.
+Check out this [comparison table](https://promptcmd.sh/#comparison) for more details.
 
 ---
 

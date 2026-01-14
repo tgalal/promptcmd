@@ -120,6 +120,7 @@ input:
     input3: boolean, This is true/false input
     input4: integer, This is an integer input
     input5: number, This is an integer or a float input
+    input5(enum, This is an choice input): [option1, option2, option3]
 output:
   format: text  # Can also be 'json'
 ---
@@ -128,7 +129,7 @@ handlebars syntax: {{input1}} or {{input4}}.
 
 Conditional logic is supported:
 
-{{#if (eq input3 "true")}}
+{{#if input3 )}}
 input3 is set
 {{/if}}
 
@@ -162,12 +163,12 @@ Field modifiers control how arguments are parsed:
 | `boolean` | Flag or switch argument |
 | `integer` | Whole numbers |
 | `number` | Integers or floating-point numbers |
-
+| `enum` | Choose one of the options|
 ---
 
 ## Configuration
 
-Configuration files use TOML format.
+A single TOML configuration file `config.tml`.
 
 ### Example Configuration
 
@@ -175,6 +176,8 @@ Configuration files use TOML format.
 [providers]
 temperature = 0.7
 max_tokens = 1000
+# For 20 seconds identical request respond from cache
+cache_ttl = 20
 
 [providers.anthropic]
 api_key = "sk-ant-..."

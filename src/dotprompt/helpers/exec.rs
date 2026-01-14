@@ -19,9 +19,13 @@ impl HelperDef for ExecHelper {
         )?.render();
 
         let args: Vec<String> = params.iter().skip(1).map(|item| {
-            item.render()
-        }).collect();
-
+            if item.is_value_missing() {
+                Err(RenderError::from(RenderErrorReason::Other(
+                    format!("Undefined variable: {}", item.relative_path().unwrap()))))
+            } else {
+                Ok(item.render())
+            }
+        }).collect::<Result<Vec<_>, _>>()?;
 
         let (mut reader, writer) = std::io::pipe()?;
 

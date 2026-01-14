@@ -24,7 +24,7 @@ pub struct AppConfig {
 #[derive(Debug, Deserialize, Default)]
 pub struct Create {
     #[serde(default)]
-    pub enable: bool,
+    pub no_enable: bool,
     #[serde(default)]
     pub force: bool,
 }

@@ -7,7 +7,7 @@
 ### Configuration for the "create" command
 ##########################################
 # [create]
-# enable = false # Auto enable prompt once created
+# no_enable = false # Auto enable prompt once created
 # force = false  # Force save prompt files disregarding validation result
 
 ##########################################

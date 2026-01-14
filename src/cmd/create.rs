@@ -17,8 +17,8 @@ use crate::config::providers::{ModelInfo, error};
 
 #[derive(Parser)]
 pub struct CreateCmd {
-    #[arg(short, long, default_value_t=false, help="Auto enable the prompt file after creation")]
-    pub enable: bool,
+    #[arg(short, long, default_value_t=false, help="Do not enable the prompt after creation")]
+    pub no_enable: bool,
 
     #[arg(short, long, default_value_t=false, help="Force save the prompt file without even with validation errors")]
     pub force: bool,
@@ -49,12 +49,14 @@ impl CreateCmd {
             bail!("Prompt file already exists: {path}");
         }
 
-        let enable = if appconfig.create.enable {
-            info!("auto enable is set by config");
+        let no_enable = if appconfig.create.no_enable {
+            info!("config disables auto enabling");
             true
         } else {
-            self.enable
+            self.no_enable
         };
+
+        let enable = !no_enable;
 
         let force = if appconfig.create.force {
             info!("force is set by config");
@@ -301,7 +303,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            enable: true,
+            no_enable: false,
             force: false
         }.exec(
                 &mut &state.inp[..],
@@ -333,7 +335,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            enable: false,
+            no_enable: true,
             force: false
         }.exec(
             &mut &state.inp[..],
@@ -365,7 +367,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            enable: false,
+            no_enable: true,
             force: false
         }.exec(
             &mut &state.inp[..],
@@ -396,7 +398,7 @@ Basic Prompt Here: {{message}}
 
         CreateCmd {
             promptname: String::from(promptname),
-            enable: false,
+            no_enable: true,
             force: true
         }.exec(
             &mut &state.inp[..],

@@ -1,6 +1,6 @@
 use std::path::{PathBuf};
 
-use crate::config::APP_NAME;
+use crate::config::{base_config_dir};
 
 const CONFIG_NAME: &str="config.toml";
 
@@ -12,10 +12,9 @@ pub fn search_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
     // 1. User config directory
-    if let Some(config_dir) = dirs::config_dir() {
-        paths.push(config_dir.join(APP_NAME).join(CONFIG_NAME));
+    if let Ok(config_dir) = base_config_dir() {
+        paths.push(config_dir.join(CONFIG_NAME));
     }
-
     paths
 }
 
@@ -45,18 +44,6 @@ mod tests {
             first_path.ends_with(CONFIG_NAME),
             "First path should end with config.toml"
         );
-    }
-
-    #[test]
-    fn test_search_paths_includes_user_config() {
-        let paths = search_paths();
-
-        // At least one path should contain the app name
-        let has_app_name = paths.iter().any(|p| {
-            p.to_string_lossy().contains(APP_NAME)
-        });
-
-        assert!(has_app_name, "Should include path with app name");
     }
 
     #[test]

@@ -23,6 +23,7 @@ pub enum RusqliteError {
 impl RusqliteStore {
     pub fn new(path: PathBuf) -> Result<Self, RusqliteError> {
         let db_path = path.join(DB_NAME).to_string_lossy().to_string();
+        debug!("DB Path: {}", db_path);
 
         let mut conn = Connection::open(db_path)?;
         let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;

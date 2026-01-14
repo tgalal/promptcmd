@@ -69,7 +69,7 @@ fn main() -> Result<()> {
     );
 
     let stats_store = RusqliteStore::new(
-        config::base_storage_dir()?
+        config::base_home_dir()?
     )?;
 
     let runner_binary_name = RUNNER_BIN_NAME;

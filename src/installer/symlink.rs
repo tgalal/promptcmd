@@ -4,9 +4,6 @@ use ::symlink::symlink_file;
 
 use crate::installer::{DotPromptInstaller, InstallError, UninstallError};
 
-
-const INSTALLER_ID: &str = "symlink";
-
 pub struct SymlinkInstaller {
     target: PathBuf,
     install_dir: PathBuf
@@ -16,7 +13,7 @@ impl SymlinkInstaller {
     pub fn new(target: PathBuf, install_dir: PathBuf) -> Self {
         Self {
             target,
-            install_dir: install_dir.join(INSTALLER_ID)
+            install_dir
         }
     }
 

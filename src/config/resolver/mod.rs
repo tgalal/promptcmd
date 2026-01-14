@@ -94,6 +94,7 @@ fn resolve_base(appconfig: &AppConfig, base_name: &str,
             Ok(Base::new(
                 provider.to_string(),
                 BaseProviderConfigSource::Ollama(&appconfig.providers.ollama.config),
+                &appconfig.providers.globals,
                 model_resolved_property
             ))
         }
@@ -102,6 +103,7 @@ fn resolve_base(appconfig: &AppConfig, base_name: &str,
             Ok(Base::new(
                 provider.to_string(),
                 BaseProviderConfigSource::Anthropic(&appconfig.providers.anthropic.config),
+                &appconfig.providers.globals,
                 model_resolved_property
             ))
         }
@@ -110,6 +112,7 @@ fn resolve_base(appconfig: &AppConfig, base_name: &str,
             Ok(Base::new(
                 provider.to_string(),
                 BaseProviderConfigSource::OpenAI(&appconfig.providers.openai.config),
+                &appconfig.providers.globals,
                 model_resolved_property
             ))
         },
@@ -118,6 +121,7 @@ fn resolve_base(appconfig: &AppConfig, base_name: &str,
             Ok(Base::new(
                 provider.to_string(),
                 BaseProviderConfigSource::Google(&appconfig.providers.google.config),
+                &appconfig.providers.globals,
                 model_resolved_property
             ))
         },
@@ -126,6 +130,7 @@ fn resolve_base(appconfig: &AppConfig, base_name: &str,
             Ok(Base::new(
                 provider.to_string(),
                 BaseProviderConfigSource::OpenRouter(&appconfig.providers.openrouter.config),
+                &appconfig.providers.globals,
                 model_resolved_property
             ))
         },
@@ -155,11 +160,13 @@ fn resolve_variant(
         }
     });
 
+
     if let Some(conf) = appconfig.providers.ollama.named.get(provider) {
         Ok(Variant::new(
             provider.into(),
             "ollama".into(),
             VariantProviderConfigSource::Ollama(conf, &appconfig.providers.ollama.config),
+            &appconfig.providers.globals,
             model_resolved_property
         ))
     } else if let Some(conf) = appconfig.providers.anthropic.named.get(provider) {
@@ -167,6 +174,7 @@ fn resolve_variant(
             provider.into(),
             "anthropic".into(),
             VariantProviderConfigSource::Anthropic(conf, &appconfig.providers.anthropic.config),
+            &appconfig.providers.globals,
             model_resolved_property
         ))
     } else if let Some(conf) = appconfig.providers.openai.named.get(provider) {
@@ -174,6 +182,7 @@ fn resolve_variant(
             provider.into(),
             "openai".into(),
             VariantProviderConfigSource::OpenAI(conf, &appconfig.providers.openai.config),
+            &appconfig.providers.globals,
             model_resolved_property
         ))
     } else if let Some(conf) = appconfig.providers.google.named.get(provider) {
@@ -181,6 +190,7 @@ fn resolve_variant(
             provider.into(),
             "google".into(),
             VariantProviderConfigSource::Google(conf, &appconfig.providers.google.config),
+            &appconfig.providers.globals,
             model_resolved_property
         ))
     } else if let Some(conf) = appconfig.providers.openrouter.named.get(provider) {
@@ -188,6 +198,7 @@ fn resolve_variant(
             provider.into(),
             "openrouter".into(),
             VariantProviderConfigSource::OpenRouter(conf, &appconfig.providers.openrouter.config),
+            &appconfig.providers.globals,
             model_resolved_property
         ))
     } else {

@@ -1,5 +1,6 @@
 use llm::builder::LLMBuilder;
 
+use crate::config::appconfig::GlobalProviderProperties;
 use crate::config::resolver::{BaseProviderConfigSource, ResolvedPropertySource};
 use crate::config::{providers::{error::ToModelInfoError, ModelInfo}, resolver::{ResolvedProperty,
     ResolvedProviderConfig}};
@@ -16,39 +17,60 @@ impl Base {
     pub fn new(
         name: String,
         source: BaseProviderConfigSource,
+        global_provider_properties: &GlobalProviderProperties,
         model_resolved_property: Option<ResolvedProperty<String>>) -> Self {
 
         let (model_info, resolved) = match source {
             BaseProviderConfigSource::Ollama(source_config) => {
                 let resolved = providers::ollama::ResolvedProviderConfigBuilder::from(
-                        (source_config, ResolvedPropertySource::Base(name.clone()))
-                    ).override_model(model_resolved_property).build();
+                    global_provider_properties
+                ).override_from(
+                    &providers::ollama::ResolvedProviderConfigBuilder::from(
+                        (source_config, ResolvedPropertySource::Base(name.clone()))).build()
+                ).override_model(model_resolved_property).apply_env().apply_default().build();
+
                 (ModelInfo::try_from(&resolved),ResolvedProviderConfig::Ollama(resolved))
             },
 
             BaseProviderConfigSource::Anthropic(source_config) => {
                 let resolved = providers::anthropic::ResolvedProviderConfigBuilder::from(
-                        (source_config, ResolvedPropertySource::Base(name.clone()))
-                    ).override_model(model_resolved_property).build();
+                    global_provider_properties
+                ).override_from(
+                    &providers::anthropic::ResolvedProviderConfigBuilder::from(
+                        (source_config, ResolvedPropertySource::Base(name.clone()))).build()
+                ).override_model(model_resolved_property).apply_env().apply_default().build();
+
                 (ModelInfo::try_from(&resolved),ResolvedProviderConfig::Anthropic(resolved))
 
             },
             BaseProviderConfigSource::OpenAI(source_config) => {
                 let resolved = providers::openai::ResolvedProviderConfigBuilder::from(
-                        (source_config, ResolvedPropertySource::Base(name.clone()))
-                    ).override_model(model_resolved_property).build();
+                    global_provider_properties
+                ).override_from(
+                    &providers::openai::ResolvedProviderConfigBuilder::from(
+                        (source_config, ResolvedPropertySource::Base(name.clone()))).build()
+                ).override_model(model_resolved_property).apply_env().apply_default().build();
+
                 (ModelInfo::try_from(&resolved),ResolvedProviderConfig::OpenAI(resolved))
             },
             BaseProviderConfigSource::Google(source_config) => {
                 let resolved = providers::google::ResolvedProviderConfigBuilder::from(
-                        (source_config, ResolvedPropertySource::Base(name.clone()))
-                    ).override_model(model_resolved_property).build();
+                    global_provider_properties
+                ).override_from(
+                    &providers::google::ResolvedProviderConfigBuilder::from(
+                        (source_config, ResolvedPropertySource::Base(name.clone()))).build()
+                ).override_model(model_resolved_property).apply_env().apply_default().build();
+
                 (ModelInfo::try_from(&resolved),ResolvedProviderConfig::Google(resolved))
             },
             BaseProviderConfigSource::OpenRouter(source_config) => {
                 let resolved = providers::openrouter::ResolvedProviderConfigBuilder::from(
-                        (source_config, ResolvedPropertySource::Base(name.clone()))
-                    ).override_model(model_resolved_property).build();
+                    global_provider_properties
+                ).override_from(
+                    &providers::openrouter::ResolvedProviderConfigBuilder::from(
+                        (source_config, ResolvedPropertySource::Base(name.clone()))).build()
+                ).override_model(model_resolved_property).apply_env().apply_default().build();
+
                 (ModelInfo::try_from(&resolved),ResolvedProviderConfig::OpenRouter(resolved))
             },
         };

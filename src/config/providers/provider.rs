@@ -149,15 +149,14 @@ macro_rules! create_provider {
             }
 
             pub fn override_from(mut self, other: &ResolvedProviderConfig) -> Self {
-                self.temperature = other.temperature.clone().or(self.temperature);
-                self.system = other.system.clone().or(self.system);
+                $(self.$global_field = other.$global_field.clone().or(self.$global_field));*;
 
                 $(self.$field = other.$field.clone().or(self.$field));*;
 
                 self
             }
 
-            fn apply_env(mut self) -> Self {
+            pub fn apply_env(mut self) -> Self {
                 $(
                     self.$global_field = read_env(&stringify!($global_field).to_uppercase(), false, self.$global_field);
                 )*
@@ -166,7 +165,7 @@ macro_rules! create_provider {
                 self
             }
 
-            fn apply_default(mut self) -> Self {
+            pub fn apply_default(mut self) -> Self {
                 self.temperature = self.temperature.or(
                     Some(ResolvedProperty {
                         source: ResolvedPropertySource::Default,
@@ -179,15 +178,21 @@ macro_rules! create_provider {
                         value: constants::DEFAULT_SYSTEM.into()
                     })
                 );
+                self.cache_ttl = self.cache_ttl.or(
+                    Some(ResolvedProperty {
+                        source: ResolvedPropertySource::Default,
+                        value: constants::DEFAULT_CACHE_TTL
+                    })
+                );
 
                 self
             }
 
             pub fn build(self) -> ResolvedProviderConfig {
-                let finalized_builder = self.apply_default().apply_env();
+                // let finalized_builder = self.apply_default().apply_env();
                 ResolvedProviderConfig {
-                    $($global_field: finalized_builder.$global_field),*,
-                    $($field: finalized_builder.$field),*
+                    $($global_field: self.$global_field),*,
+                    $($field: self.$field),*
                 }
             }
         }
@@ -217,7 +222,7 @@ macro_rules! create_provider {
             }
         }
 
-        impl From<&GlobalProviderProperties> for ResolvedProviderConfig {
+        impl From<&GlobalProviderProperties> for ResolvedProviderConfigBuilder {
             fn from(globals: &GlobalProviderProperties) -> Self {
                 let mut builder = ResolvedProviderConfigBuilder::new();
                 $(
@@ -226,7 +231,7 @@ macro_rules! create_provider {
                         value: value.clone()
                     });
                 )*
-                builder.build()
+                builder
             }
         }
 

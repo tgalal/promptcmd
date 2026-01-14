@@ -62,7 +62,7 @@ export PATH=$PATH:"{path}"
 
 which will make `{}` available right away. Alternatively you can run one of:
 
-promptctl run {} --
+promptcmd {}
 "{installed_path}"
 
 For simplicity, consider updating your shell's PATH to persistently run prompts
@@ -82,7 +82,7 @@ set PATH=%PATH%;"{path}"
 
 which will make `{}` available right away. Alternatively you can run one of:
 
-promptctl run {} --
+promptcmd {}
 "{installed_path}"
 
 For simplicity, consider updating your shell's PATH to persistently run prompts

@@ -304,6 +304,8 @@ impl DotPrompt {
                 "number"
             } else if element.data_type == "boolean" {
                 "boolean"
+            } else if element.data_type == "integer" {
+                "integer"
             } else {
                 "string"
             };

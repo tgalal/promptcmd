@@ -1,0 +1,7 @@
+---
+input:
+  schema:
+    container: string, container name
+---
+Analyze the following logs and let me know if there are any problems:
+{{exec "docker" "logs" container}}

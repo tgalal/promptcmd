@@ -24,6 +24,7 @@ $ How can I create a loop in rust
 - [Dotprompt Files](#dotprompt-files)
   - [Schema Syntax](#schema-syntax)
   - [Supported Data Types](#supported-data-types)
+  - [Examples](#examples)
 - [Configuration](#configuration)
   - [Example Configuration](#example-configuration)
   - [File Locations](#file-locations)
@@ -166,6 +167,13 @@ Field modifiers control how arguments are parsed:
 | `integer` | Whole numbers |
 | `number` | Integers or floating-point numbers |
 | `enum` | Choose one of the options|
+
+
+### Examples
+
+Browse the [examples](examples) directory or check out the gallery at
+[promptcmd/lib](https://promptcmd.sh/lib/).
+
 ---
 
 ## Configuration

@@ -1,0 +1,18 @@
+---
+---
+
+You will be given log summaries of several docker containers. Your task is to
+summarize their findings in a short markdown report, grouped by container as a
+section.
+
+At the end of the report, make sure to highlight any problems, recommendations,
+or actions to take.
+
+## Postgres:
+{{prompt "docker-inspect-logs" container="postgres"}}
+
+## Nginx
+{{prompt "docker-logs-analyzer" container="nginx"}}
+
+## Redis
+{{prompt "docker-logs-analyzer" container="redis"}}

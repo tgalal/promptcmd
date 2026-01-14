@@ -1,0 +1,52 @@
+---
+---
+
+Analyze the following nginx access logs and create a comprehensive markdown report with these sections:
+
+## Executive Summary
+Provide a brief overview of the log period, total requests, and key findings.
+
+## Traffic Overview
+- Total number of requests
+- Unique IP addresses
+- Date/time range covered
+- Requests per hour/day trend
+
+## Top Resources
+- Most frequently accessed URLs (top 10-20)
+- Most bandwidth-intensive resources
+- Static vs dynamic content breakdown
+
+## HTTP Status Codes
+- Distribution of status codes (200, 404, 500, etc.)
+- List notable error patterns with specific URLs
+- Success rate percentage
+
+## Geographic & Client Analysis
+- Top referrers (if available in logs)
+- User agent breakdown (browsers, bots, mobile vs desktop)
+- Identify bot traffic vs human traffic
+
+## Security Concerns
+- Suspicious access patterns (rapid requests from single IPs)
+- Common attack vectors (SQL injection attempts, path traversal, etc.)
+- 4xx/5xx errors that might indicate probing
+- Unusual user agents
+
+## Performance Insights
+- Response time analysis (if available)
+- Peak traffic periods
+- Slowest endpoints
+
+## Recommendations
+Based on the analysis, suggest:
+- Caching opportunities
+- Security improvements needed
+- Performance optimization targets
+
+Format all tables clearly, use code blocks for sample log entries, and highlight critical issues in **bold**.
+
+Here are the logs:
+
+{{STDIN}}
+

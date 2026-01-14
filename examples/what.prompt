@@ -1,0 +1,15 @@
+---
+# Usage
+#
+# alias what='$(fc -ln -1) 2>&1 | promptctl run what'
+#
+# Whenever a program/command fails, run `what` to get
+# explanation and suggestions.
+output:
+  format: text
+---
+Analyze this error and suggest fixes briefly:
+
+{{STDIN}}
+
+Provide: 1) What's wrong, 2) How to fix it. Keep it under 100 words.

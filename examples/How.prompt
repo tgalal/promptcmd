@@ -3,9 +3,7 @@ input:
   schema:
     question!: string, A question to ask
 output:
-  format: text
+  format: text {{hello}}
 ---
 Following is a question from the user. Be brief, and straight to the point:
-
 How {{question}}?
-```

@@ -30,8 +30,9 @@ $ How can I create a loop in rust
 - [Advanced Configuration](#advanced-configuration)
   - [Variants](#variants)
   - [Load Balancing](#load-balancing)
-  - [Caching Balancing](#caching)
+  - [Caching](#caching)
 - [Monitoring Usage](#monitoring-usage)
+- [Related Projects](#related-projects)
 - [License](#license)
 
 ---
@@ -267,7 +268,7 @@ This can be done across all providers or specific to particular ones:
 
 ```toml
 [providers]
-cache_ttl = 2 # cache for number of sections
+cache_ttl = 2 # cache for number of seconds
 
 [providers.anthropic]
 cache_ttl = 4

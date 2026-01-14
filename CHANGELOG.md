@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## Version 1.0.0 (2026-01-14)
+
+### Added
+
+- Shebang support
+- Caching via cache_ttl config property
+
+### Changed
+
+- Moved installation directory to $HOME/.promptcmd/bin/
+- Moved db storage to $HOME/.promptcmd/bin/
+- Moved prompt storage to $CONFIG/promptcmd/prompts/
+
+### Fixed
+
+- Handling integers in output schema
+- Configuration under [providers] was ignored
+
 ## Version 0.7.1 (2026-01-12)
 
 ### Fixed

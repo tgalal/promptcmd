@@ -68,9 +68,17 @@ fn main() -> Result<()> {
         // TODO: check!
         invoked_binname
     };
-    /////
     debug!("Prompt name: {promptname}");
-    let (_, promptdata) = prompts_storage.load(&promptname)?;
+    // Check if loading by path (this handles also shebangs)
+    let path = PathBuf::from(&promptname);
+    let promptdata = if path.exists() {
+        debug!("Reading prompt from file: {}", promptname);
+        fs::read_to_string(path)?
+    } else {
+        debug!("Reading prompt from storage");
+        prompts_storage.load(&promptname)?.1
+    };
+
     let dotprompt: DotPrompt = DotPrompt::try_from(promptdata.as_str())?;
 
     command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;

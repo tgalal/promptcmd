@@ -30,6 +30,7 @@ $ How can I create a loop in rust
 - [Advanced Configuration](#advanced-configuration)
   - [Variants](#variants)
   - [Load Balancing](#load-balancing)
+  - [Caching Balancing](#caching)
 - [Monitoring Usage](#monitoring-usage)
 - [License](#license)
 
@@ -257,6 +258,23 @@ providers = [
 ]
 ```
 
+### Caching
+
+You can specify an amount of time where identical requests result in cached
+responses, i.e., without hitting your provider's API.
+
+This can be done across all providers or specific to particular ones:
+
+```toml
+[providers]
+cache_ttl = 2 # cache for number of sections
+
+[providers.anthropic]
+cache_ttl = 4
+
+[providers.anthropic.myvariant]
+cache_ttl = 8
+```
 ---
 
 ## Monitoring Usage
@@ -285,6 +303,25 @@ Test prompts without calling the API:
 ```bash
 $ promptctl run --dry PROMPTNAME -- [PROMPT ARGS]
 ```
+
+## Related Projects
+
+promptcmd is inspired by existing tools like
+[llm](https://github.com/simonw/llm),
+[runprompt](https://github.com/chr15m/runprompt),
+[claude-switcher](https://github.com/andisearch/claude-switcher), among others.
+What distinguishes promptcmd is that it treats prompts as first-class CLI
+programs. Each prompt becomes a dedicated command with typed parameters, help
+text, and proper argument parsing—reducing repeated boilerplate.
+
+Further distinguishing aspects:
+
+- Prompts can invoke other prompts for compositional workflows where each prompt
+does one thing and does it (hopefully) right.
+- Load balancing and auto selecting next model based on token consumption
+- Caching responses for a defined number of seconds
+
+Check out this [comparison table](https://promptcmd.sh/#compare) for more details.
 
 ---
 

@@ -11,6 +11,7 @@ use std::sync::{Arc, Mutex};
 use promptcmd::installer::symlink::SymlinkInstaller;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use std::fs;
+use std::io::{self, BufReader};
 use log::debug;
 use clap::{Parser, Subcommand};
 use anyhow::Context;
@@ -99,13 +100,11 @@ fn main() -> Result<()> {
     };
 
     let cli = Cli::parse();
-    let stdin = std::io::stdin();
-    let mut stdout = std::io::stdout();
 
     match cli.command {
         Commands::Edit(cmd) => cmd.exec(
-            &mut stdin.lock(),
-            &mut stdout,
+            &mut BufReader::new(io::stdin()),
+            &mut std::io::stdout(),
             &mut prompts_storage,
             &editor,),
 
@@ -116,8 +115,8 @@ fn main() -> Result<()> {
         Commands::Disable(cmd) => cmd.exec(&mut installer),
 
         Commands::Create(cmd) => cmd.exec(
-            &mut stdin.lock(),
-            &mut stdout,
+            &mut BufReader::new(io::stdin()),
+            &mut std::io::stdout(),
             &mut prompts_storage,
             &mut installer,
             &editor,
@@ -144,7 +143,7 @@ fn main() -> Result<()> {
             };
             let executor_arc = Arc::new(executor);
             cmd.exec(
-                &mut stdin.lock(),
+                &mut BufReader::new(io::stdin()),
                 executor_arc
             )
         },
@@ -161,12 +160,12 @@ fn main() -> Result<()> {
 
         Commands::Resolve(cmd) => cmd.exec(
             &appconfig,
-            &mut stdout
+            &mut std::io::stdout(),
         ),
 
         Commands::Config(cmd) => cmd.exec(
-            &mut stdin.lock(),
-            &mut stdout,
+            &mut BufReader::new(io::stdin()),
+            &mut std::io::stdout(),
             &editor
         ),
     }

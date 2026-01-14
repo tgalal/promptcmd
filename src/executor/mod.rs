@@ -8,7 +8,8 @@ use log::error;
 use serde_json::Value;
 use thiserror::Error;
 use tokio::runtime::Runtime;
-use crate::{config::appconfig, dotprompt::{helpers, OutputFormat}};
+use xxhash_rust::xxh3::xxh3_64;
+use crate::{config::{appconfig}, dotprompt::{helpers, OutputFormat}};
 use crate::config::providers;
 use crate::config::resolver;
 use crate::dotprompt;
@@ -86,6 +87,24 @@ impl Executor {
 
         Ok(dotprompt)
     }
+    fn cache_key(
+        promptname: &str,
+        provider: &str,
+        model: &str,
+        variant: Option<&str>,
+        group: Option<&str>,
+        data: &str) -> i64 {
+        let full_data = format!(
+            "{}|{}|{}|{}|{}|{}",
+            promptname,
+            provider,
+            model,
+            variant.unwrap_or("-"),
+            group.unwrap_or("-"),
+            data.replace(" ", "").replace("\n", "")
+        );
+        xxh3_64(full_data.as_bytes()) as i64
+    }
 
     pub fn execute_dotprompt(
         self: Arc<Self>,
@@ -125,12 +144,12 @@ impl Executor {
             self.appconfig.as_ref(), &requested_name,
             Some(resolver::ResolvedPropertySource::Dotprompt(requested_name.clone())))?;
 
-        let (group_choice, variant_name, (model_info, mut llmbuilder)) = match &resolved_config {
+        let (cache_ttl, group_choice, variant_name, (model_info, mut llmbuilder)) = match &resolved_config {
             resolver::ResolvedConfig::Base(base)  => {
-                (None, None, <(providers::ModelInfo, LLMBuilder)>::try_from(base)?)
+                (base.cache_ttl.as_ref(), None, None, <(providers::ModelInfo, LLMBuilder)>::try_from(base)?)
             },
             resolver::ResolvedConfig::Variant(variant)  => {
-                (None, Some(variant.name.clone()), <(providers::ModelInfo,
+                (variant.cache_ttl.as_ref(), None, Some(variant.name.clone()), <(providers::ModelInfo,
                     LLMBuilder)>::try_from(variant)?)
             },
             resolver::ResolvedConfig::Group(group) => {
@@ -138,11 +157,11 @@ impl Executor {
                     lb::BalanceScope::Group , lb::BalanceLevel::Variant)?;
                 match choice {
                     lb::Choice::Base(base) => {
-                        (Some((group.name.clone(), choice)), None, <(providers::ModelInfo,
+                        (base.cache_ttl.as_ref(), Some((group.name.clone(), choice)), None, <(providers::ModelInfo,
                             LLMBuilder)>::try_from(base)?)
                     }
                     lb::Choice::Variant(variant) => {
-                        (Some((group.name.clone(), choice)), Some(variant.name.clone()),
+                        (variant.cache_ttl.as_ref(), Some((group.name.clone(), choice)), Some(variant.name.clone()),
                             <(providers::ModelInfo, LLMBuilder)>::try_from(variant)?)
                     }
                 }
@@ -172,6 +191,31 @@ impl Executor {
             println!("<<< End Rendered Prompt");
 
             return Ok("[no response due to dry run]".to_string());
+        }
+
+        let cache_key = Executor::cache_key(
+            &dotprompt.template,
+            &model_info.provider,
+            &model_info.model,
+            variant_name.as_deref(),
+            group_choice.as_ref().map(|(n, _)| n.as_str()),
+            &rendered_dotprompt
+        );
+
+        if let Some(cache_ttl) = cache_ttl && cache_ttl.value > 0 {
+            debug!("Cache requested, ttl set to {} seconds via {}", cache_ttl.value, &cache_ttl.source);
+            match self.statsstore.lock().unwrap().cached(cache_key, cache_ttl.value) {
+                Ok(Some(record)) => {
+                    debug!("Found cached response");
+                    return Ok(record.result)
+                },
+                Ok(None) => {
+                    debug!("No cache found")
+                },
+                Err(err) => {
+                    error!("Cache error: {}", err)
+                }
+            }
         }
 
         let llm = llmbuilder.build()?;
@@ -214,7 +258,8 @@ impl Executor {
                 result: response_text.clone(),
                 success,
                 time_taken: elapsed,
-                created: Utc::now()
+                created: Utc::now(),
+                cache_key: Some(cache_key)
             }
         );
 

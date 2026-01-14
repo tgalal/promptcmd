@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
+use chrono::{Duration, Utc};
 use rusqlite::{params, params_from_iter, Connection};
 use thiserror::Error;
+use log::debug;
 
 use crate::stats::{store::{FetchError, LogError, LogRecord, StatsStore, SummaryItem}, DB_NAME};
 
@@ -32,6 +34,7 @@ impl RusqliteStore {
         let tx = conn.transaction()?;
 
         if version < 1 {
+            debug!("Applying v1 migration");
             tx.execute_batch(
                 "CREATE TABLE logs (
                     id INTEGER PRIMARY KEY,
@@ -49,7 +52,25 @@ impl RusqliteStore {
                 );"
             )?;
         }
-        tx.pragma_update(None, "user_version", 2)?;
+
+        if version < 2 {
+            // applied before the transaction
+            debug!("Applying v2 migration");
+        }
+
+        if version < 3 {
+            debug!("Applying v3 migration");
+            tx.execute(
+                "ALTER TABLE logs ADD COLUMN cache_key INTEGER",
+                []
+            )?;
+            tx.execute(
+                "CREATE INDEX idx_cache_composite ON logs (cache_key, created);",
+                []
+            )?;
+        }
+
+        tx.pragma_update(None, "user_version", 3)?;
 
         tx.commit()?;
 
@@ -72,8 +93,9 @@ impl StatsStore for RusqliteStore {
                 result,
                 success,
                 time_taken,
-                created
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)", params![
+                created,
+                cache_key
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)", params![
                 &record.promptname,
                 &record.provider,
                 &record.model,
@@ -84,11 +106,60 @@ impl StatsStore for RusqliteStore {
                 &record.result,
                 record.success,
                 record.time_taken,
-                &record.created.to_rfc3339()
+                &record.created.to_rfc3339(),
+                &record.cache_key
             ]
         ).map_err(|e| LogError::GeneralError(e.to_string()))?;
 
         Ok(())
+    }
+
+    fn cached(&self, cache_key: i64, ttl: u32) -> Result<Option<LogRecord>, FetchError> {
+        let cutoff = (Utc::now() - Duration::seconds(ttl.into())).to_rfc3339();
+        let sql = String::from(
+            "SELECT
+                promptname,
+                provider,
+                model,
+                variant,
+                `group`,
+                prompt_tokens,
+                completion_tokens,
+                result,
+                success,
+                time_taken,
+                created,
+                cache_key
+            FROM logs WHERE cache_key = ?1 AND created > ?2
+        ");
+
+        let mut stmt = self.conn.prepare(&sql)
+            .map_err(|err| FetchError::GeneralError(err.to_string()))?;
+
+        let result = stmt.query_one(params![cache_key, cutoff], |row| {
+            Ok(
+                LogRecord {
+                    promptname: row.get(0)?,
+                    provider: row.get(1)?,
+                    model: row.get(2)?,
+                    variant: row.get(3)?,
+                    group: row.get(4)?,
+                    prompt_tokens: row.get(5)?,
+                    completion_tokens: row.get(6)?,
+                    result: row.get(7)?,
+                    success: row.get(8)?,
+                    time_taken: row.get(9)?,
+                    created: row.get(10)?,
+                    cache_key: row.get(11)?
+                }
+            )
+        });
+
+        match result {
+            Ok(record) => Ok(Some(record)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(err) => Err(FetchError::GeneralError(err.to_string()))
+        }
     }
 
     fn records(&self, last: Option<u32>) -> Result<Vec<LogRecord>, FetchError> {
@@ -104,7 +175,8 @@ impl StatsStore for RusqliteStore {
                 result,
                 success,
                 time_taken,
-                created
+                created,
+                cache_key
             FROM logs
         ");
 
@@ -131,7 +203,8 @@ impl StatsStore for RusqliteStore {
                     result: row.get(7)?,
                     success: row.get(8)?,
                     time_taken: row.get(9)?,
-                    created: row.get(10)?
+                    created: row.get(10)?,
+                    cache_key: row.get(11)?
                 }
             )
         }).map_err(|err| FetchError::GeneralError(err.to_string()))?;

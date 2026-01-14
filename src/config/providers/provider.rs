@@ -6,7 +6,8 @@ macro_rules! create_provider {
             temperature: f32,
             system: String,
             max_tokens: u32,
-            model: String
+            model: String,
+            cache_ttl: u32
         );
     };
 

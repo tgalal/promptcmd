@@ -43,6 +43,7 @@ pub struct GlobalProviderProperties {
     pub max_tokens: Option<u32>,
     pub model: Option<String>,
     pub system: Option<String>,
+    pub cache_ttl: Option<u32>
 }
 
 #[derive(Debug, Deserialize, Default)]

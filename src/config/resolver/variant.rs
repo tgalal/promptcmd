@@ -9,6 +9,7 @@ pub struct Variant {
     pub base_name: String,
     pub resolved: ResolvedProviderConfig,
     pub model_info: Result<ModelInfo, ToModelInfoError>,
+    pub cache_ttl: Option<ResolvedProperty<u32>>
 }
 
 impl Variant {
@@ -19,7 +20,7 @@ impl Variant {
         global_provider_properties: &GlobalProviderProperties,
         model_resolved_property: Option<ResolvedProperty<String>>) -> Self {
 
-        let (model_info, resolved) = match source {
+        let (cache_ttl, model_info, resolved) = match source {
             VariantProviderConfigSource::Ollama(variant_config, base_config) => {
                 let resolved = providers::ollama::ResolvedProviderConfigBuilder::from(
                     global_provider_properties
@@ -31,7 +32,7 @@ impl Variant {
                             .build()
                 ).override_model(model_resolved_property).apply_env().apply_default().build();
 
-                (ModelInfo::try_from(&resolved), ResolvedProviderConfig::Ollama(resolved))
+                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::Ollama(resolved))
             },
             VariantProviderConfigSource::Anthropic(variant_config, base_config) => {
                 let resolved = providers::anthropic::ResolvedProviderConfigBuilder::from(
@@ -44,7 +45,7 @@ impl Variant {
                             .build()
                 ).override_model(model_resolved_property).apply_env().apply_default().build();
 
-                (ModelInfo::try_from(&resolved), ResolvedProviderConfig::Anthropic(resolved))
+                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::Anthropic(resolved))
             },
             VariantProviderConfigSource::OpenAI(variant_config, base_config) => {
                 let resolved = providers::openai::ResolvedProviderConfigBuilder::from(
@@ -57,7 +58,7 @@ impl Variant {
                             .build()
                 ).override_model(model_resolved_property).apply_env().apply_default().build();
 
-                (ModelInfo::try_from(&resolved), ResolvedProviderConfig::OpenAI(resolved))
+                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::OpenAI(resolved))
             },
             VariantProviderConfigSource::Google(variant_config, base_config) => {
                 let resolved = providers::google::ResolvedProviderConfigBuilder::from(
@@ -70,7 +71,7 @@ impl Variant {
                             .build()
                 ).override_model(model_resolved_property).apply_env().apply_default().build();
 
-                (ModelInfo::try_from(&resolved), ResolvedProviderConfig::Google(resolved))
+                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::Google(resolved))
             },
             VariantProviderConfigSource::OpenRouter(variant_config, base_config) => {
                 let resolved = providers::openrouter::ResolvedProviderConfigBuilder::from(
@@ -83,7 +84,7 @@ impl Variant {
                             .build()
                 ).override_model(model_resolved_property).apply_env().apply_default().build();
 
-                (ModelInfo::try_from(&resolved), ResolvedProviderConfig::OpenRouter(resolved))
+                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::OpenRouter(resolved))
             },
         };
 
@@ -92,7 +93,8 @@ impl Variant {
             base_name: base_name.clone(),
             // source,
             resolved,
-            model_info
+            model_info,
+            cache_ttl
         }
     }
 }

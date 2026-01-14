@@ -10,7 +10,8 @@ use crate::config::providers;
 pub struct Base {
     pub name: String,
     pub resolved: ResolvedProviderConfig,
-    pub model_info: Result<ModelInfo, ToModelInfoError>
+    pub model_info: Result<ModelInfo, ToModelInfoError>,
+    pub cache_ttl: Option<ResolvedProperty<u32>>
 }
 
 impl Base {
@@ -20,7 +21,7 @@ impl Base {
         global_provider_properties: &GlobalProviderProperties,
         model_resolved_property: Option<ResolvedProperty<String>>) -> Self {
 
-        let (model_info, resolved) = match source {
+        let (cache_ttl, model_info, resolved) = match source {
             BaseProviderConfigSource::Ollama(source_config) => {
                 let resolved = providers::ollama::ResolvedProviderConfigBuilder::from(
                     global_provider_properties
@@ -29,7 +30,7 @@ impl Base {
                         (source_config, ResolvedPropertySource::Base(name.clone()))).build()
                 ).override_model(model_resolved_property).apply_env().apply_default().build();
 
-                (ModelInfo::try_from(&resolved),ResolvedProviderConfig::Ollama(resolved))
+                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved),ResolvedProviderConfig::Ollama(resolved))
             },
 
             BaseProviderConfigSource::Anthropic(source_config) => {
@@ -40,7 +41,7 @@ impl Base {
                         (source_config, ResolvedPropertySource::Base(name.clone()))).build()
                 ).override_model(model_resolved_property).apply_env().apply_default().build();
 
-                (ModelInfo::try_from(&resolved),ResolvedProviderConfig::Anthropic(resolved))
+                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved),ResolvedProviderConfig::Anthropic(resolved))
 
             },
             BaseProviderConfigSource::OpenAI(source_config) => {
@@ -51,7 +52,7 @@ impl Base {
                         (source_config, ResolvedPropertySource::Base(name.clone()))).build()
                 ).override_model(model_resolved_property).apply_env().apply_default().build();
 
-                (ModelInfo::try_from(&resolved),ResolvedProviderConfig::OpenAI(resolved))
+                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved),ResolvedProviderConfig::OpenAI(resolved))
             },
             BaseProviderConfigSource::Google(source_config) => {
                 let resolved = providers::google::ResolvedProviderConfigBuilder::from(
@@ -61,7 +62,7 @@ impl Base {
                         (source_config, ResolvedPropertySource::Base(name.clone()))).build()
                 ).override_model(model_resolved_property).apply_env().apply_default().build();
 
-                (ModelInfo::try_from(&resolved),ResolvedProviderConfig::Google(resolved))
+                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved),ResolvedProviderConfig::Google(resolved))
             },
             BaseProviderConfigSource::OpenRouter(source_config) => {
                 let resolved = providers::openrouter::ResolvedProviderConfigBuilder::from(
@@ -71,13 +72,14 @@ impl Base {
                         (source_config, ResolvedPropertySource::Base(name.clone()))).build()
                 ).override_model(model_resolved_property).apply_env().apply_default().build();
 
-                (ModelInfo::try_from(&resolved),ResolvedProviderConfig::OpenRouter(resolved))
+                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved),ResolvedProviderConfig::OpenRouter(resolved))
             },
         };
         Self {
             name,
             resolved,
-            model_info
+            model_info,
+            cache_ttl,
         }
     }
 }

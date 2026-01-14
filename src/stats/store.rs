@@ -31,7 +31,8 @@ pub struct LogRecord {
     pub result: String,
     pub success: bool,
     pub time_taken: u32,
-    pub created: DateTime<Utc>
+    pub created: DateTime<Utc>,
+    pub cache_key: Option<i64>
 }
 
 #[derive(Debug)]
@@ -47,6 +48,7 @@ pub struct SummaryItem {
 pub trait StatsStore {
     fn log(&self, item: LogRecord) -> Result<(), LogError>;
     fn records(&self, last: Option<u32>) -> Result<Vec<LogRecord>, FetchError>;
+    fn cached(&self, cache_key: i64, ttl: u32) -> Result<Option<LogRecord>, FetchError>;
     fn summary(&self,
         provider: Option<String>,
         model: Option<String>,

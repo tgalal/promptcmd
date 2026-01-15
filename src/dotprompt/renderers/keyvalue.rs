@@ -17,9 +17,6 @@ impl Render<PromptInputs> for DotPrompt {
             hbs.register_helper(k, v);
         }
 
-        // hbs.register_helper("exec", Box::new(ExecHelper));
-        // hbs.register_helper("prompt", Box::new());
-
         let template_name = &self.name;
         hbs.register_template_string(template_name, &self.template)?;
 

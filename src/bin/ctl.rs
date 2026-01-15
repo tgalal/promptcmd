@@ -143,7 +143,6 @@ fn main() -> Result<()> {
             };
             let executor_arc = Arc::new(executor);
             cmd.exec(
-                &mut BufReader::new(io::stdin()),
                 executor_arc
             )
         },

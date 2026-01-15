@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}, time::Instant};
+use std::{collections::HashMap, io::{BufReader}, sync::{Arc, Mutex}, time::Instant};
 
 use chrono::Utc;
 use handlebars::HelperDef;
@@ -123,13 +123,20 @@ impl Executor {
 
         let exec_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ExecHelper);
         let concat_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ConcatHelper);
+        let stdin_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::StdinHelper {
+            inp: Mutex::new(BufReader::new(std::io::stdin()))
+        });
+        let stdin_helper2: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::StdinHelper {
+            inp: Mutex::new(BufReader::new(std::io::stdin()))
+        });
 
         let helpers_map: HashMap<&str, Box<dyn HelperDef + Send + Sync>> = HashMap::from([
             ("exec", exec_helper),
             ("prompt", prompt_helper),
-            ("concat", concat_helper)
+            ("concat", concat_helper),
+            ("stdin", stdin_helper),
+            ("STDIN", stdin_helper2),
         ]);
-
 
         let rendered_dotprompt: String = dotprompt.render(inputs, helpers_map)?;
 

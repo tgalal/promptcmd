@@ -39,7 +39,6 @@ pub enum RunCmdError {
 
 impl RunCmd {
     pub fn exec(&self,
-        inp: &mut impl std::io::BufRead,
         executor: Arc<Executor>,
         ) -> Result<()> {
 
@@ -52,18 +51,8 @@ impl RunCmd {
         let params = [vec!["--".to_string()], self.prompt_args.clone()].concat();
         let matches = command.get_matches_from(params);
 
-        let stdin = if dotprompt.template_needs_stdin() {
-            let mut buffer = String::new();
-            inp.read_to_string(&mut buffer)
-                .context("Failed to read stdin")?;
-            Some(buffer)
-        } else {
-            None
-        };
-
         let argmatches = DotPromptArgMatches {
             matches,
-            stdin,
             dotprompt: &dotprompt
         };
 

@@ -14,7 +14,6 @@ use std::sync::{Arc, Mutex};
 use std::{env};
 use anyhow::{Context, Result};
 use std::path::PathBuf;
-use std::io::{self, Read};
 use std::fs;
 use log::debug;
 
@@ -105,21 +104,10 @@ fn main() -> Result<()> {
 
     let arc_executor = Arc::new(executor);
 
-
-    let stdin = if dotprompt.template_needs_stdin() {
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)
-            .context("Failed to read stdin")?;
-        Some(buffer)
-    } else {
-        None
-    };
-
     let dry = *matches.get_one::<bool>("dry").unwrap_or(&false);
 
     let argmatches = DotPromptArgMatches {
         matches,
-        stdin,
         dotprompt: &dotprompt
     };
 

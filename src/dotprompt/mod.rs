@@ -290,10 +290,6 @@ impl TryFrom<(&str, &str)> for DotPrompt {
 }
 
 impl DotPrompt {
-    pub fn template_needs_stdin(&self) -> bool {
-        self.template.contains("{{STDIN}}")
-    }
-
     pub fn output_to_extract_structured_json(&self, name: &str) -> String {
         let output_schema = &self.frontmatter.output.schema;
         let mut properties: HashMap<String, serde_json::Value> = HashMap::new();
@@ -588,32 +584,6 @@ Template"#;
         assert!(schema.contains_key("age"));
         assert!(schema.contains_key("files"));
         assert!(schema.contains_key("verbose"));
-    }
-
-    #[test]
-    fn test_template_needs_stdin_true() {
-        let content = r#"---
-model: test/model
-output:
-  format: text
----
-Process this: {{STDIN}}"#;
-
-        let dotprompt = DotPrompt::try_from(content).unwrap();
-        assert!(dotprompt.template_needs_stdin());
-    }
-
-    #[test]
-    fn test_template_needs_stdin_false() {
-        let content = r#"---
-model: test/model
-output:
-  format: text
----
-No stdin needed"#;
-
-        let dotprompt = DotPrompt::try_from(content).unwrap();
-        assert!(!dotprompt.template_needs_stdin());
     }
 
     #[test]

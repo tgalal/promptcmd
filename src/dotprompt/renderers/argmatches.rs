@@ -5,20 +5,15 @@ use crate::{dotprompt::{renderers::{RenderError}, DotPrompt}, executor::PromptIn
 
 pub struct DotPromptArgMatches<'a> {
     pub matches: ArgMatches,
-    pub stdin: Option<String>,
     pub dotprompt: &'a DotPrompt
 }
 
 impl<'a> TryFrom<DotPromptArgMatches<'a>> for PromptInputs {
     type Error = RenderError;
-    fn try_from(mut dp_matches: DotPromptArgMatches) -> Result<Self, Self::Error> {
+    fn try_from(dp_matches: DotPromptArgMatches) -> Result<Self, Self::Error> {
 
         let mut inputs = PromptInputs::new();
         let dp = dp_matches.dotprompt;
-
-        if let Some(stdin) = dp_matches.stdin.take()  {
-            inputs.insert("STDIN".to_string(), stdin.into());
-        }
 
         let matches = &dp_matches.matches;
 

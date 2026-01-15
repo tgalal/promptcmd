@@ -78,7 +78,7 @@ fn main() -> Result<()> {
         prompts_storage.load(&promptname)?.1
     };
 
-    let dotprompt: DotPrompt = DotPrompt::try_from(promptdata.as_str())?;
+    let dotprompt: DotPrompt = DotPrompt::try_from((promptname.as_str(), promptdata.as_str()))?;
 
     command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;
     command = command.arg(Arg::new("dry")

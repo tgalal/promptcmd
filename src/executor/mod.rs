@@ -129,6 +129,10 @@ impl Executor {
         let stdin_helper2: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::StdinHelper {
             inp: Mutex::new(BufReader::new(std::io::stdin()))
         });
+        let ask_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::AskHelper {
+            promptname: dotprompt.name.clone(),
+            inp: Mutex::new(BufReader::new(std::io::stdin()))
+        });
 
         let helpers_map: HashMap<&str, Box<dyn HelperDef + Send + Sync>> = HashMap::from([
             ("exec", exec_helper),
@@ -136,6 +140,7 @@ impl Executor {
             ("concat", concat_helper),
             ("stdin", stdin_helper),
             ("STDIN", stdin_helper2),
+            ("ask", ask_helper),
         ]);
 
         let rendered_dotprompt: String = dotprompt.render(inputs, helpers_map)?;

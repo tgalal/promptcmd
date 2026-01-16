@@ -9,6 +9,7 @@ use serde::Deserialize;
 
 create_provider!("openai" {
     api_key: String,
+    endpoint: String,
 });
 
 impl TryFrom<&ResolvedProviderConfig> for LLMBuilder {
@@ -28,6 +29,10 @@ impl TryFrom<&ResolvedProviderConfig> for LLMBuilder {
 
         if let Some(max_tokens) = config.max_tokens.as_ref() {
             builder = builder.max_tokens(max_tokens.value);
+        }
+
+        if let Some(endpoint) = config.endpoint.as_ref() {
+            builder = builder.base_url(&endpoint.value);
         }
 
         builder = builder.api_key(

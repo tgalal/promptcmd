@@ -58,7 +58,7 @@ impl RunCmd {
 
         let inputs: PromptInputs = argmatches.try_into()?;
 
-        let result = executor.execute_dotprompt(&dotprompt, inputs, self.dry)?;
+        let result = executor.execute_dotprompt(&dotprompt, None, None, inputs, self.dry)?;
         println!("{}", result);
 
         Ok(())

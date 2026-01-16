@@ -6,12 +6,12 @@ use log::{error, info};
 
 use crate::cmd::enable::EnableCmd;
 use crate::cmd::{templates, TextEditor, TextEditorFileType};
-use crate::config::appconfig::{AppConfig};
+use crate::config::appconfig::{AppConfig, GlobalProviderProperties};
 use crate::config::appconfig_locator;
 use crate::installer::DotPromptInstaller;
 use crate::storage::PromptFilesStorage;
 use crate::{dotprompt::DotPrompt};
-use crate::config::resolver::{self, ResolvedPropertySource};
+use crate::config::resolver::{self, ResolvedGlobalProperties, ResolvedPropertySource, Resolver};
 use crate::config::providers::{ModelInfo, error};
 
 
@@ -94,10 +94,19 @@ impl CreateCmd {
                         .join("\n");
 
                     if let Some(model_name) = model_name {
-
-                        let resolved_config = match resolver::resolve(
-                            appconfig, &model_name, Some(ResolvedPropertySource::Dotprompt(model_name.clone())
-                        )) {
+                        let mut resolver = Resolver {
+                            fm_properties: Some(ResolvedGlobalProperties {
+                                source: ResolvedPropertySource::Dotprompt(model_name.clone()),
+                                properties: GlobalProviderProperties {
+                                    model: Some(model_name.clone()),
+                                    ..Default::default()
+                                }
+                            }),
+                            overrides: None,
+                        };
+                        let resolved_config = match resolver.resolve(
+                            appconfig, None
+                        ) {
                             Ok(resolver::ResolvedConfig::Base(base))  => {
                                 <(ModelInfo, LLMBuilder)>::try_from(&base)
                             },
@@ -119,7 +128,7 @@ impl CreateCmd {
 
                         match resolved_config {
                             Ok(_) => {},
-                            Err(error::ToLLMBuilderError::RequiredConfiguration(_name)) | Err(error::ToLLMBuilderError::ModelError(error::ToModelInfoError::RequiredConfiguration(_name))) => {
+                            Err(error::ToLLMBuilderError::RequiredConfiguration(_, _name)) | Err(error::ToLLMBuilderError::ModelError(error::ToModelInfoError::RequiredConfiguration(_name))) => {
 
                                 if model_name.starts_with("anthropic") {
                                     writeln!(out, "{}{}", templates::ONBOARDING_ANTHROPIC, config_paths)?

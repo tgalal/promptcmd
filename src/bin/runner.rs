@@ -1,6 +1,7 @@
-use clap::{Arg, Command};
+use clap::{value_parser, Arg, ArgGroup, Command};
+use promptcmd::config::resolver::{ResolvedGlobalProperties, ResolvedPropertySource};
 use promptcmd::config::{self, appconfig_locator};
-use promptcmd::config::appconfig::{AppConfig};
+use promptcmd::config::appconfig::{AppConfig, GlobalProviderProperties};
 use promptcmd::cmd::run;
 use promptcmd::dotprompt::renderers::argmatches::DotPromptArgMatches;
 use promptcmd::dotprompt::DotPrompt;
@@ -80,12 +81,53 @@ fn main() -> Result<()> {
 
     let dotprompt: DotPrompt = DotPrompt::try_from((promptname.as_str(), promptdata.as_str()))?;
 
+    command = command.disable_help_flag(true);
+    command = command.next_help_heading("Prompt inputs");
     command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;
+    command = command.next_help_heading("General Options");
     command = command.arg(Arg::new("dry")
         .long("dry")
         .help("Dry run")
         .action(clap::ArgAction::SetTrue)
-        .required(false));
+        .required(false))
+        .arg(
+            Arg::new("help")
+            .long("help")
+            .short('h')
+            .action(clap::ArgAction::Help)
+            .help("Print help")
+        );
+    command = command.next_help_heading("Optional Configuration Overrides")
+        .arg(Arg::new("model")
+            .long("config-model")
+            .short('m')
+        )
+        .arg(Arg::new("stream")
+            .long("config-stream")
+            .action(clap::ArgAction::SetTrue)
+        )
+        .arg(Arg::new("nostream")
+            .long("config-no-stream")
+            .action(clap::ArgAction::SetTrue)
+        )
+        .group(ArgGroup::new("streamgroup").args(["stream", "nostream"]))
+        .arg(Arg::new("cache_ttl")
+            .long("config-cache-ttl")
+            .value_parser(value_parser!(u32))
+        )
+        .arg(Arg::new("temperature")
+            .long("config-temperature")
+            .alias("config-temp")
+            .value_parser(value_parser!(f32))
+        )
+        .arg(Arg::new("max_tokens")
+            .long("config-max-tokens")
+            .value_parser(value_parser!(u32))
+        )
+        .arg(Arg::new("system")
+            .long("config-system")
+        )
+        ;
 
     let matches = command.get_matches();
 
@@ -106,6 +148,19 @@ fn main() -> Result<()> {
 
     let dry = *matches.get_one::<bool>("dry").unwrap_or(&false);
 
+    let resolved_cmd_properties = ResolvedGlobalProperties {
+        source: ResolvedPropertySource::Inputs,
+        properties: GlobalProviderProperties {
+            temperature: matches.get_one::<f32>("temperature").copied(),
+            max_tokens: matches.get_one::<u32>("max_tokens").copied(),
+            model: None,
+            system: matches.get_one::<String>("system").map(|s| s.to_string()),
+            cache_ttl: matches.get_one::<u32>("cache_ttl").copied(),
+        }
+    };
+
+    let requested_model = matches.get_one::<String>("model").map(|s| s.to_string());
+
     let argmatches = DotPromptArgMatches {
         matches,
         dotprompt: &dotprompt
@@ -113,8 +168,9 @@ fn main() -> Result<()> {
 
     let inputs: PromptInputs = argmatches.try_into()?;
 
-
-    let result = arc_executor.execute_dotprompt(&dotprompt, inputs, dry)?;
+    let result = arc_executor.execute_dotprompt(&dotprompt,
+        Some(resolved_cmd_properties), requested_model,
+        inputs, dry)?;
     println!("{}", result);
 
     Ok(())

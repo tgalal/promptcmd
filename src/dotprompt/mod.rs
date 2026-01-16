@@ -30,13 +30,21 @@ pub enum ParseError {
 struct Frontmatter {
     pub model: Option<String>,
     pub input: Option<Input>,
-    pub output: Option<Output>
+    pub output: Option<Output>,
+    pub config: Option<FrontmatterConfig>
+}
+
+#[derive(Debug, Deserialize, PartialEq, Default)]
+pub struct FrontmatterConfig {
+    pub temperature: Option<f32>,
+    pub max_output_tokens: Option<u32>,
 }
 
 #[derive(Debug, Default, PartialEq)]
 pub struct ParsedFrontmatter {
     pub from_frontmatter: bool,
     pub model: Option<String>,
+    pub config: Option<FrontmatterConfig>,
     pub input: ParsedInput,
     pub output: ParsedOutput
 }
@@ -47,7 +55,8 @@ impl ParsedFrontmatter {
             model: Some(model.to_string()),
             from_frontmatter: false,
             input: ParsedInput::default(),
-            output: ParsedOutput::default()
+            output: ParsedOutput::default(),
+            config: None
         }
     }
 }
@@ -105,11 +114,11 @@ impl TryFrom<&str> for DotPrompt {
     }
 }
 
-impl TryFrom<&Frontmatter> for ParsedFrontmatter {
+impl TryFrom<&mut Frontmatter> for ParsedFrontmatter {
     type Error = ParseError;
 
 
-    fn try_from(fm: &Frontmatter) -> std::result::Result<Self, Self::Error> {
+    fn try_from(fm: &mut Frontmatter) -> std::result::Result<Self, Self::Error> {
         fn build_schema(inp: &HashMap<String, Value>) -> Result<HashMap<String, SchemaElement>, ParseError> {
             let mut out: HashMap<String, SchemaElement> = HashMap::new();
             let enum_regex = Regex::new(r"^([^()]+)\(enum(?:,\s*([^)]*))?\)$").unwrap();
@@ -204,7 +213,8 @@ impl TryFrom<&Frontmatter> for ParsedFrontmatter {
 
         Ok(
             ParsedFrontmatter {
-                model: fm.model.clone(),
+                model: fm.model.take(),
+                config: fm.config.take(),
                 from_frontmatter: true,
                 input: ParsedInput {
                     schema: parsed_input_schema
@@ -278,7 +288,7 @@ impl TryFrom<(&str, &str)> for DotPrompt {
 
         let parsed_frontmatter = frontmatter.map_or_else(
             || Ok(ParsedFrontmatter::default()),
-            |fm| ParsedFrontmatter::try_from(&fm)
+            |mut fm| ParsedFrontmatter::try_from(&mut fm)
         )?;
 
         Ok(DotPrompt {

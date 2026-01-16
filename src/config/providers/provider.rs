@@ -14,6 +14,7 @@ macro_rules! create_provider {
     (@internal $provider_name:literal { $($field:ident : $type:ty),* }; $($global_field:ident : $global_field_type:ty),*) => {
         use $crate::config::resolver::ResolvedProperty;
         use $crate::config::resolver::ResolvedPropertySource;
+        use $crate::config::resolver::ResolvedGlobalProperties;
         use $crate::config::providers::constants;
         use $crate::config::providers::ModelInfo;
         use $crate::config::providers::error;
@@ -59,7 +60,7 @@ macro_rules! create_provider {
                 $(
                     builder.$global_field = read_env(
                         &stringify!($global_field_type).to_uppercase(),
-                        true, None
+                        true
                     );
                 )*
 
@@ -70,7 +71,7 @@ macro_rules! create_provider {
         fn read_env<T: std::str::FromStr>(
             key: &str,
             global: bool,
-            def: Option<ResolvedProperty<T>>) -> Option<ResolvedProperty<T>> {
+            ) -> Option<ResolvedProperty<T>> {
             let mut env_field_name_builder = vec!["PROMPTCMD"];
             let provider_prefix = $provider_name.to_uppercase();
 
@@ -92,8 +93,7 @@ macro_rules! create_provider {
                     source: ResolvedPropertySource::Env(env_field_name),
                     value
                 }
-            })
-            .or(def);
+            });
             env_field_value
         }
 
@@ -159,33 +159,52 @@ macro_rules! create_provider {
 
             pub fn apply_env(mut self) -> Self {
                 $(
-                    self.$global_field = read_env(&stringify!($global_field).to_uppercase(), false, self.$global_field);
+                    self.$global_field = read_env(&stringify!($global_field).to_uppercase(), false).or(self.$global_field);
                 )*
 
-                $(self.$field = read_env(&stringify!($field).to_uppercase(), false, self.$field));*;
+                $(
+                    self.$field = read_env(&stringify!($field).to_uppercase(), false).or(self.$field);
+                )*
                 self
             }
 
-            pub fn apply_default(mut self) -> Self {
-                self.temperature = self.temperature.or(
-                    Some(ResolvedProperty {
-                        source: ResolvedPropertySource::Default,
-                        value: constants::DEFAULT_TEMPERATURE
-                    })
-                );
-                self.system = self.system.or(
-                    Some(ResolvedProperty {
-                        source: ResolvedPropertySource::Default,
-                        value: constants::DEFAULT_SYSTEM.into()
-                    })
-                );
-                self.cache_ttl = self.cache_ttl.or(
-                    Some(ResolvedProperty {
-                        source: ResolvedPropertySource::Default,
-                        value: constants::DEFAULT_CACHE_TTL
-                    })
-                );
+            pub fn apply_providers_env(mut self) -> Self {
+                $(
+                    let key = format!("PROVIDERS_{}", stringify!($global_field).to_uppercase());
+                    self.$global_field = read_env(&key, true).or(self.$global_field);
+                )*
 
+                $(
+                    let key = format!("PROVIDERS_{}", stringify!($field).to_uppercase());
+                    self.$field = read_env(&key, true).or(self.$field);
+                )*
+                self
+            }
+
+            pub fn apply_variant_env(mut self, variant_name: &str) -> Self {
+                $(
+                    let key = format!("{}_{}", variant_name.to_uppercase(), stringify!($global_field).to_uppercase());
+                    self.$global_field = read_env(&key, false).or(self.$global_field);
+                )*
+
+                $(
+                    let key = format!("{}_{}", variant_name.to_uppercase(), stringify!($field).to_uppercase());
+                    self.$field = read_env(&key, false).or(self.$field);
+                )*
+                self
+            }
+
+            pub fn apply_global_overrides(mut self, globals: Option<ResolvedGlobalProperties>) -> Self {
+                if let Some(globals) = globals {
+                    $(
+                        if let Some(value) = globals.properties.$global_field {
+                            self.$global_field = Some(ResolvedProperty {
+                                source: globals.source.clone(),
+                                value
+                            });
+                        }
+                    )*
+                }
                 self
             }
 
@@ -196,7 +215,25 @@ macro_rules! create_provider {
                     $($field: self.$field),*
                 }
             }
+            pub fn from_defaults() -> Self {
+                Self {
+                    temperature:  Some(ResolvedProperty {
+                        source: ResolvedPropertySource::Default,
+                        value: constants::DEFAULT_TEMPERATURE
+                    }),
+                    system: Some(ResolvedProperty {
+                        source: ResolvedPropertySource::Default,
+                        value: constants::DEFAULT_SYSTEM.into()
+                    }),
+                    cache_ttl: Some(ResolvedProperty {
+                        source: ResolvedPropertySource::Default,
+                        value: constants::DEFAULT_CACHE_TTL
+                    }),
+                    ..Default::default()
+                }
+            }
         }
+
 
         impl From<ResolvedProviderConfigBuilder> for ResolvedProviderConfig {
             fn from(builder: ResolvedProviderConfigBuilder) -> Self {

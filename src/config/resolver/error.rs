@@ -10,4 +10,6 @@ pub enum ResolveError {
     GroupMemberNotFound(String, String),
     #[error("Group '{0}' failed to load member: {1}")]
     GroupMemberError(String, Box<ResolveError>),
+    #[error("Found no name to resolve")]
+    NoNameToResolve,
 }

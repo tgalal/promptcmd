@@ -3,8 +3,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ToLLMBuilderError {
-    #[error("'{0}' is required but not configured")]
-    RequiredConfiguration(&'static str),
+    #[error("{0} {1} is required but not configured")]
+    RequiredConfiguration(&'static str, &'static str),
     #[error("{0}")]
     ModelError(#[from] ToModelInfoError)
 }

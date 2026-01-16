@@ -7,6 +7,7 @@ use thiserror::Error;
 
 use crate::config::providers;
 use crate::config::resolver;
+use crate::dotprompt::ParsedFrontmatter;
 
 
 #[derive(Debug, Deserialize, Default)]
@@ -37,13 +38,25 @@ pub struct Import {
     pub force: bool,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct GlobalProviderProperties {
     pub temperature: Option<f32>,
     pub max_tokens: Option<u32>,
     pub model: Option<String>,
     pub system: Option<String>,
     pub cache_ttl: Option<u32>
+}
+
+impl From<&ParsedFrontmatter> for GlobalProviderProperties {
+    fn from(fm: &ParsedFrontmatter) -> Self {
+        GlobalProviderProperties {
+            temperature: fm.config.as_ref().and_then(|config| config.temperature),
+            max_tokens: fm.config.as_ref().and_then(|config| config.max_output_tokens),
+            model:  fm.model.clone(),
+            system: None,
+            cache_ttl: None
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]

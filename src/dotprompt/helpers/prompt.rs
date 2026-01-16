@@ -31,7 +31,7 @@ impl HelperDef for PromptHelper {
         }
 
         let executor = self.executor.clone();
-        let result = executor.execute(&promptname, inputs, self.dry).map_err(|err| {
+        let result = executor.execute(&promptname, None, None, inputs, self.dry).map_err(|err| {
             RenderError::from(RenderErrorReason::Other(err.to_string()))
         })?;
 

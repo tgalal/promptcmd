@@ -21,6 +21,7 @@ impl fmt::Display for ResolvedPropertySource {
             Self::Globals => write!(f, "Globals"),
             Self::Dotprompt(name) => write!(f, "Frontmatter({name})"),
             Self::Input(name) => write!(f, "Input({name})"),
+            Self::Inputs => write!(f, "Inputs"),
             Self::Other(name) => write!(f, "Other({name})")
         }
     }

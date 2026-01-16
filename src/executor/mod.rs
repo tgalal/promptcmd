@@ -9,7 +9,7 @@ use serde_json::Value;
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use xxhash_rust::xxh3::xxh3_64;
-use crate::{config::{appconfig}, dotprompt::{helpers, OutputFormat}};
+use crate::{config::{appconfig::{self, GlobalProviderProperties}, resolver::{error::ResolveError, ResolvedGlobalProperties, ResolvedPropertySource, Resolver}}, dotprompt::{helpers, OutputFormat}};
 use crate::config::providers;
 use crate::config::resolver;
 use crate::dotprompt;
@@ -109,12 +109,12 @@ impl Executor {
     pub fn execute_dotprompt(
         self: Arc<Self>,
         dotprompt: &dotprompt::DotPrompt,
+        overrides: Option<ResolvedGlobalProperties>,
+        requested_model: Option<String>,
         inputs: PromptInputs,
         dry: bool) -> Result<String, ExecutorErorr>{
 
         debug!("Executing dotprompt");
-
-        let appconfig = self.appconfig.as_ref();
 
         let prompt_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::PromptHelper {
             executor: self.clone(),
@@ -147,14 +147,23 @@ impl Executor {
 
          debug!("{rendered_dotprompt}");
 
-        let requested_name = dotprompt.frontmatter.model.clone()
-            .or(appconfig.providers.default.clone())
-            .or(appconfig.providers.globals.model.clone())
-            .ok_or(ExecutorErorr::Other("No model specified and no default model set in config".to_string()))?;
+        let mut resolver = Resolver {
+            overrides,
+            fm_properties: Some(ResolvedGlobalProperties {
+                source: ResolvedPropertySource::Dotprompt(dotprompt.name.clone()),
+                properties: GlobalProviderProperties::from(&dotprompt.frontmatter)
+            })
+        };
 
-        let resolved_config = resolver::resolve(
-            self.appconfig.as_ref(), &requested_name,
-            Some(resolver::ResolvedPropertySource::Dotprompt(requested_name.clone())))?;
+        let resolved_config = resolver.resolve(
+            self.appconfig.as_ref(), requested_model).map_err(|err| {
+               match err {
+                    ResolveError::NoNameToResolve => {
+                        ExecutorErorr::Other("No model specified and no default model set in config".to_string())
+                    }
+                    err => ExecutorErorr::ResolverError(err)
+               }
+            })?;
 
         let (cache_ttl, group_choice, variant_name, (model_info, mut llmbuilder)) = match &resolved_config {
             resolver::ResolvedConfig::Base(base)  => {
@@ -282,10 +291,12 @@ impl Executor {
         Ok(response_text)
     }
 
-    pub fn execute(self: Arc<Self>, promptname: &str, inputs: PromptInputs, dry: bool) -> Result<String, ExecutorErorr>{
+    pub fn execute(self: Arc<Self>, promptname: &str, overrides: Option<ResolvedGlobalProperties>,
+        requested_model: Option<String>, inputs: PromptInputs, dry: bool) -> Result<String,
+    ExecutorErorr>{
         debug!("Executing prompt name: {}", promptname);
         let dotprompt = self.load_dotprompt(promptname)?;
 
-        self.execute_dotprompt(&dotprompt, inputs, dry)
+        self.execute_dotprompt(&dotprompt, overrides, requested_model,inputs, dry)
     }
 }

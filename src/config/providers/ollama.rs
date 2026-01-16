@@ -32,13 +32,13 @@ impl TryFrom<&ResolvedProviderConfig> for LLMBuilder {
 
         builder = builder.base_url(
             config.endpoint.as_ref().ok_or(
-                error::ToLLMBuilderError::RequiredConfiguration("endpoint")
+                error::ToLLMBuilderError::RequiredConfiguration("ollama", "endpoint")
             )?.value.clone()
         );
 
         builder = builder.model(
             config.model.as_ref().ok_or(
-                error::ToLLMBuilderError::RequiredConfiguration("model")
+                error::ToLLMBuilderError::RequiredConfiguration("ollama", "model")
             )?.value.clone()
         );
 

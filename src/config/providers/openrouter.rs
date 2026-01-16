@@ -32,13 +32,13 @@ impl TryFrom<&ResolvedProviderConfig> for LLMBuilder {
 
         builder = builder.api_key(
             config.api_key.as_ref().ok_or(
-                error::ToLLMBuilderError::RequiredConfiguration("api_key")
+                error::ToLLMBuilderError::RequiredConfiguration("openrouter", "api_key")
             )?.value.clone()
         );
 
         builder = builder.model(
             config.model.as_ref().ok_or(
-                error::ToLLMBuilderError::RequiredConfiguration("model")
+                error::ToLLMBuilderError::RequiredConfiguration("openrouter", "model")
             )?.value.clone()
         );
 

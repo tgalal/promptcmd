@@ -18,15 +18,15 @@ impl TryFrom<&ResolvedProviderConfig> for LLMBuilder {
         let mut builder = LLMBuilder::new()
             .backend(llm::builder::LLMBackend::OpenRouter);
 
-        if let Some(temperature) = config.temperature.as_ref() {
+        if let Some(temperature) = config.globals.temperature.as_ref() {
             builder = builder.temperature(temperature.value);
         }
 
-        if let Some(system) = config.system.as_ref() {
+        if let Some(system) = config.globals.system.as_ref() {
             builder = builder.system(&system.value);
         }
 
-        if let Some(max_tokens) = config.max_tokens.as_ref() {
+        if let Some(max_tokens) = config.globals.max_tokens.as_ref() {
             builder = builder.max_tokens(max_tokens.value);
         }
 
@@ -37,7 +37,7 @@ impl TryFrom<&ResolvedProviderConfig> for LLMBuilder {
         );
 
         builder = builder.model(
-            config.model.as_ref().ok_or(
+            config.globals.model.as_ref().ok_or(
                 error::ToLLMBuilderError::RequiredConfiguration("openrouter", "model")
             )?.value.clone()
         );

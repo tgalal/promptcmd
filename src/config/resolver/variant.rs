@@ -9,7 +9,7 @@ pub struct Variant {
     pub base_name: String,
     pub resolved: ResolvedProviderConfig,
     pub model_info: Result<ModelInfo, ToModelInfoError>,
-    pub cache_ttl: Option<ResolvedProperty<u32>>
+    pub globals: ResolvedGlobalProperties
 }
 
 impl Variant {
@@ -44,42 +44,41 @@ impl Variant {
             }
         }
 
-        let (cache_ttl, model_info, resolved) = match source {
+        let (globals, model_info, resolved) = match source {
             VariantProviderConfigSource::Ollama(variant_config, base_config) => {
 
             let resolved = resolve_final_config!(ollama, base_config, variant_config);
 
-                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::Ollama(resolved))
+                (resolved.globals.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::Ollama(resolved))
             },
             VariantProviderConfigSource::Anthropic(variant_config, base_config) => {
                 let resolved = resolve_final_config!(anthropic, base_config, variant_config);
 
-                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::Anthropic(resolved))
+                (resolved.globals.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::Anthropic(resolved))
             },
             VariantProviderConfigSource::OpenAI(variant_config, base_config) => {
                 let resolved = resolve_final_config!(openai, base_config, variant_config);
 
-                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::OpenAI(resolved))
+                (resolved.globals.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::OpenAI(resolved))
             },
             VariantProviderConfigSource::Google(variant_config, base_config) => {
                 let resolved = resolve_final_config!(google, base_config, variant_config);
 
-                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::Google(resolved))
+                (resolved.globals.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::Google(resolved))
             },
             VariantProviderConfigSource::OpenRouter(variant_config, base_config) => {
                 let resolved = resolve_final_config!(openrouter, base_config, variant_config);
 
-                (resolved.cache_ttl.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::OpenRouter(resolved))
+                (resolved.globals.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::OpenRouter(resolved))
             },
         };
 
         Self {
             name,
             base_name: base_name.clone(),
-            // source,
             resolved,
             model_info,
-            cache_ttl
+            globals
         }
     }
 }

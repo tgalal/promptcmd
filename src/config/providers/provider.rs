@@ -7,7 +7,8 @@ macro_rules! create_provider {
             system: String,
             max_tokens: u32,
             model: String,
-            cache_ttl: u32
+            cache_ttl: u32,
+            stream: bool
         );
     };
 
@@ -21,7 +22,6 @@ macro_rules! create_provider {
         use $crate::config::appconfig::GlobalProviderProperties;
 
 
-        // Serialized formats for reading configuration files
         #[derive(Debug, Deserialize, Default)]
         pub struct Providers {
             #[serde(flatten)]
@@ -49,7 +49,7 @@ macro_rules! create_provider {
         // Finalized Configuration with all sources
         #[derive(Debug)]
         pub struct ResolvedProviderConfig {
-            $(pub $global_field: Option<ResolvedProperty<$global_field_type>>),*,
+            pub globals: ResolvedGlobalProperties,
             $(pub $field: Option<ResolvedProperty<$type>>),*
         }
 
@@ -110,7 +110,7 @@ macro_rules! create_provider {
                     write!(f, stringify!($global_field))?;
                     write!(f, ": ")?;
 
-                    if let Some(val) = &self.$global_field {
+                    if let Some(val) = &self.globals.$global_field {
                         let value = val.to_string();
                         if value.len() > 50 {
                             write!(f, "{:.50}... [source: {}]", value, val.source)?;
@@ -150,7 +150,7 @@ macro_rules! create_provider {
             }
 
             pub fn override_from(mut self, other: &ResolvedProviderConfig) -> Self {
-                $(self.$global_field = other.$global_field.clone().or(self.$global_field));*;
+                $(self.$global_field = other.globals.$global_field.clone().or(self.$global_field));*;
 
                 $(self.$field = other.$field.clone().or(self.$field));*;
 
@@ -197,11 +197,8 @@ macro_rules! create_provider {
             pub fn apply_global_overrides(mut self, globals: Option<ResolvedGlobalProperties>) -> Self {
                 if let Some(globals) = globals {
                     $(
-                        if let Some(value) = globals.properties.$global_field {
-                            self.$global_field = Some(ResolvedProperty {
-                                source: globals.source.clone(),
-                                value
-                            });
+                        if let Some(value) = globals.$global_field {
+                            self.$global_field = Some(value.clone());
                         }
                     )*
                 }
@@ -209,9 +206,10 @@ macro_rules! create_provider {
             }
 
             pub fn build(self) -> ResolvedProviderConfig {
-                // let finalized_builder = self.apply_default().apply_env();
                 ResolvedProviderConfig {
-                    $($global_field: self.$global_field),*,
+                    globals: ResolvedGlobalProperties {
+                        $($global_field: self.$global_field),*,
+                    },
                     $($field: self.$field),*
                 }
             }
@@ -276,7 +274,7 @@ macro_rules! create_provider {
         impl TryFrom<&ResolvedProviderConfig> for ModelInfo {
             type Error = error::ToModelInfoError;
             fn try_from(config: &ResolvedProviderConfig) -> Result<Self, Self::Error> {
-                config.model.as_ref()
+                config.globals.model.as_ref()
                     .map(|property| ModelInfo { provider: $provider_name.into(), model: property.value.clone() })
                     .ok_or(error::ToModelInfoError::RequiredConfiguration("model"))
             }

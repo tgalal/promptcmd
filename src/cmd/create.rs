@@ -6,12 +6,12 @@ use log::{error, info};
 
 use crate::cmd::enable::EnableCmd;
 use crate::cmd::{templates, TextEditor, TextEditorFileType};
-use crate::config::appconfig::{AppConfig, GlobalProviderProperties};
+use crate::config::appconfig::AppConfig;
 use crate::config::appconfig_locator;
 use crate::installer::DotPromptInstaller;
 use crate::storage::PromptFilesStorage;
 use crate::{dotprompt::DotPrompt};
-use crate::config::resolver::{self, ResolvedGlobalProperties, ResolvedPropertySource, Resolver};
+use crate::config::resolver::{self, ResolvedGlobalProperties, ResolvedProperty, ResolvedPropertySource, Resolver};
 use crate::config::providers::{ModelInfo, error};
 
 
@@ -96,11 +96,11 @@ impl CreateCmd {
                     if let Some(model_name) = model_name {
                         let mut resolver = Resolver {
                             fm_properties: Some(ResolvedGlobalProperties {
-                                source: ResolvedPropertySource::Dotprompt(model_name.clone()),
-                                properties: GlobalProviderProperties {
-                                    model: Some(model_name.clone()),
+                                    model: Some(ResolvedProperty {
+                                        source: ResolvedPropertySource::Dotprompt(model_name.clone()),
+                                        value: model_name.clone()
+                                    }),
                                     ..Default::default()
-                                }
                             }),
                             overrides: None,
                         };

@@ -44,7 +44,8 @@ pub struct GlobalProviderProperties {
     pub max_tokens: Option<u32>,
     pub model: Option<String>,
     pub system: Option<String>,
-    pub cache_ttl: Option<u32>
+    pub cache_ttl: Option<u32>,
+    pub stream: Option<bool>,
 }
 
 impl From<&ParsedFrontmatter> for GlobalProviderProperties {
@@ -54,7 +55,8 @@ impl From<&ParsedFrontmatter> for GlobalProviderProperties {
             max_tokens: fm.config.as_ref().and_then(|config| config.max_output_tokens),
             model:  fm.model.clone(),
             system: None,
-            cache_ttl: None
+            cache_ttl: None,
+            stream: None
         }
     }
 }

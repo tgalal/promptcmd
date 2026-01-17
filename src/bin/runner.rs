@@ -156,16 +156,20 @@ fn main() -> Result<()> {
 
     let dry = *matches.get_one::<bool>("dry").unwrap_or(&false);
 
-    let resolved_cmd_properties = ResolvedGlobalProperties {
-        source: ResolvedPropertySource::Inputs,
-        properties: GlobalProviderProperties {
+    let stream = matches.get_one::<bool>("stream") == Some(&true) &&
+        matches.get_one::<bool>("nostream") == Some(&false);
+
+    let resolved_cmd_properties = ResolvedGlobalProperties::from((
+        &GlobalProviderProperties {
             temperature: matches.get_one::<f32>("temperature").copied(),
             max_tokens: matches.get_one::<u32>("max_tokens").copied(),
             model: None,
             system: matches.get_one::<String>("system").map(|s| s.to_string()),
             cache_ttl: matches.get_one::<u32>("cache_ttl").copied(),
-        }
-    };
+            stream: Some(stream)
+        },
+        ResolvedPropertySource::Inputs
+    ));
 
     let requested_model = matches.get_one::<String>("model").map(|s| s.to_string());
 

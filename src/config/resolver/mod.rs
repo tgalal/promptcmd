@@ -73,9 +73,28 @@ pub enum ResolvedPropertySource {
     Other(String)
 }
 
+#[derive(Default, Debug, Clone)]
 pub struct ResolvedGlobalProperties {
-    pub source: ResolvedPropertySource,
-    pub properties: GlobalProviderProperties
+    pub temperature: Option<ResolvedProperty<f32>>,
+    pub max_tokens: Option<ResolvedProperty<u32>>,
+    pub model: Option<ResolvedProperty<String>>,
+    pub system: Option<ResolvedProperty<String>>,
+    pub cache_ttl: Option<ResolvedProperty<u32>>,
+    pub stream: Option<ResolvedProperty<bool>>,
+}
+
+impl From<(&GlobalProviderProperties, ResolvedPropertySource)> for ResolvedGlobalProperties {
+    fn from(value: (&GlobalProviderProperties, ResolvedPropertySource)) -> Self {
+        let (props, source) = value;
+        ResolvedGlobalProperties {
+            temperature: props.temperature.map(|value| ResolvedProperty { source: source.clone(), value }),
+            max_tokens: props.max_tokens.map(|value| ResolvedProperty { source: source.clone(), value }),
+            model: props.model.as_ref().map(|value| ResolvedProperty { source: source.clone(), value: value.clone() }),
+            system: props.system.as_ref().map(|value| ResolvedProperty { source: source.clone(), value: value.clone() }),
+            cache_ttl: props.cache_ttl.map(|value| ResolvedProperty { source: source.clone(), value }),
+            stream: props.stream.map(|value| ResolvedProperty { source: source.clone(), value }),
+        }
+    }
 }
 
 pub struct Resolver {
@@ -104,10 +123,9 @@ impl Resolver {
             }
         });
 
-        let global_provider_properties = ResolvedGlobalProperties {
-            source: ResolvedPropertySource::Globals,
-            properties: appconfig.providers.globals.clone()
-        };
+        let global_provider_properties = ResolvedGlobalProperties::from(
+            (&appconfig.providers.globals, ResolvedPropertySource::Globals)
+        );
 
         match provider {
             "ollama" => {
@@ -195,10 +213,9 @@ impl Resolver {
             }
         });
 
-        let global_provider_properties = ResolvedGlobalProperties {
-            source: ResolvedPropertySource::Globals,
-            properties: appconfig.providers.globals.clone()
-        };
+        let global_provider_properties = ResolvedGlobalProperties::from(
+            (&appconfig.providers.globals, ResolvedPropertySource::Globals)
+        );
 
         if let Some(conf) = appconfig.providers.ollama.named.get(provider) {
             Ok(Variant::new(
@@ -308,15 +325,15 @@ impl Resolver {
                 source: ResolvedPropertySource::Inputs,
                 value: name
             })
-        } else if let Some(overrides) = self.overrides.as_ref() && let Some(model) = overrides.properties.model.as_ref() {
+        } else if let Some(overrides) = self.overrides.as_ref() && let Some(model) = overrides.model.as_ref() {
             Some(ResolvedProperty {
-                source: overrides.source.clone(),
-                value: model.clone()
+                source: model.source.clone(),
+                value: model.value.clone()
             })
-        } else if let Some(fm) = self.fm_properties.as_ref() && let Some(model) = fm.properties.model.as_ref() {
+        } else if let Some(fm) = self.fm_properties.as_ref() && let Some(model) = fm.model.as_ref() {
             Some(ResolvedProperty {
-                source: fm.source.clone(),
-                value: model.clone()
+                source: model.source.clone(),
+                value: model.value.clone()
             })
         } else if let Some(model) = global_provider_properties.model.as_ref() {
             Some(ResolvedProperty {
@@ -392,30 +409,31 @@ mod tests {
     fn test_openai() {
         let mut resolver = Resolver {
             overrides: Some(
-                ResolvedGlobalProperties {
-                    source: ResolvedPropertySource::Inputs,
-                    properties: GlobalProviderProperties {
+                ResolvedGlobalProperties::from((
+                     &GlobalProviderProperties {
                         cache_ttl: Some(80),
                         // temperature: Some(0.7),
                         // system: Some("system 7".to_string()),
                         // max_tokens: Some(800),
                         // model: Some("model 8".to_string()),
                         ..Default::default()
-                    }
-                }
+                    },
+                    ResolvedPropertySource::Inputs
+                ))
             ),
-            fm_properties: Some(ResolvedGlobalProperties {
-                source: ResolvedPropertySource::Dotprompt("test".to_string()),
-                properties: GlobalProviderProperties {
-                    cache_ttl: Some(70),
-                    temperature: Some(0.7),
-                    // system: Some("system 7".to_string()),
-                    // max_tokens: Some(700),
-                    // model: Some("model 7".to_string()),
-                    ..Default::default()
-                }
-            })
-        };
+            fm_properties: Some(
+                ResolvedGlobalProperties::from((
+                    &GlobalProviderProperties {
+                        cache_ttl: Some(70),
+                        temperature: Some(0.7),
+                        // system: Some("system 7".to_string()),
+                        // max_tokens: Some(700),
+                        // model: Some("model 7".to_string()),
+                        ..Default::default()
+                    },
+                    ResolvedPropertySource::Dotprompt("test".to_string())
+                ))
+            )};
 
         let mut appconfig = AppConfig::default();
 
@@ -425,7 +443,7 @@ mod tests {
                 system: Some("system 2".to_string()),
                 max_tokens: Some(200),
                 model: Some("model 2".to_string()),
-                // ..Default::default()
+                ..Default::default()
         };
 
         appconfig.providers.openai = openai::Providers {
@@ -466,23 +484,23 @@ mod tests {
             if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, Some("openai".to_string())).unwrap() {
                 if let ResolvedProviderConfig::OpenAI(conf) = base.resolved {
                         // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.cache_ttl.unwrap().value, 80);
+                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
+                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
 
                         // temp not set in above
-                        assert_eq!(conf.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.temperature.unwrap().value, 0.7);
+                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
+                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
 
                         // system  not set in above
-                        assert_eq!(conf.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
-                        assert_eq!(conf.system.unwrap().value, "system 4");
+                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
+                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
 
                         // max_tokens not set in above
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().value, 300);
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
 
-                        assert_eq!(conf.model.as_ref().unwrap().source, ResolvedPropertySource::Globals);
-                        assert_eq!(conf.model.as_ref().unwrap().value, "model 2");
+                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Globals);
+                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "model 2");
                 } else {
                     panic!("Wrong provider");
                 }
@@ -498,30 +516,31 @@ mod tests {
     fn test_anththropic() {
         let mut resolver = Resolver {
             overrides: Some(
-                ResolvedGlobalProperties {
-                    source: ResolvedPropertySource::Inputs,
-                    properties: GlobalProviderProperties {
+                ResolvedGlobalProperties::from((
+                     &GlobalProviderProperties {
                         cache_ttl: Some(80),
                         // temperature: Some(0.7),
                         // system: Some("system 7".to_string()),
                         // max_tokens: Some(800),
                         // model: Some("model 8".to_string()),
                         ..Default::default()
-                    }
-                }
+                    },
+                    ResolvedPropertySource::Inputs
+                ))
             ),
-            fm_properties: Some(ResolvedGlobalProperties {
-                source: ResolvedPropertySource::Dotprompt("test".to_string()),
-                properties: GlobalProviderProperties {
-                    cache_ttl: Some(70),
-                    temperature: Some(0.7),
-                    // system: Some("system 7".to_string()),
-                    // max_tokens: Some(700),
-                    // model: Some("model 7".to_string()),
-                    ..Default::default()
-                }
-            })
-        };
+            fm_properties: Some(
+                ResolvedGlobalProperties::from((
+                    &GlobalProviderProperties {
+                        cache_ttl: Some(70),
+                        temperature: Some(0.7),
+                        // system: Some("system 7".to_string()),
+                        // max_tokens: Some(700),
+                        // model: Some("model 7".to_string()),
+                        ..Default::default()
+                    },
+                    ResolvedPropertySource::Dotprompt("test".to_string())
+                ))
+            )};
 
         let mut appconfig = AppConfig::default();
 
@@ -531,7 +550,7 @@ mod tests {
                 system: Some("system 2".to_string()),
                 max_tokens: Some(200),
                 model: Some("model 2".to_string()),
-                // ..Default::default()
+                 ..Default::default()
         };
 
         appconfig.providers.openai = openai::Providers {
@@ -576,23 +595,23 @@ mod tests {
             if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, Some("anthropic".to_string())).unwrap() {
                 if let ResolvedProviderConfig::Anthropic(conf) = base.resolved {
                         // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.cache_ttl.unwrap().value, 80);
+                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
+                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
 
                         // temp not set in above
-                        assert_eq!(conf.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.temperature.unwrap().value, 0.7);
+                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
+                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
 
                         // system  not set in above
-                        assert_eq!(conf.system.as_ref().unwrap().source, ResolvedPropertySource::Base("anthropic".to_string()));
-                        assert_eq!(conf.system.unwrap().value, "system 41");
+                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("anthropic".to_string()));
+                        assert_eq!(conf.globals.system.unwrap().value, "system 41");
 
                         // max_tokens not set in above
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().value, 301);
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_MAX_TOKENS".to_string()));
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 301);
 
-                        assert_eq!(conf.model.as_ref().unwrap().source, ResolvedPropertySource::Globals);
-                        assert_eq!(conf.model.as_ref().unwrap().value, "model 2");
+                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Globals);
+                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "model 2");
                 } else {
                     panic!("Wrong provider");
                 }
@@ -606,30 +625,31 @@ mod tests {
     fn test_openai_with_modelname() {
         let mut resolver = Resolver {
             overrides: Some(
-                ResolvedGlobalProperties {
-                    source: ResolvedPropertySource::Inputs,
-                    properties: GlobalProviderProperties {
+                ResolvedGlobalProperties::from((
+                     &GlobalProviderProperties {
                         cache_ttl: Some(80),
                         // temperature: Some(0.7),
                         // system: Some("system 7".to_string()),
                         // max_tokens: Some(800),
                         // model: Some("model 8".to_string()),
                         ..Default::default()
-                    }
-                }
+                    },
+                    ResolvedPropertySource::Inputs
+                ))
             ),
-            fm_properties: Some(ResolvedGlobalProperties {
-                source: ResolvedPropertySource::Dotprompt("test".to_string()),
-                properties: GlobalProviderProperties {
-                    cache_ttl: Some(70),
-                    temperature: Some(0.7),
-                    // system: Some("system 7".to_string()),
-                    // max_tokens: Some(700),
-                    // model: Some("model 7".to_string()),
-                    ..Default::default()
-                }
-            })
-        };
+            fm_properties: Some(
+                ResolvedGlobalProperties::from((
+                    &GlobalProviderProperties {
+                        cache_ttl: Some(70),
+                        temperature: Some(0.7),
+                        // system: Some("system 7".to_string()),
+                        // max_tokens: Some(700),
+                        // model: Some("model 7".to_string()),
+                        ..Default::default()
+                    },
+                    ResolvedPropertySource::Dotprompt("test".to_string())
+                ))
+            )};
 
         let mut appconfig = AppConfig::default();
 
@@ -639,7 +659,7 @@ mod tests {
                 system: Some("system 2".to_string()),
                 max_tokens: Some(200),
                 model: Some("model 2".to_string()),
-                // ..Default::default()
+                 ..Default::default()
         };
 
         appconfig.providers.openai = openai::Providers {
@@ -680,23 +700,23 @@ mod tests {
             if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, Some("openai/gpt5".to_string())).unwrap() {
                 if let ResolvedProviderConfig::OpenAI(conf) = base.resolved {
                         // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.cache_ttl.unwrap().value, 80);
+                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
+                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
 
                         // temp not set in above
-                        assert_eq!(conf.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.temperature.unwrap().value, 0.7);
+                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
+                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
 
                         // system  not set in above
-                        assert_eq!(conf.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
-                        assert_eq!(conf.system.unwrap().value, "system 4");
+                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
+                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
 
                         // max_tokens not set in above
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().value, 300);
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
 
-                        assert_eq!(conf.model.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.model.as_ref().unwrap().value, "gpt5");
+                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
+                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "gpt5");
                 } else {
                     panic!("Wrong provider");
                 }
@@ -710,30 +730,31 @@ mod tests {
     fn test_openai_with_modelname_in_frontmatter() {
         let mut resolver = Resolver {
             overrides: Some(
-                ResolvedGlobalProperties {
-                    source: ResolvedPropertySource::Inputs,
-                    properties: GlobalProviderProperties {
+                ResolvedGlobalProperties::from((
+                     &GlobalProviderProperties {
                         cache_ttl: Some(80),
                         // temperature: Some(0.7),
                         // system: Some("system 7".to_string()),
                         // max_tokens: Some(800),
                         // model: Some("model 8".to_string()),
                         ..Default::default()
-                    }
-                }
+                    },
+                    ResolvedPropertySource::Inputs
+                ))
             ),
-            fm_properties: Some(ResolvedGlobalProperties {
-                source: ResolvedPropertySource::Dotprompt("test".to_string()),
-                properties: GlobalProviderProperties {
-                    cache_ttl: Some(70),
-                    temperature: Some(0.7),
-                    // system: Some("system 7".to_string()),
-                    // max_tokens: Some(700),
-                    model: Some("model 7".to_string()),
-                    ..Default::default()
-                }
-            })
-        };
+            fm_properties: Some(
+                ResolvedGlobalProperties::from((
+                    &GlobalProviderProperties {
+                        cache_ttl: Some(70),
+                        temperature: Some(0.7),
+                        // system: Some("system 7".to_string()),
+                        // max_tokens: Some(700),
+                        model: Some("model 7".to_string()),
+                        ..Default::default()
+                    },
+                    ResolvedPropertySource::Dotprompt("test".to_string())
+                ))
+            )};
 
         let mut appconfig = AppConfig::default();
 
@@ -743,7 +764,7 @@ mod tests {
                 system: Some("system 2".to_string()),
                 max_tokens: Some(200),
                 model: Some("model 2".to_string()),
-                // ..Default::default()
+                 ..Default::default()
         };
 
         appconfig.providers.openai = openai::Providers {
@@ -784,23 +805,23 @@ mod tests {
             if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, Some("openai".to_string())).unwrap() {
                 if let ResolvedProviderConfig::OpenAI(conf) = base.resolved {
                         // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.cache_ttl.unwrap().value, 80);
+                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
+                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
 
                         // temp not set in above
-                        assert_eq!(conf.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.temperature.unwrap().value, 0.7);
+                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
+                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
 
                         // system  not set in above
-                        assert_eq!(conf.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
-                        assert_eq!(conf.system.unwrap().value, "system 4");
+                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
+                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
 
                         // max_tokens not set in above
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().value, 300);
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
 
-                        assert_eq!(conf.model.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.model.as_ref().unwrap().value, "model 7");
+                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
+                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "model 7");
                 } else {
                     panic!("Wrong provider");
                 }
@@ -813,30 +834,31 @@ mod tests {
     fn test_openai_with_modelname_in_frontmatter_overriden_by_input() {
         let mut resolver = Resolver {
             overrides: Some(
-                ResolvedGlobalProperties {
-                    source: ResolvedPropertySource::Inputs,
-                    properties: GlobalProviderProperties {
+                ResolvedGlobalProperties::from((
+                     &GlobalProviderProperties {
                         cache_ttl: Some(80),
                         // temperature: Some(0.7),
                         // system: Some("system 7".to_string()),
                         // max_tokens: Some(800),
                         // model: Some("model 8".to_string()),
                         ..Default::default()
-                    }
-                }
+                    },
+                    ResolvedPropertySource::Inputs
+                ))
             ),
-            fm_properties: Some(ResolvedGlobalProperties {
-                source: ResolvedPropertySource::Dotprompt("test".to_string()),
-                properties: GlobalProviderProperties {
-                    cache_ttl: Some(70),
-                    temperature: Some(0.7),
-                    // system: Some("system 7".to_string()),
-                    // max_tokens: Some(700),
-                    model: Some("model 7".to_string()),
-                    ..Default::default()
-                }
-            })
-        };
+            fm_properties: Some(
+                ResolvedGlobalProperties::from((
+                    &GlobalProviderProperties {
+                        cache_ttl: Some(70),
+                        temperature: Some(0.7),
+                        // system: Some("system 7".to_string()),
+                        // max_tokens: Some(700),
+                        model: Some("model 7".to_string()),
+                        ..Default::default()
+                    },
+                    ResolvedPropertySource::Dotprompt("test".to_string())
+                ))
+            )};
 
         let mut appconfig = AppConfig::default();
 
@@ -846,7 +868,7 @@ mod tests {
                 system: Some("system 2".to_string()),
                 max_tokens: Some(200),
                 model: Some("model 2".to_string()),
-                // ..Default::default()
+                 ..Default::default()
         };
 
         appconfig.providers.openai = openai::Providers {
@@ -887,23 +909,23 @@ mod tests {
             if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, Some("openai/gpt5".to_string())).unwrap() {
                 if let ResolvedProviderConfig::OpenAI(conf) = base.resolved {
                         // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.cache_ttl.unwrap().value, 80);
+                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
+                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
 
                         // temp not set in above
-                        assert_eq!(conf.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.temperature.unwrap().value, 0.7);
+                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
+                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
 
                         // system  not set in above
-                        assert_eq!(conf.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
-                        assert_eq!(conf.system.unwrap().value, "system 4");
+                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
+                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
 
                         // max_tokens not set in above
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().value, 300);
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
 
-                        assert_eq!(conf.model.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.model.as_ref().unwrap().value, "gpt5");
+                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
+                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "gpt5");
                 } else {
                     panic!("Wrong provider");
                 }
@@ -917,30 +939,31 @@ mod tests {
     fn test_openai_with_full_modelname_in_frontmatter() {
         let mut resolver = Resolver {
             overrides: Some(
-                ResolvedGlobalProperties {
-                    source: ResolvedPropertySource::Inputs,
-                    properties: GlobalProviderProperties {
+                ResolvedGlobalProperties::from((
+                     &GlobalProviderProperties {
                         cache_ttl: Some(80),
                         // temperature: Some(0.7),
                         // system: Some("system 7".to_string()),
                         // max_tokens: Some(800),
                         // model: Some("model 8".to_string()),
                         ..Default::default()
-                    }
-                }
+                    },
+                    ResolvedPropertySource::Inputs
+                ))
             ),
-            fm_properties: Some(ResolvedGlobalProperties {
-                source: ResolvedPropertySource::Dotprompt("test".to_string()),
-                properties: GlobalProviderProperties {
-                    cache_ttl: Some(70),
-                    temperature: Some(0.7),
-                    // system: Some("system 7".to_string()),
-                    // max_tokens: Some(700),
-                    model: Some("openai/model 7".to_string()),
-                    ..Default::default()
-                }
-            })
-        };
+            fm_properties: Some(
+                ResolvedGlobalProperties::from((
+                    &GlobalProviderProperties {
+                        cache_ttl: Some(70),
+                        temperature: Some(0.7),
+                        // system: Some("system 7".to_string()),
+                        // max_tokens: Some(700),
+                        model: Some("openai/model 7".to_string()),
+                        ..Default::default()
+                    },
+                    ResolvedPropertySource::Dotprompt("test".to_string())
+                ))
+            )};
 
         let mut appconfig = AppConfig::default();
 
@@ -950,7 +973,7 @@ mod tests {
                 system: Some("system 2".to_string()),
                 max_tokens: Some(200),
                 model: Some("model 2".to_string()),
-                // ..Default::default()
+                 ..Default::default()
         };
 
         appconfig.providers.openai = openai::Providers {
@@ -991,23 +1014,23 @@ mod tests {
             if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, None).unwrap() {
                 if let ResolvedProviderConfig::OpenAI(conf) = base.resolved {
                         // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.cache_ttl.unwrap().value, 80);
+                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
+                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
 
                         // temp not set in above
-                        assert_eq!(conf.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.temperature.unwrap().value, 0.7);
+                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
+                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
 
                         // system  not set in above
-                        assert_eq!(conf.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
-                        assert_eq!(conf.system.unwrap().value, "system 4");
+                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
+                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
 
                         // max_tokens not set in above
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().value, 300);
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
 
-                        assert_eq!(conf.model.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.model.as_ref().unwrap().value, "model 7");
+                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
+                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "model 7");
                 } else {
                     panic!("Wrong provider");
                 }
@@ -1021,30 +1044,31 @@ mod tests {
     fn test_openrouter_variant() {
         let mut resolver = Resolver {
             overrides: Some(
-                ResolvedGlobalProperties {
-                    source: ResolvedPropertySource::Inputs,
-                    properties: GlobalProviderProperties {
+                ResolvedGlobalProperties::from((
+                     &GlobalProviderProperties {
                         cache_ttl: Some(80),
                         // temperature: Some(0.7),
                         // system: Some("system 7".to_string()),
                         // max_tokens: Some(800),
                         // model: Some("model 8".to_string()),
                         ..Default::default()
-                    }
-                }
+                    },
+                    ResolvedPropertySource::Inputs
+                ))
             ),
-            fm_properties: Some(ResolvedGlobalProperties {
-                source: ResolvedPropertySource::Dotprompt("test".to_string()),
-                properties: GlobalProviderProperties {
-                    cache_ttl: Some(70),
-                    temperature: Some(0.7),
-                    // system: Some("system 7".to_string()),
-                    // max_tokens: Some(700),
-                    // model: Some("model 7".to_string()),
-                    ..Default::default()
-                }
-            })
-        };
+            fm_properties: Some(
+                ResolvedGlobalProperties::from((
+                    &GlobalProviderProperties {
+                        cache_ttl: Some(70),
+                        temperature: Some(0.7),
+                        // system: Some("system 7".to_string()),
+                        // max_tokens: Some(700),
+                        // model: Some("openai/model 7".to_string()),
+                        ..Default::default()
+                    },
+                    ResolvedPropertySource::Dotprompt("test".to_string())
+                ))
+            )};
 
         let mut appconfig = AppConfig::default();
 
@@ -1054,7 +1078,7 @@ mod tests {
                 system: Some("system 2".to_string()),
                 max_tokens: Some(200),
                 model: Some("model 2".to_string()),
-                // ..Default::default()
+                 ..Default::default()
         };
 
         appconfig.providers.openrouter = openrouter::Providers {
@@ -1086,23 +1110,23 @@ mod tests {
             if let ResolvedConfig::Variant(variant) = resolver.resolve(&appconfig, Some("myvariant".to_string())).unwrap() {
                 if let ResolvedProviderConfig::OpenRouter(conf) = variant.resolved {
                         // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.cache_ttl.unwrap().value, 80);
+                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
+                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
 
                         // temp not set in above
-                        assert_eq!(conf.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.temperature.unwrap().value, 0.7);
+                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
+                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
 
                         // system  not set in above
-                        assert_eq!(conf.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openrouter".to_string()));
-                        assert_eq!(conf.system.unwrap().value, "system 4");
+                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openrouter".to_string()));
+                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
 
                         // max_tokens not set in above
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENROUTER_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.max_tokens.as_ref().unwrap().value, 300);
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENROUTER_MAX_TOKENS".to_string()));
+                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
 
-                        assert_eq!(conf.model.as_ref().unwrap().source, ResolvedPropertySource::Globals);
-                        assert_eq!(conf.model.as_ref().unwrap().value, "model 2");
+                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Globals);
+                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "model 2");
                 } else {
                     panic!("Wrong provider");
                 }

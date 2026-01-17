@@ -150,11 +150,11 @@ impl Executor {
 
         let mut resolver = Resolver {
             overrides,
-            fm_properties: Some(ResolvedGlobalProperties {
-                source: ResolvedPropertySource::Dotprompt(dotprompt.name.clone()),
-                properties: GlobalProviderProperties::from(&dotprompt.frontmatter)
-            })
-        };
+            fm_properties: Some(ResolvedGlobalProperties::from((
+                &GlobalProviderProperties::from(&dotprompt.frontmatter),
+                ResolvedPropertySource::Dotprompt(dotprompt.name.clone()),
+            ))
+        )};
 
         let resolved_config = resolver.resolve(
             self.appconfig, requested_model).map_err(|err| {
@@ -166,12 +166,12 @@ impl Executor {
                }
             })?;
 
-        let (cache_ttl, group_choice, variant_name, (model_info, mut llmbuilder)) = match &resolved_config {
+        let (globals, group_choice, variant_name, (model_info, mut llmbuilder)) = match &resolved_config {
             resolver::ResolvedConfig::Base(base)  => {
-                (base.cache_ttl.as_ref(), None, None, <(providers::ModelInfo, LLMBuilder)>::try_from(base)?)
+                (&base.globals, None, None, <(providers::ModelInfo, LLMBuilder)>::try_from(base)?)
             },
             resolver::ResolvedConfig::Variant(variant)  => {
-                (variant.cache_ttl.as_ref(), None, Some(variant.name.clone()), <(providers::ModelInfo,
+                (&variant.globals, None, Some(variant.name.clone()), <(providers::ModelInfo,
                     LLMBuilder)>::try_from(variant)?)
             },
             resolver::ResolvedConfig::Group(group) => {
@@ -179,11 +179,11 @@ impl Executor {
                     lb::BalanceScope::Group , lb::BalanceLevel::Variant)?;
                 match choice {
                     lb::Choice::Base(base) => {
-                        (base.cache_ttl.as_ref(), Some((group.name.clone(), choice)), None, <(providers::ModelInfo,
+                        (&base.globals, Some((group.name.clone(), choice)), None, <(providers::ModelInfo,
                             LLMBuilder)>::try_from(base)?)
                     }
                     lb::Choice::Variant(variant) => {
-                        (variant.cache_ttl.as_ref(), Some((group.name.clone(), choice)), Some(variant.name.clone()),
+                        (&variant.globals, Some((group.name.clone(), choice)), Some(variant.name.clone()),
                             <(providers::ModelInfo, LLMBuilder)>::try_from(variant)?)
                     }
                 }
@@ -224,7 +224,7 @@ impl Executor {
             &rendered_dotprompt
         );
 
-        if let Some(cache_ttl) = cache_ttl && cache_ttl.value > 0 {
+        if let Some(cache_ttl) = &globals.cache_ttl && cache_ttl.value > 0 {
             debug!("Cache requested, ttl set to {} seconds via {}", cache_ttl.value, &cache_ttl.source);
             match self.statsstore.cached(cache_key, cache_ttl.value) {
                 Ok(Some(record)) => {

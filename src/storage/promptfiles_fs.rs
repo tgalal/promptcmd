@@ -59,7 +59,7 @@ impl PromptFilesStorage for FileSystemPromptFilesStorage {
         }
     }
 
-    fn store(&mut self, identifier: &str, dotpromptdata: &str) -> Result<String, PromptFilesStorageError> {
+    fn store(&self, identifier: &str, dotpromptdata: &str) -> Result<String, PromptFilesStorageError> {
         let filepath = self.resolve(identifier);
         fs::write(&filepath, dotpromptdata)?;
 

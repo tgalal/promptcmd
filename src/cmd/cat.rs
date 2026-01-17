@@ -36,7 +36,7 @@ mod tests {
 
     #[test]
     fn test_exec_ok() {
-        let mut storage = InMemoryPromptFilesStorage::default();
+        let storage = InMemoryPromptFilesStorage::default();
         storage.store("aaa", "bbbb").unwrap();
 
         let mut buf = Vec::new();

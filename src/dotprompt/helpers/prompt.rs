@@ -2,10 +2,10 @@ use std::{sync::Arc};
 
 use handlebars::*;
 
-use crate::{executor::{Executor, PromptInputs}, };
+use crate::{executor::{Executor, ExecutorErorr, PromptInputs}};
 pub struct PromptHelper {
     pub executor: Arc<Executor>,
-    pub dry: bool
+    pub dry: bool,
 }
 
 impl HelperDef for PromptHelper {
@@ -30,8 +30,8 @@ impl HelperDef for PromptHelper {
            inputs.insert(k.to_string(), v.value().clone());
         }
 
-        let executor = self.executor.clone();
-        let result = executor.execute(&promptname, None, None, inputs, self.dry).map_err(|err| {
+
+        let result = self.executor.clone().execute(&promptname, None, None, inputs, self.dry).map_err(|err: ExecutorErorr| {
             RenderError::from(RenderErrorReason::Other(err.to_string()))
         })?;
 

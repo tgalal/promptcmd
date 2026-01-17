@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use crate::stats::store::{
     StatsStore, SummaryItem
 };
@@ -15,7 +13,7 @@ use crate::config::providers::{
 use super::{BalanceScope, BalanceLevel, Choice, LBError};
 
 pub struct WeightedLoadBalancer {
-    pub stats: Arc<Mutex<dyn StatsStore + Send>>
+    pub stats: &'static dyn StatsStore
 }
 
 impl WeightedLoadBalancer {
@@ -65,7 +63,7 @@ impl WeightedLoadBalancer {
                 };
 
                 // self.stats.summary(provider_filter, model_filter, variant_filter, group_filter, Some(true))
-                let summaries = self.stats.lock().unwrap().summary(provider_filter, model_filter, variant_filter, group_filter, Some(true));
+                let summaries = self.stats.summary(provider_filter, model_filter, variant_filter, group_filter, Some(true));
                 match summaries {
                     Ok(mut summaries) => {
                         if summaries.is_empty() {

@@ -19,7 +19,7 @@ impl EditCmd {
         &self,
         inp: &mut impl std::io::BufRead,
         out: &mut impl std::io::Write,
-        storage: &mut impl PromptFilesStorage,
+        storage: &impl PromptFilesStorage,
         editor: &impl TextEditor) -> Result<()> {
 
         let promptname = &self.promptname;
@@ -148,7 +148,7 @@ Basic Prompt Here: {{message}}
         }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
-            &mut state.storage,
+            &state.storage,
             &state.editor,
             ).unwrap();
 
@@ -171,7 +171,7 @@ Basic Prompt Here: {{message}}
         }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
-            &mut state.storage,
+            &state.storage,
             &state.editor,
         ).unwrap_err();
 
@@ -192,7 +192,7 @@ Basic Prompt Here: {{message}}
         }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
-            &mut state.storage,
+            &state.storage,
             &state.editor,
         ).unwrap();
 
@@ -219,7 +219,7 @@ Basic Prompt Here: {{message}}
         }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
-            &mut state.storage,
+            &state.storage,
             &state.editor,
         ).unwrap();
 
@@ -243,7 +243,7 @@ Basic Prompt Here: {{message}}
         }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
-            &mut state.storage,
+            &state.storage,
             &state.editor,
         ).unwrap();
 

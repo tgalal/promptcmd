@@ -39,7 +39,7 @@ impl CreateCmd {
         &self,
         inp: &mut impl std::io::BufRead,
         out: &mut impl std::io::Write,
-        storage: &mut impl PromptFilesStorage,
+        storage: &impl PromptFilesStorage,
         installer: &mut impl DotPromptInstaller,
         editor: &impl TextEditor,
         appconfig: &AppConfig,
@@ -176,7 +176,7 @@ impl CreateCmd {
 
 pub fn validate_and_write(
     inp: &mut impl std::io::BufRead,
-    storage: &mut impl PromptFilesStorage,
+    storage: &impl PromptFilesStorage,
     promptname: &str, promptdata: &str, force_write: bool) -> Result<WriteResult> {
 
     let validation_result = match DotPrompt::try_from(promptdata) {
@@ -317,7 +317,7 @@ Basic Prompt Here: {{message}}
         }.exec(
                 &mut &state.inp[..],
                 &mut std::io::stderr(),
-                &mut state.storage,
+                &state.storage,
                 &mut state.installer,
                 &state.editor,
                 &state.config,
@@ -349,7 +349,7 @@ Basic Prompt Here: {{message}}
         }.exec(
             &mut &state.inp[..],
             &mut std::io::stderr(),
-            &mut state.storage,
+            &state.storage,
             &mut state.installer,
             &state.editor,
             &state.config,
@@ -381,7 +381,7 @@ Basic Prompt Here: {{message}}
         }.exec(
             &mut &state.inp[..],
             &mut state.out,
-            &mut state.storage,
+            &state.storage,
             &mut state.installer,
             &state.editor,
             &state.config,
@@ -412,7 +412,7 @@ Basic Prompt Here: {{message}}
         }.exec(
             &mut &state.inp[..],
             &mut state.out,
-            &mut state.storage,
+            &state.storage,
             &mut state.installer,
             &state.editor,
             &state.config,

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::{Arc, Mutex}};
 
 use chrono::{Duration, Utc};
 use rusqlite::{params, params_from_iter, Connection};
@@ -8,7 +8,7 @@ use log::debug;
 use crate::stats::{store::{FetchError, LogError, LogRecord, StatsStore, SummaryItem}, DB_NAME};
 
 pub struct RusqliteStore {
-    conn: Connection
+    conn: Arc<Mutex<Connection>>
 }
 
 #[derive(Debug, Error)]
@@ -75,14 +75,14 @@ impl RusqliteStore {
 
         tx.commit()?;
 
-        Ok(RusqliteStore { conn })
+        Ok(RusqliteStore { conn: Arc::new(Mutex::new(conn)) })
     }
 
 }
 
 impl StatsStore for RusqliteStore {
     fn log(&self, record: LogRecord) -> Result<(), LogError> {
-        self.conn.execute(
+        self.conn.lock().unwrap().execute(
             "INSERT INTO logs (
                 promptname,
                 provider,
@@ -134,7 +134,8 @@ impl StatsStore for RusqliteStore {
             FROM logs WHERE cache_key = ?1 AND created > ?2
         ");
 
-        let mut stmt = self.conn.prepare(&sql)
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(&sql)
             .map_err(|err| FetchError::GeneralError(err.to_string()))?;
 
         let result = stmt.query_one(params![cache_key, cutoff], |row| {
@@ -187,7 +188,8 @@ impl StatsStore for RusqliteStore {
             sql.push_str(" ORDER BY id DESC LIMIT ?");
             params.push(last.to_string());
         }
-        let mut stmt = self.conn.prepare(&sql)
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(&sql)
             .map_err(|err| FetchError::GeneralError(err.to_string()))?;
 
         let records = stmt.query_map(
@@ -273,7 +275,8 @@ impl StatsStore for RusqliteStore {
             sql.push_str(&group_by.join(", "));
         }
 
-        let mut stmt = self.conn.prepare(&sql)
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(&sql)
             .map_err(|err| FetchError::GeneralError(err.to_string()))?;
 
         let records = stmt.query_map(params_from_iter(params.iter()), |row| {

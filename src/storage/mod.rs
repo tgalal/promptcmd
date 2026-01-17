@@ -17,9 +17,9 @@ pub enum PromptFilesStorageError {
     Other(String),
 }
 
-pub trait PromptFilesStorage {
+pub trait PromptFilesStorage: Send + Sync {
     fn list(&self) -> Result<HashMap<String, String>, PromptFilesStorageError>;
     fn exists(&self, identifier: &str) -> Option<String>;
-    fn store(&mut self, identifier: &str, dotpromptdata: &str) -> Result<String, PromptFilesStorageError>;
+    fn store(&self, identifier: &str, dotpromptdata: &str) -> Result<String, PromptFilesStorageError>;
     fn load(&self, identifier: &str) -> Result<(String, String), PromptFilesStorageError>;
 }

@@ -1,18 +1,17 @@
 use anyhow::Result;
 use promptcmd::cmd;
 use promptcmd::cmd::BasicTextEditor;
-use promptcmd::config::{self, RUNNER_BIN_NAME};
+use promptcmd::config::appconfig::AppConfig;
+use promptcmd::config::{self, appconfig_locator, RUNNER_BIN_NAME};
 use promptcmd::executor::Executor;
 use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::RusqliteStore;
-use promptcmd::stats::store::StatsStore;
 use std::env;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, OnceLock};
 use promptcmd::installer::symlink::SymlinkInstaller;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use std::fs;
 use std::io::{self, BufReader};
-use log::debug;
 use clap::{Parser, Subcommand};
 use anyhow::Context;
 
@@ -60,17 +59,40 @@ enum Commands {
     Config(cmd::config::ConfigCmd),
 }
 
+static PROMPTS_STORAGE: OnceLock<FileSystemPromptFilesStorage> = OnceLock::new();
+static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();
+static STATS_STORE: OnceLock<RusqliteStore> = OnceLock::new();
+
 fn main() -> Result<()> {
     env_logger::init();
     config::bootstrap_directories()?;
 
-    let mut prompts_storage = FileSystemPromptFilesStorage::new(
-        config::prompt_storage_dir()?
+
+
+    let prompt_storage_path = config::prompt_storage_dir()?;
+    let base_home_dir = config::base_home_dir()?;
+    let prompts_storage = PROMPTS_STORAGE.get_or_init(||
+        FileSystemPromptFilesStorage::new(prompt_storage_path)
+    );
+    let statsstore = STATS_STORE.get_or_init(||
+        match RusqliteStore::new(base_home_dir) {
+            Ok(store) => store,
+            Err(err) => panic!("{}", err)
+        }
     );
 
-    let stats_store = RusqliteStore::new(
-        config::base_home_dir()?
-    )?;
+    let appconfig = if let Some(appconfig_path) = appconfig_locator::path() {
+        let appconfig_data = fs::read_to_string(&appconfig_path)?;
+
+        APP_CONFIG.get_or_init(||
+            match AppConfig::try_from(appconfig_data.as_str()) {
+                Ok(appconfig) => appconfig,
+                Err(err) => panic!("Failed to initialize: {}", err)
+            }
+        )
+    } else {
+        APP_CONFIG.get_or_init(AppConfig::default)
+    };
 
     let runner_binary_name = RUNNER_BIN_NAME;
 
@@ -90,26 +112,17 @@ fn main() -> Result<()> {
 
     let editor = BasicTextEditor {};
 
-    let appconfig = if let Some(appconfig_path) = config::appconfig_locator::path() {
-        debug!("Config Path: {}",appconfig_path.display());
-        config::appconfig::AppConfig::try_from(
-            fs::read_to_string(&appconfig_path)?.as_str()
-        )?
-    } else {
-        config::appconfig::AppConfig::default()
-    };
-
     let cli = Cli::parse();
 
     match cli.command {
         Commands::Edit(cmd) => cmd.exec(
             &mut BufReader::new(io::stdin()),
             &mut std::io::stdout(),
-            &mut prompts_storage,
+            prompts_storage,
             &editor,),
 
         Commands::Enable(cmd) => cmd.exec(
-            &prompts_storage,
+            prompts_storage,
             &mut installer),
 
         Commands::Disable(cmd) => cmd.exec(&mut installer),
@@ -117,29 +130,26 @@ fn main() -> Result<()> {
         Commands::Create(cmd) => cmd.exec(
             &mut BufReader::new(io::stdin()),
             &mut std::io::stdout(),
-            &mut prompts_storage,
+            prompts_storage,
             &mut installer,
             &editor,
-            &appconfig),
+            appconfig),
 
-        Commands::List(cmd) => cmd.exec(&prompts_storage),
+        Commands::List(cmd) => cmd.exec(prompts_storage),
 
         Commands::Cat(cmd) => cmd.exec(
-            &prompts_storage,
+            prompts_storage,
             &mut std::io::stdout()),
 
         Commands::Run(cmd) => {
-            let arc_statsstore: Arc<Mutex<dyn StatsStore + Send>> = Arc::new(Mutex::new(stats_store));
             let lb = WeightedLoadBalancer {
-                stats: Arc::clone(&arc_statsstore)
+                stats: statsstore
             };
-            let arc_prompts_storage = Arc::new(Mutex::new(prompts_storage));
-            let arc_appconfig = Arc::new(appconfig);
             let executor = Executor {
                 loadbalancer: lb,
-                appconfig: arc_appconfig,
-                statsstore: arc_statsstore,
-                prompts_storage: arc_prompts_storage
+                appconfig,
+                statsstore,
+                prompts_storage
             };
             let executor_arc = Arc::new(executor);
             cmd.exec(
@@ -148,17 +158,17 @@ fn main() -> Result<()> {
         },
 
         Commands::Import(cmd) => cmd.exec(
-            &mut prompts_storage,
+            prompts_storage,
             &mut installer,
-            &appconfig
+            appconfig
         ),
 
         Commands::Stats(cmd) => cmd.exec(
-            &stats_store
+            statsstore
         ),
 
         Commands::Resolve(cmd) => cmd.exec(
-            &appconfig,
+            appconfig,
             &mut std::io::stdout(),
         ),
 

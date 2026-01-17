@@ -36,7 +36,7 @@ impl ImportCmd {
     */
     pub fn exec(
         self,
-        storage: &mut impl PromptFilesStorage,
+        storage: &impl PromptFilesStorage,
         installer: &mut impl DotPromptInstaller,
         appconfig: &AppConfig,
         ) -> Result<()> {
@@ -260,7 +260,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
         let imported_dotprompt = DotPrompt::try_from(imported_promptdata.as_str()).unwrap();
@@ -289,7 +289,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
         let imported_dotprompt = DotPrompt::try_from(imported_promptdata.as_str()).unwrap();
@@ -318,7 +318,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -350,7 +350,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -383,7 +383,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -414,7 +414,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -441,7 +441,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).unwrap();
 
         let imported_promptdata = state.storage.load(promptname).unwrap().1;
 
@@ -469,7 +469,7 @@ Basic Prompt Here: {{message}}
         };
 
         // should fail because no name is given, and file path is not .prompt
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap_err();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).unwrap_err();
 
         state.storage.load(promptname).unwrap_err();
 
@@ -490,7 +490,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap_err();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).unwrap_err();
 
         state.storage.load(promptname).unwrap_err();
 
@@ -511,7 +511,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap_err();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).unwrap_err();
 
         state.storage.load(promptname).unwrap_err();
 
@@ -533,7 +533,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).unwrap_err();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).unwrap_err();
 
         // Existing prompt should not have been changed
         let actual_promptdata = state.storage.load(promptname).unwrap().1;
@@ -560,7 +560,7 @@ Basic Prompt Here: {{message}}
             promptfile: FileOrStdin::from_str(state.promptfile.path().to_str().unwrap()).unwrap()
         };
 
-        cmd.exec(&mut state.storage, &mut state.installer, &state.config).ok();
+        cmd.exec(&state.storage, &mut state.installer, &state.config).ok();
 
         // Existing prompt should not have been changed
         let actual_promptdata = state.storage.load(promptname).unwrap().1;

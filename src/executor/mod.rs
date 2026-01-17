@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::{BufReader}, sync::{Arc, Mutex}, time::Instant};
+use std::{collections::HashMap, io::BufReader, sync::{Arc, Mutex}, time::Instant};
 
 use chrono::Utc;
 use handlebars::HelperDef;
@@ -68,9 +68,9 @@ pub enum ExecutorErorr {
 
 pub struct Executor {
     pub loadbalancer: lb::WeightedLoadBalancer,
-    pub appconfig: Arc<appconfig::AppConfig>,
-    pub statsstore: Arc<Mutex<dyn store::StatsStore + Send>>,
-    pub prompts_storage: Arc<Mutex<dyn storage::PromptFilesStorage + Send>>,
+    pub appconfig: &'static appconfig::AppConfig,
+    pub statsstore: &'static dyn store::StatsStore,
+    pub prompts_storage: &'static dyn storage::PromptFilesStorage,
 }
 
 
@@ -79,7 +79,7 @@ impl Executor {
     pub fn load_dotprompt(&self, promptname: &str) -> Result<dotprompt::DotPrompt, ExecutorErorr> {
         debug!("Loading prompt name: {}", promptname);
 
-        let (path, promptfile_content) = self.prompts_storage.lock().unwrap().load(promptname)?;
+        let (path, promptfile_content) = self.prompts_storage.load(promptname)?;
 
         debug!("Promptfile path: {path}");
 
@@ -116,8 +116,9 @@ impl Executor {
 
         debug!("Executing dotprompt");
 
+        let next_exec = self.clone();
         let prompt_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::PromptHelper {
-            executor: self.clone(),
+            executor: next_exec,
             dry
         });
 
@@ -156,7 +157,7 @@ impl Executor {
         };
 
         let resolved_config = resolver.resolve(
-            self.appconfig.as_ref(), requested_model).map_err(|err| {
+            self.appconfig, requested_model).map_err(|err| {
                match err {
                     ResolveError::NoNameToResolve => {
                         ExecutorErorr::Other("No model specified and no default model set in config".to_string())
@@ -225,7 +226,7 @@ impl Executor {
 
         if let Some(cache_ttl) = cache_ttl && cache_ttl.value > 0 {
             debug!("Cache requested, ttl set to {} seconds via {}", cache_ttl.value, &cache_ttl.source);
-            match self.statsstore.lock().unwrap().cached(cache_key, cache_ttl.value) {
+            match self.statsstore.cached(cache_key, cache_ttl.value) {
                 Ok(Some(record)) => {
                     debug!("Found cached response");
                     return Ok(record.result)
@@ -267,7 +268,7 @@ impl Executor {
             Err(e) => (false, e.to_string(), 0, 0)
         };
 
-        let log_result = self.statsstore.lock().unwrap().log(
+        let log_result = self.statsstore.log(
             store::LogRecord {
                 promptname: dotprompt.template.clone(),
                 provider: model_info.provider,

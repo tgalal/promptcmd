@@ -45,7 +45,7 @@ pub struct SummaryItem {
     pub tps: u32
 }
 
-pub trait StatsStore {
+pub trait StatsStore: Send + Sync {
     fn log(&self, item: LogRecord) -> Result<(), LogError>;
     fn records(&self, last: Option<u32>) -> Result<Vec<LogRecord>, FetchError>;
     fn cached(&self, cache_key: i64, ttl: u32) -> Result<Option<LogRecord>, FetchError>;

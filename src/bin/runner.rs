@@ -7,36 +7,47 @@ use promptcmd::dotprompt::renderers::argmatches::DotPromptArgMatches;
 use promptcmd::dotprompt::DotPrompt;
 use promptcmd::executor::{Executor, PromptInputs};
 use promptcmd::lb::WeightedLoadBalancer;
-use promptcmd::stats::rusqlite_store::RusqliteStore;
-use promptcmd::stats::store::StatsStore;
+use promptcmd::stats::rusqlite_store::{RusqliteStore};
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use promptcmd::storage::PromptFilesStorage;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use std::{env};
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::fs;
 use log::debug;
+use std::sync::OnceLock;
 
+static PROMPTS_STORAGE: OnceLock<FileSystemPromptFilesStorage> = OnceLock::new();
+static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();
+static STATS_STORE: OnceLock<RusqliteStore> = OnceLock::new();
 
 fn main() -> Result<()> {
     env_logger::init();
 
-    let prompts_storage = FileSystemPromptFilesStorage::new(
-        config::prompt_storage_dir()?
+    let prompt_storage_path = config::prompt_storage_dir()?;
+    let base_home_dir = config::base_home_dir()?;
+    let prompts_storage = PROMPTS_STORAGE.get_or_init(||
+        FileSystemPromptFilesStorage::new(prompt_storage_path)
+    );
+    let statsstore = STATS_STORE.get_or_init(||
+        match RusqliteStore::new(base_home_dir) {
+            Ok(store) => store,
+            Err(err) => panic!("{}", err)
+        }
     );
 
-    let stats_store = RusqliteStore::new(
-        config::base_home_dir()?
-    )?;
-
     let appconfig = if let Some(appconfig_path) = appconfig_locator::path() {
-        debug!("Config Path: {}",appconfig_path.display());
-        AppConfig::try_from(
-            fs::read_to_string(&appconfig_path)?.as_str()
-        )?
+        let appconfig_data = fs::read_to_string(&appconfig_path)?;
+
+        APP_CONFIG.get_or_init(||
+            match AppConfig::try_from(appconfig_data.as_str()) {
+                Ok(appconfig) => appconfig,
+                Err(err) => panic!("Failed to initialize: {}", err)
+            }
+        )
     } else {
-        AppConfig::default()
+        APP_CONFIG.get_or_init(AppConfig::default)
     };
 
     // Find the executable name directly from args.
@@ -131,17 +142,14 @@ fn main() -> Result<()> {
 
     let matches = command.get_matches();
 
-    let arc_statsstore: Arc<Mutex<dyn StatsStore + Send>> = Arc::new(Mutex::new(stats_store));
     let lb = WeightedLoadBalancer {
-        stats: Arc::clone(&arc_statsstore)
+        stats: statsstore
     };
-    let arc_prompts_storage = Arc::new(Mutex::new(prompts_storage));
-    let arc_appconfig = Arc::new(appconfig);
     let executor = Executor {
         loadbalancer: lb,
-        appconfig: arc_appconfig,
-        statsstore: arc_statsstore,
-        prompts_storage: arc_prompts_storage
+        appconfig,
+        statsstore,
+        prompts_storage
     };
 
     let arc_executor = Arc::new(executor);

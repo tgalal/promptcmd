@@ -59,10 +59,18 @@ fn main() -> Result<()> {
         .into();
 
     let invoked_binname: String = path
-        .file_stem()
+        .file_name()
         .context("Could not get filename")?
         .to_string_lossy()
         .into();
+
+    #[cfg(target_os="windows")]
+    let invoked_binname: String = if let Some(exe_stripped) =
+    invoked_binname.strip_suffix(".exe") {
+        exe_stripped.to_string()
+    } else {
+        invoked_binname
+    };
 
     debug!("Executable name: {invoked_binname}");
 

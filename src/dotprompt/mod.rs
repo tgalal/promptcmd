@@ -467,7 +467,7 @@ Hello {{name}}"#;
         let name_field = schema.get("name").unwrap();
         assert_eq!(name_field.key, "name");
         assert_eq!(name_field.data_type, "string");
-        assert_eq!(name_field.description, " User's name");
+        assert_eq!(name_field.description, "User's name");
         assert!(name_field.required, "Should be required by default");
         assert!(!name_field.positional, "Should not be positional by default");
     }

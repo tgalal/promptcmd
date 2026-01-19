@@ -25,17 +25,28 @@ impl Base {
         macro_rules! resolve_final_config {
             ($provider:ident, $base_config:ident) => {
 
-            providers::$provider::ResolvedProviderConfigBuilder::from_defaults()
-                .apply_providers_env()
-                .apply_global_overrides(Some(global_provider_properties))
-                .apply_env()
-                .override_from(
-                    &providers::$provider::ResolvedProviderConfigBuilder::from(
-                        ($base_config, ResolvedPropertySource::Base(name.clone()))).build()
-                )                .apply_global_overrides(fm_properties)
-                .apply_global_overrides(overrides)
-                .override_model(model_resolved_property)
-                .build()
+            {
+                // Cheap hack for when a frontmatter's model is only the provider name
+                // This omits the model from the FM to prevent it from overriding a default one
+                let fm_properties = fm_properties.map(|mut fm| {
+                    if let Some(model) = fm.model.as_ref() && ["ollama", "anthropic", "openrouter", "google"].contains(&model.value.as_str()) {
+                        fm.model = None;
+                    }
+                    fm
+                });
+
+                providers::$provider::ResolvedProviderConfigBuilder::from_defaults()
+                    .apply_providers_env()
+                    .apply_global_overrides(Some(global_provider_properties))
+                    .apply_env()
+                    .override_from(
+                        &providers::$provider::ResolvedProviderConfigBuilder::from(
+                            ($base_config, ResolvedPropertySource::Base(name.clone()))).build()
+                    )                .apply_global_overrides(fm_properties)
+                    .apply_global_overrides(overrides)
+                    .override_model(model_resolved_property)
+                    .build()
+            }
             }
         }
 

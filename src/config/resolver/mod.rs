@@ -1137,4 +1137,46 @@ mod tests {
 
 
     }
+
+    #[test]
+    fn test_frontmatter_model_shortform() {
+        let mut resolver = Resolver {
+            overrides: None,
+            fm_properties: Some(
+                ResolvedGlobalProperties::from((
+                    &GlobalProviderProperties {
+                        model: Some("google".to_string()),
+                        ..Default::default()
+                    },
+                    ResolvedPropertySource::Dotprompt("test".to_string())
+                ))
+            )};
+
+        let mut appconfig = AppConfig::default();
+
+        appconfig.providers.globals = GlobalProviderProperties {
+                ..Default::default()
+        };
+
+        appconfig.providers.google = google::Providers {
+            config: google::Config {
+                 model: Some("google_model".to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let resolved = resolver.resolve(&appconfig, Some("google".to_string())).unwrap();
+        if let ResolvedConfig::Base(base) = resolved {
+            if let ResolvedProviderConfig::Google(conf) = base.resolved {
+                assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Base("google".to_string()));
+                assert_eq!(conf.globals.model.as_ref().unwrap().value, "google_model");
+            } else {
+                panic!("Wrong provider: {:#?}", &base);
+            }
+        } else {
+            panic!("Wrong resolution");
+        }
+
+
+    }
 }

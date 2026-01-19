@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## Version 1.0.2 (2026-01-19)
+
+### Added
+
+- Configurable Endpoint for OpenAI
+- Configuration via Environment Variables
+- Ask Helper for interactive inputs
+
+### Fixed
+
+- Handling of model in frontmatter when given by provider name only
+
+## Version 1.0.1 (2026-01-14)
+
+### Changed
+
+- Creating a prompt enables it by default
+- Replace `--enable` with `--no-enable` during creation
+
 ## Version 1.0.0 (2026-01-14)
 
 ### Added

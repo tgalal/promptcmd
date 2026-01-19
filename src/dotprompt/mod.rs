@@ -177,7 +177,7 @@ impl TryFrom<&mut Frontmatter> for ParsedFrontmatter {
                 let input_schema_element = SchemaElement {
                     key: final_key.clone(),
                     required,
-                    description: description.to_string(),
+                    description: description.trim().to_string(),
                     data_type: data_type.to_string(),
                     choices ,
                     positional

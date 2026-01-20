@@ -29,7 +29,7 @@ impl Base {
                 // Cheap hack for when a frontmatter's model is only the provider name
                 // This omits the model from the FM to prevent it from overriding a default one
                 let fm_properties = fm_properties.map(|mut fm| {
-                    if let Some(model) = fm.model.as_ref() && ["ollama", "anthropic", "openrouter", "google"].contains(&model.value.as_str()) {
+                    if let Some(model) = fm.model.as_ref() && ["ollama", "anthropic", "openrouter", "google", "openai"].contains(&model.value.as_str()) {
                         fm.model = None;
                     }
                     fm

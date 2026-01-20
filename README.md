@@ -1,5 +1,7 @@
 # promptcmd
 
+[Quick Start](#quick-start) | [Documentation](https://docs.promptcmd.sh) | [Examples](https://promptcmd.sh/lib/)
+
 **promptcmd** is a manager and executor for programmable prompts. Define a
 prompt template once, then execute it like any other terminal command, complete
 with argument parsing, `--help` text, and stdin/stdout integration.

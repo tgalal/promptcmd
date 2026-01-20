@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## Version 1.0.3 (2026-01-20)
+
+### Added
+
+- Render only mode for basic integration with other tools
+- Support for streaming output
+- Ask Helper for interactive inputs
+
+### Fixed
+
+- Shortform of openai in frontmatter
+
 ## Version 1.0.2 (2026-01-19)
 
 ### Added

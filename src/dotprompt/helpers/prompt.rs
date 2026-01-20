@@ -2,7 +2,7 @@ use std::{sync::Arc};
 
 use handlebars::*;
 
-use crate::{executor::{Executor, ExecutorErorr, PromptInputs}};
+use crate::executor::{ExecutionOutput, Executor, ExecutorErorr, PromptInputs};
 pub struct PromptHelper {
     pub executor: Arc<Executor>,
     pub dry: bool,
@@ -35,7 +35,27 @@ impl HelperDef for PromptHelper {
             RenderError::from(RenderErrorReason::Other(err.to_string()))
         })?;
 
-        out.write(&result)?;
+        match result {
+            ExecutionOutput::StreamingOutput(mut stream) => {
+                let output = stream.sync_collect().map_err( |err|
+                    RenderError::from(RenderErrorReason::Other(err.to_string()))
+                )?;
+                out.write(output.as_str())?;
+            },
+            ExecutionOutput::StructuredStreamingOutput(mut stream) => {
+                let output = stream.sync_collect().map_err( |err|
+                    RenderError::from(RenderErrorReason::Other(err.to_string()))
+                )?;
+                out.write(output.as_str())?;
+            }
+            ExecutionOutput::ImmediateOutput(output) => {
+                out.write(&output)?;
+            },
+            ExecutionOutput::Cached(output) => {
+                out.write(&output)?;
+            },
+            ExecutionOutput::DryRun => {}
+        };
 
         Ok(())
     }

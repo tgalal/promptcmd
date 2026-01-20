@@ -1,11 +1,12 @@
 use clap::{Parser};
 use clap::{Arg, Command};
+use std::io::{self, Write};
 use std::sync::Arc;
 use std::convert::TryFrom;
 use anyhow::{Context, Result};
 use thiserror::Error;
 use crate::dotprompt::renderers::argmatches::DotPromptArgMatches;
-use crate::executor::{Executor, PromptInputs};
+use crate::executor::{ExecutionOutput, Executor, PromptInputs};
 use crate::dotprompt::{ DotPrompt};
 
 #[derive(Parser)]
@@ -59,7 +60,36 @@ impl RunCmd {
         let inputs: PromptInputs = argmatches.try_into()?;
 
         let result = executor.execute_dotprompt(&dotprompt, None, None, inputs, self.dry)?;
-        println!("{}", result);
+
+        match result{
+            ExecutionOutput::StreamingOutput(mut stream) => {
+                let stdout = io::stdout();
+                let mut handle = stdout.lock();
+
+                while let Some(res) = stream.sync_next() {
+                    handle.write_all(res?.as_bytes())?;
+                    handle.flush()?;
+                }
+            }
+            ExecutionOutput::StructuredStreamingOutput(mut stream) => {
+                let stdout = io::stdout();
+                let mut handle = stdout.lock();
+
+                while let Some(res) = stream.sync_next() {
+                    handle.write_all(res?.as_bytes())?;
+                    handle.flush()?;
+                }
+            }
+            ExecutionOutput::ImmediateOutput(output) => {
+                println!("{}", &output);
+            }
+            ExecutionOutput::DryRun => {
+                println!("[dry run, no llm response]");
+            }
+            ExecutionOutput::Cached(output) => {
+                println!("{}", &output);
+            }
+        };
 
         Ok(())
     }

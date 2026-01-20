@@ -227,6 +227,10 @@ macro_rules! create_provider {
                         source: ResolvedPropertySource::Default,
                         value: constants::DEFAULT_CACHE_TTL
                     }),
+                    stream: Some(ResolvedProperty {
+                        source: ResolvedPropertySource::Default,
+                        value: constants::DEFAULT_STREAM
+                    }),
                     ..Default::default()
                 }
             }

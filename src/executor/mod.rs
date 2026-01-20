@@ -1,6 +1,4 @@
-use std::{collections::HashMap, io::BufReader, sync::{Arc, Mutex}, time::Instant};
-
-use chrono::Utc;
+use std::{collections::HashMap, io::{BufReader}, sync::{Arc, Mutex}, time::Instant};
 use handlebars::HelperDef;
 use llm::{builder::LLMBuilder, chat::{ChatMessage, StructuredOutputFormat}};
 use log::debug;
@@ -9,7 +7,25 @@ use serde_json::Value;
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use xxhash_rust::xxh3::xxh3_64;
-use crate::{config::{appconfig::{self, GlobalProviderProperties}, resolver::{error::ResolveError, ResolvedGlobalProperties, ResolvedPropertySource, Resolver}}, dotprompt::{helpers, OutputFormat}};
+use crate::{
+    config::{
+        appconfig::{
+            self, GlobalProviderProperties
+        },
+        resolver::{
+            error::ResolveError,
+            ResolvedGlobalProperties,
+            ResolvedPropertySource,
+            Resolver}
+    },
+    dotprompt::{
+        helpers,
+        OutputFormat
+    },
+    executor::{
+        partiallog::{ExecutionLogData, PartialLogRecord}, streaming_output::StreamingExecutionOutput, structured_streaming_output::StructuredStreamingExecutionOutput
+    }
+};
 use crate::config::providers;
 use crate::config::resolver;
 use crate::dotprompt;
@@ -18,7 +34,17 @@ use crate::dotprompt::renderers::Render;
 use crate::lb;
 use crate::stats::store;
 use crate::storage;
+mod partiallog;
+mod streaming_output;
+mod structured_streaming_output;
 
+pub enum ExecutionOutput {
+    StreamingOutput(Box<StreamingExecutionOutput>),
+    StructuredStreamingOutput(Box<StructuredStreamingExecutionOutput>),
+    ImmediateOutput(String),
+    DryRun,
+    Cached(String)
+}
 
 #[derive(Debug)]
 pub struct PromptInputs {
@@ -112,7 +138,7 @@ impl Executor {
         overrides: Option<ResolvedGlobalProperties>,
         requested_model: Option<String>,
         inputs: PromptInputs,
-        dry: bool) -> Result<String, ExecutorErorr>{
+        dry: bool) -> Result<ExecutionOutput, ExecutorErorr>{
 
         debug!("Executing dotprompt");
 
@@ -212,7 +238,7 @@ impl Executor {
             print!("{}", &rendered_dotprompt);
             println!("<<< End Rendered Prompt");
 
-            return Ok("[no response due to dry run]".to_string());
+            return Ok(ExecutionOutput::DryRun)
         }
 
         let cache_key = Executor::cache_key(
@@ -229,7 +255,7 @@ impl Executor {
             match self.statsstore.cached(cache_key, cache_ttl.value) {
                 Ok(Some(record)) => {
                     debug!("Found cached response");
-                    return Ok(record.result)
+                    return Ok(ExecutionOutput::Cached(record.result))
                 },
                 Ok(None) => {
                     debug!("No cache found")
@@ -251,49 +277,96 @@ impl Executor {
 
         let start_time = Instant::now();
 
-        let result = rt.block_on(llm.chat(&messages));
-
-        let elapsed = start_time.elapsed().as_secs() as u32;
-
-        // Send chat request and handle the response
-        let (success, response_text, prompt_tokens, completion_tokens) = match result  {
-            Ok(response) => {
-
-                let response_text = response.text().unwrap_or_default();
-                let (prompt_tokens, completion_tokens) = response.usage().map_or((0, 0),
-                    |usage| (usage.prompt_tokens, usage.completion_tokens));
-
-                (true, response_text, prompt_tokens, completion_tokens)
-            }
-            Err(e) => (false, e.to_string(), 0, 0)
+        let partial_log_record = PartialLogRecord {
+            statsstore: self.statsstore,
+            promptname: dotprompt.template.clone(),
+            provider: model_info.provider.clone(),
+            model: model_info.model.clone(),
+            variant: variant_name.clone(),
+            group: group_choice.map(|(n, _)| n.clone()),
+            cache_key: Some(cache_key)
         };
 
-        let log_result = self.statsstore.log(
-            store::LogRecord {
-                promptname: dotprompt.template.clone(),
-                provider: model_info.provider,
-                model: model_info.model,
-                variant: variant_name,
-                group: group_choice.map(|(n, _)| n),
-                prompt_tokens,
-                completion_tokens,
-                result: response_text.clone(),
-                success,
-                time_taken: elapsed,
-                created: Utc::now(),
-                cache_key: Some(cache_key)
-            }
-        );
+        if let Some(stream)= globals.stream.as_ref() && stream.value {
+            debug!("stream mode");
 
-        if let Err(err) = log_result {
-            error!("Logging execution failed: {}", err);
+            match model_info.provider.as_str() {
+                "openai" | "google" | "openrouter" => {
+                    match rt.block_on(llm.chat_stream_struct(&messages)) {
+                        Ok(stream) => {
+                            Ok(
+                                ExecutionOutput::StructuredStreamingOutput(Box::new(StructuredStreamingExecutionOutput::new(
+                                    partial_log_record,
+                                    rt,
+                                    stream
+                                )))
+                            )
+                        }
+                        Err(err) => {
+                            panic!("{}", err);
+                        }
+                    }
+                }
+                _ => {
+                    match rt.block_on(llm.chat_stream(&messages)) {
+                        Ok(stream) => {
+                            Ok(
+                                ExecutionOutput::StreamingOutput(Box::new(StreamingExecutionOutput::new(
+                                    partial_log_record,
+                                    rt,
+                                    stream
+                                )))
+                            )
+                        }
+                        Err(err) => {
+                            panic!("{}", err);
+                        }
+                    }
+
+                }
+            }
+        } else {
+            let result = rt.block_on(llm.chat(&messages));
+
+            let elapsed = start_time.elapsed().as_secs() as u32;
+
+            // Send chat request and handle the response
+            let (success, response_text, prompt_tokens, completion_tokens) = match result  {
+                Ok(response) => {
+
+                    let response_text = response.text().unwrap_or_default();
+                    let (prompt_tokens, completion_tokens) = response.usage().map_or((0, 0),
+                        |usage| (usage.prompt_tokens, usage.completion_tokens));
+
+                    (true, response_text, prompt_tokens, completion_tokens)
+                }
+                Err(e) => (false, e.to_string(), 0, 0)
+            };
+
+            let log_result = partial_log_record.log(
+                ExecutionLogData {
+                    prompt_tokens,
+                    completion_tokens,
+                    result: response_text.as_str(),
+                    success,
+                    time_taken: elapsed,
+                }
+            );
+
+            if let Err(err) = log_result {
+                error!("Logging execution failed: {}", err);
+            }
+
+
+            Ok(ExecutionOutput::ImmediateOutput(response_text))
+
         }
 
-        Ok(response_text)
+
     }
 
     pub fn execute(self: Arc<Self>, promptname: &str, overrides: Option<ResolvedGlobalProperties>,
-        requested_model: Option<String>, inputs: PromptInputs, dry: bool) -> Result<String,
+        requested_model: Option<String>, inputs: PromptInputs, dry: bool) -> Result<ExecutionOutput,
     ExecutorErorr>{
         debug!("Executing prompt name: {}", promptname);
         let dotprompt = self.load_dotprompt(promptname)?;

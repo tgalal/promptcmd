@@ -1336,6 +1336,7 @@ dependencies = [
  "dirs",
  "edit",
  "env_logger",
+ "futures",
  "handlebars",
  "indenter",
  "llm",

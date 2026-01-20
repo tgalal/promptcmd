@@ -5,7 +5,7 @@ use promptcmd::config::appconfig::{AppConfig, GlobalProviderProperties};
 use promptcmd::cmd::run;
 use promptcmd::dotprompt::renderers::argmatches::DotPromptArgMatches;
 use promptcmd::dotprompt::DotPrompt;
-use promptcmd::executor::{Executor, PromptInputs};
+use promptcmd::executor::{ExecutionOutput, Executor, PromptInputs};
 use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::{RusqliteStore};
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
@@ -16,6 +16,7 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::fs;
 use log::debug;
+use std::io::{self, Write};
 use std::sync::OnceLock;
 
 static PROMPTS_STORAGE: OnceLock<FileSystemPromptFilesStorage> = OnceLock::new();
@@ -164,8 +165,13 @@ fn main() -> Result<()> {
 
     let dry = *matches.get_one::<bool>("dry").unwrap_or(&false);
 
-    let stream = matches.get_one::<bool>("stream") == Some(&true) &&
-        matches.get_one::<bool>("nostream") == Some(&false);
+    let stream = if let Some(true) = matches.get_one::<bool>("stream") {
+        Some(true)
+    } else if let Some(true) = matches.get_one::<bool>("nostream") {
+        Some(false)
+    } else {
+        None
+    };
 
     let resolved_cmd_properties = ResolvedGlobalProperties::from((
         &GlobalProviderProperties {
@@ -174,7 +180,7 @@ fn main() -> Result<()> {
             model: None,
             system: matches.get_one::<String>("system").map(|s| s.to_string()),
             cache_ttl: matches.get_one::<u32>("cache_ttl").copied(),
-            stream: Some(stream)
+            stream
         },
         ResolvedPropertySource::Inputs
     ));
@@ -191,7 +197,36 @@ fn main() -> Result<()> {
     let result = arc_executor.execute_dotprompt(&dotprompt,
         Some(resolved_cmd_properties), requested_model,
         inputs, dry)?;
-    println!("{}", result);
+
+    match result {
+        ExecutionOutput::StreamingOutput(mut stream) => {
+            let stdout = io::stdout();
+            let mut handle = stdout.lock();
+
+            while let Some(res) = stream.sync_next() {
+                handle.write_all(res?.as_bytes())?;
+                handle.flush()?;
+            }
+        }
+        ExecutionOutput::StructuredStreamingOutput(mut stream) => {
+            let stdout = io::stdout();
+            let mut handle = stdout.lock();
+
+            while let Some(res) = stream.sync_next() {
+                handle.write_all(res?.as_bytes())?;
+                handle.flush()?;
+            }
+        }
+        ExecutionOutput::ImmediateOutput(output) => {
+            println!("{}", &output);
+        }
+        ExecutionOutput::DryRun => {
+            println!("[dry run, no llm response]");
+        }
+        ExecutionOutput::Cached(output) => {
+            println!("{}", &output);
+        }
+    };
 
     Ok(())
 }

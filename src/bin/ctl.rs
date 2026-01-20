@@ -57,6 +57,9 @@ enum Commands {
 
     #[clap(about = "Display and edit your config.toml")]
     Config(cmd::config::ConfigCmd),
+
+    #[clap(about = "Render prompts without API calls")]
+    Render(cmd::render::RenderCmd),
 }
 
 static PROMPTS_STORAGE: OnceLock<FileSystemPromptFilesStorage> = OnceLock::new();
@@ -174,6 +177,11 @@ fn main() -> Result<()> {
 
         Commands::Config(cmd) => cmd.exec(
             &mut BufReader::new(io::stdin()),
+            &mut std::io::stdout(),
+            &editor
+        ),
+        Commands::Render(cmd) => cmd.exec(
+            prompts_storage,
             &mut std::io::stdout(),
             &editor
         ),

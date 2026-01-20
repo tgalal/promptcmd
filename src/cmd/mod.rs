@@ -9,6 +9,7 @@ pub mod import;
 pub mod stats;
 pub mod resolve;
 pub mod config;
+pub mod render;
 
 mod templates;
 

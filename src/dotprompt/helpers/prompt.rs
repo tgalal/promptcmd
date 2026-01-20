@@ -6,6 +6,7 @@ use crate::executor::{ExecutionOutput, Executor, ExecutorErorr, PromptInputs};
 pub struct PromptHelper {
     pub executor: Arc<Executor>,
     pub dry: bool,
+    pub render_only: bool,
 }
 
 impl HelperDef for PromptHelper {
@@ -31,7 +32,7 @@ impl HelperDef for PromptHelper {
         }
 
 
-        let result = self.executor.clone().execute(&promptname, None, None, inputs, self.dry).map_err(|err: ExecutorErorr| {
+        let result = self.executor.clone().execute(&promptname, None, None, inputs, self.dry, self.render_only).map_err(|err: ExecutorErorr| {
             RenderError::from(RenderErrorReason::Other(err.to_string()))
         })?;
 
@@ -54,7 +55,10 @@ impl HelperDef for PromptHelper {
             ExecutionOutput::Cached(output) => {
                 out.write(&output)?;
             },
-            ExecutionOutput::DryRun => {}
+            ExecutionOutput::DryRun => {},
+            ExecutionOutput::RenderOnly(output) => {
+                out.write(&output)?;
+            }
         };
 
         Ok(())

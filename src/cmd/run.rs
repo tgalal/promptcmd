@@ -17,6 +17,9 @@ pub struct RunCmd {
     #[arg(long, short, help="Dry run" )]
     pub dry: bool,
 
+    #[arg(long, short, help="Render only" )]
+    pub render: bool,
+
     #[arg(trailing_var_arg = true)]
     pub prompt_args: Vec<String>,
 }
@@ -59,7 +62,8 @@ impl RunCmd {
 
         let inputs: PromptInputs = argmatches.try_into()?;
 
-        let result = executor.execute_dotprompt(&dotprompt, None, None, inputs, self.dry)?;
+        let result = executor.execute_dotprompt(&dotprompt, None,
+            None, inputs, self.dry, self.render)?;
 
         match result{
             ExecutionOutput::StreamingOutput(mut stream) => {
@@ -87,6 +91,9 @@ impl RunCmd {
                 println!("[dry run, no llm response]");
             }
             ExecutionOutput::Cached(output) => {
+                println!("{}", &output);
+            }
+            ExecutionOutput::RenderOnly(output) => {
                 println!("{}", &output);
             }
         };

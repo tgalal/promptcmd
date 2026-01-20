@@ -43,6 +43,7 @@ pub enum ExecutionOutput {
     StructuredStreamingOutput(Box<StructuredStreamingExecutionOutput>),
     ImmediateOutput(String),
     DryRun,
+    RenderOnly(String),
     Cached(String)
 }
 
@@ -138,14 +139,15 @@ impl Executor {
         overrides: Option<ResolvedGlobalProperties>,
         requested_model: Option<String>,
         inputs: PromptInputs,
-        dry: bool) -> Result<ExecutionOutput, ExecutorErorr>{
+        dry: bool,
+        render_only: bool) -> Result<ExecutionOutput, ExecutorErorr>{
 
         debug!("Executing dotprompt");
 
         let next_exec = self.clone();
         let prompt_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::PromptHelper {
             executor: next_exec,
-            dry
+            dry, render_only
         });
 
         let exec_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ExecHelper);
@@ -172,7 +174,11 @@ impl Executor {
 
         let rendered_dotprompt: String = dotprompt.render(inputs, helpers_map)?;
 
-         debug!("{rendered_dotprompt}");
+        debug!("{rendered_dotprompt}");
+
+        if render_only {
+            return Ok(ExecutionOutput::RenderOnly(rendered_dotprompt));
+        }
 
         let mut resolver = Resolver {
             overrides,
@@ -357,20 +363,16 @@ impl Executor {
                 error!("Logging execution failed: {}", err);
             }
 
-
             Ok(ExecutionOutput::ImmediateOutput(response_text))
-
         }
-
-
     }
 
     pub fn execute(self: Arc<Self>, promptname: &str, overrides: Option<ResolvedGlobalProperties>,
-        requested_model: Option<String>, inputs: PromptInputs, dry: bool) -> Result<ExecutionOutput,
+        requested_model: Option<String>, inputs: PromptInputs, dry: bool, render_only: bool) -> Result<ExecutionOutput,
     ExecutorErorr>{
         debug!("Executing prompt name: {}", promptname);
         let dotprompt = self.load_dotprompt(promptname)?;
 
-        self.execute_dotprompt(&dotprompt, overrides, requested_model,inputs, dry)
+        self.execute_dotprompt(&dotprompt, overrides, requested_model,inputs, dry, render_only)
     }
 }

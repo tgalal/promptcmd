@@ -105,11 +105,20 @@ fn main() -> Result<()> {
     command = command.next_help_heading("Prompt inputs");
     command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;
     command = command.next_help_heading("General Options");
-    command = command.arg(Arg::new("dry")
-        .long("dry")
-        .help("Dry run")
-        .action(clap::ArgAction::SetTrue)
-        .required(false))
+    command = command.arg(
+        Arg::new("dry")
+            .long("dry")
+            .help("Dry run")
+            .action(clap::ArgAction::SetTrue)
+            .required(false)
+        )
+        .arg(Arg::new("render")
+            .long("render")
+            .short('r')
+            .help("Render only mode")
+            .action(clap::ArgAction::SetTrue)
+            .required(false)
+        )
         .arg(
             Arg::new("help")
             .long("help")
@@ -164,6 +173,7 @@ fn main() -> Result<()> {
     let arc_executor = Arc::new(executor);
 
     let dry = *matches.get_one::<bool>("dry").unwrap_or(&false);
+    let render = *matches.get_one::<bool>("render").unwrap_or(&false);
 
     let stream = if let Some(true) = matches.get_one::<bool>("stream") {
         Some(true)
@@ -196,7 +206,7 @@ fn main() -> Result<()> {
 
     let result = arc_executor.execute_dotprompt(&dotprompt,
         Some(resolved_cmd_properties), requested_model,
-        inputs, dry)?;
+        inputs, dry, render)?;
 
     match result {
         ExecutionOutput::StreamingOutput(mut stream) => {
@@ -224,6 +234,9 @@ fn main() -> Result<()> {
             println!("[dry run, no llm response]");
         }
         ExecutionOutput::Cached(output) => {
+            println!("{}", &output);
+        }
+        ExecutionOutput::RenderOnly(output) => {
             println!("{}", &output);
         }
     };

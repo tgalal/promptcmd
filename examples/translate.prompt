@@ -1,0 +1,25 @@
+---
+input:
+  schema:
+    lang: string, Target language
+    source-lang?: string, Source language, leave blank to auto detect
+    text?: string, Text to translate, defaults to stdin
+    summarize?: boolean, Whether to also summarize the text
+---
+{{#if source-lang}}
+  Translate the given text from {{source-lang}} to {{lang}}
+{{else}}
+  Translate the given text to {{lang}}
+{{/if}}
+
+{{#if summarize}}
+  Produce a summarized version of the translation.
+{{/if}}
+
+Here is the text:
+
+{{#if text}}
+{{text}}
+{{else}}
+{{stdin}}
+{{/if}}

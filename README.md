@@ -1,6 +1,6 @@
 # promptcmd
 
-[Quick Start](#quick-start) | [Documentation](https://docs.promptcmd.sh) | [Examples](https://promptcmd.sh/lib/)
+[Quick Start](#quick-start) | [Documentation](https://docs.promptcmd.sh) | [Examples](#examples)
 
 **promptcmd** is a manager and executor for programmable prompts. Define a
 prompt template once, then execute it like any other terminal command, complete
@@ -90,7 +90,9 @@ That's it. Your prompt is now a native command.
 
 ## Examples
 
-See [https//promptcmd.sh/lib](https://promptcmd.sh/lib)
+Browse the [Examples](https://github.com/tgalal/promptcmd/tree/main/examples)
+directory or visit [https//promptcmd.sh/lib](https://promptcmd.sh/lib) for
+interactive viewing.
 
 ## License
 

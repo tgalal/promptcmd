@@ -46,6 +46,29 @@ brew install tgalal/tap/promptcmd
 powershell -ExecutionPolicy Bypass -c "irm https://installer-ps.promptcmd.sh | iex"
 ```
 
+### Configure API Keys
+
+Configure your API keys by editing `config.toml`:
+
+```bash
+promptctl config edit
+```
+Find your provider's name, e.g., for anthropic:
+
+```toml
+[providers.anthropic]
+api_key = "sk-ant-api03-..."
+```
+
+Alternatively, you can set the keys via Environment Variables:
+
+```
+PROMPTCMD_ANTHROPIC_API_KEY="your_api_key"
+PROMPTCMD_OPENAI_API_KEY="your_api_key"
+PROMPTCMD_ANTHROPIC_API_KEY="your_api_key"
+PROMPTCMD_OPENROUTER_API_KEY="your_api_key"
+```
+
 ### Create Your First Prompt
 
 Create a `summarize.prompt` file:
@@ -58,7 +81,7 @@ Insert the following:
 
 ```yaml
 ---
-model: anthropic/claude-sonnet-4
+model: anthropic/claude-sonnet-4-5
 input:
   schema:
     words?: integer, Summary length in words

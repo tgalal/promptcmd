@@ -66,10 +66,11 @@ pub struct ParsedInput {
     pub schema: HashMap<String, SchemaElement>
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub enum OutputFormat {
     #[default] Text,
     Json,
+    Code
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -207,6 +208,7 @@ impl TryFrom<&mut Frontmatter> for ParsedFrontmatter {
                 match fmt.trim().to_lowercase().as_str() {
                     "text" => Ok(OutputFormat::Text),
                     "json" => Ok(OutputFormat::Json),
+                    "code" => Ok(OutputFormat::Code),
                     _=> Err(ParseError::UnsupportedOutputFormat(fmt.clone()))
                 }
             }).unwrap_or(Ok(OutputFormat::default()))?;

@@ -3,6 +3,7 @@ use handlebars::HelperDef;
 use llm::{builder::LLMBuilder, chat::{ChatMessage, StructuredOutputFormat}};
 use log::debug;
 use log::error;
+use regex::RegexBuilder;
 use serde_json::Value;
 use thiserror::Error;
 use tokio::runtime::Runtime;
@@ -37,6 +38,7 @@ use crate::storage;
 mod partiallog;
 mod streaming_output;
 mod structured_streaming_output;
+mod streaming_code_extractor;
 
 pub enum ExecutionOutput {
     StreamingOutput(Box<StreamingExecutionOutput>),
@@ -100,6 +102,16 @@ pub struct Executor {
     pub prompts_storage: &'static dyn storage::PromptFilesStorage,
 }
 
+pub(crate) fn extract_fenced_code(input: &str) -> Vec<String> {
+    let re = RegexBuilder::new(r"```(?:\w+)?\n(.*?)```")
+        .dot_matches_new_line(true)
+        .build()
+        .unwrap();
+
+    re.captures_iter(input)
+        .map(|cap| cap[1].to_string())
+        .collect()
+}
 
 impl Executor {
 
@@ -261,6 +273,13 @@ impl Executor {
             match self.statsstore.cached(cache_key, cache_ttl.value) {
                 Ok(Some(record)) => {
                     debug!("Found cached response");
+
+                    if matches!(dotprompt.frontmatter.output.format, OutputFormat::Code) {
+                        let fenced_codes = extract_fenced_code(record.result.as_str());
+                        if !fenced_codes.is_empty() {
+                            return Ok(ExecutionOutput::Cached(fenced_codes.join("\n").trim().to_string()));
+                        }
+                    }
                     return Ok(ExecutionOutput::Cached(record.result))
                 },
                 Ok(None) => {
@@ -304,7 +323,8 @@ impl Executor {
                                 ExecutionOutput::StructuredStreamingOutput(Box::new(StructuredStreamingExecutionOutput::new(
                                     partial_log_record,
                                     rt,
-                                    stream
+                                    stream,
+                                    dotprompt.frontmatter.output.format.clone()
                                 )))
                             )
                         }
@@ -320,7 +340,8 @@ impl Executor {
                                 ExecutionOutput::StreamingOutput(Box::new(StreamingExecutionOutput::new(
                                     partial_log_record,
                                     rt,
-                                    stream
+                                    stream,
+                                    dotprompt.frontmatter.output.format.clone()
                                 )))
                             )
                         }
@@ -363,6 +384,12 @@ impl Executor {
                 error!("Logging execution failed: {}", err);
             }
 
+            if matches!(dotprompt.frontmatter.output.format, OutputFormat::Code) {
+                let fenced_codes = extract_fenced_code(response_text.as_str());
+                if !fenced_codes.is_empty() {
+                    return Ok(ExecutionOutput::ImmediateOutput(fenced_codes.join("\n").trim().to_string()));
+                }
+            }
             Ok(ExecutionOutput::ImmediateOutput(response_text))
         }
     }

@@ -277,7 +277,7 @@ impl Executor {
                     if matches!(dotprompt.frontmatter.output.format, OutputFormat::Code) {
                         let fenced_codes = extract_fenced_code(record.result.as_str());
                         if !fenced_codes.is_empty() {
-                            return Ok(ExecutionOutput::Cached(fenced_codes.join("\n").trim().to_string()));
+                            return Ok(ExecutionOutput::Cached(fenced_codes.join("\n")));
                         }
                     }
                     return Ok(ExecutionOutput::Cached(record.result))
@@ -387,7 +387,7 @@ impl Executor {
             if matches!(dotprompt.frontmatter.output.format, OutputFormat::Code) {
                 let fenced_codes = extract_fenced_code(response_text.as_str());
                 if !fenced_codes.is_empty() {
-                    return Ok(ExecutionOutput::ImmediateOutput(fenced_codes.join("\n").trim().to_string()));
+                    return Ok(ExecutionOutput::ImmediateOutput(fenced_codes.join("\n")));
                 }
             }
             Ok(ExecutionOutput::ImmediateOutput(response_text))

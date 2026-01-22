@@ -213,28 +213,51 @@ fn main() -> Result<()> {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
 
+            let mut ends_with_newline = false;
+
             while let Some(res) = stream.sync_next() {
-                handle.write_all(res?.as_bytes())?;
+                let data_str = res?;
+                let data = data_str.as_bytes();
+
+                ends_with_newline = data_str.ends_with("\n");
+                handle.write_all(data)?;
                 handle.flush()?;
+            }
+            if !ends_with_newline {
+                handle.write_all("\n".as_bytes())?;
             }
         }
         ExecutionOutput::StructuredStreamingOutput(mut stream) => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
+            let mut ends_with_newline = false;
 
             while let Some(res) = stream.sync_next() {
-                handle.write_all(res?.as_bytes())?;
+                let data_str = res?;
+                let data = data_str.as_bytes();
+
+                ends_with_newline = data_str.ends_with("\n");
+                handle.write_all(data)?;
                 handle.flush()?;
+            }
+            if !ends_with_newline {
+                handle.write_all("\n".as_bytes())?;
             }
         }
         ExecutionOutput::ImmediateOutput(output) => {
-            println!("{}", &output);
+            print!("{}", &output);
+            if !output.ends_with("\n") {
+                println!();
+            }
         }
         ExecutionOutput::DryRun => {
             println!("[dry run, no llm response]");
         }
         ExecutionOutput::Cached(output) => {
-            println!("{}", &output);
+            print!("{}", &output);
+            if !output.ends_with("\n") {
+                println!();
+            }
         }
         ExecutionOutput::RenderOnly(output) => {
             println!("{}", &output);

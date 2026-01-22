@@ -55,7 +55,7 @@ impl From<&ParsedFrontmatter> for GlobalProviderProperties {
             max_tokens: fm.config.as_ref().and_then(|config| config.max_output_tokens),
             model:  fm.model.clone(),
             system: None,
-            cache_ttl: None,
+            cache_ttl: fm.config.as_ref().and_then(|config| config.cache_ttl),
             stream: None
         }
     }

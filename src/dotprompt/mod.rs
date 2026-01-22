@@ -38,6 +38,7 @@ struct Frontmatter {
 pub struct FrontmatterConfig {
     pub temperature: Option<f32>,
     pub max_output_tokens: Option<u32>,
+    pub cache_ttl: Option<u32>,
 }
 
 #[derive(Debug, Default, PartialEq)]

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 1.0.5 (2026-01-22)
+
+### Fixed
+
+- Inconsistent terminating newline in output
+
 ## Version 1.0.4 (2026-01-22)
 
 ### Added

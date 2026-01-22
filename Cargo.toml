@@ -1,6 +1,6 @@
 [package]
 name = "promptcmd"
-version = "1.0.3"
+version = "1.0.4"
 edition = "2024"
 repository = "https://github.com/tgalal/promptcmd"
 authors = ["Tarek Galal"]

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 1.0.4 (2026-01-22)
+
+### Added
+
+- Fenced code extraction by setting output format to code in frontmatter
+
 ## Version 1.0.3 (2026-01-20)
 
 ### Added

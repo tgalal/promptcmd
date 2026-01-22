@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 1.0.6 (2026-01-22)
+
+### Added
+
+- Support config_ttl in frontmatter config
+
 ## Version 1.0.5 (2026-01-22)
 
 ### Fixed

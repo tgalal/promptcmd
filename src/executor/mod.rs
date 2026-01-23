@@ -1,8 +1,9 @@
 use std::{collections::HashMap, io::{BufReader}, sync::{Arc, Mutex}, time::Instant};
 use handlebars::HelperDef;
-use llm::{builder::LLMBuilder, chat::{ChatMessage, StructuredOutputFormat}};
+use llm::{builder::LLMBuilder, chat::{ChatMessage, StructuredOutputFormat}, LLMProvider};
 use log::debug;
 use log::error;
+use log::warn;
 use regex::RegexBuilder;
 use serde_json::Value;
 use thiserror::Error;
@@ -20,8 +21,7 @@ use crate::{
             Resolver}
     },
     dotprompt::{
-        helpers,
-        OutputFormat
+        helpers, DotPrompt, OutputFormat
     },
     executor::{
         partiallog::{ExecutionLogData, PartialLogRecord}, streaming_output::StreamingExecutionOutput, structured_streaming_output::StructuredStreamingExecutionOutput
@@ -312,47 +312,10 @@ impl Executor {
             cache_key: Some(cache_key)
         };
 
-        if let Some(stream)= globals.stream.as_ref() && stream.value {
-            debug!("stream mode");
-
-            match model_info.provider.as_str() {
-                "openai" | "google" | "openrouter" => {
-                    match rt.block_on(llm.chat_stream_struct(&messages)) {
-                        Ok(stream) => {
-                            Ok(
-                                ExecutionOutput::StructuredStreamingOutput(Box::new(StructuredStreamingExecutionOutput::new(
-                                    partial_log_record,
-                                    rt,
-                                    stream,
-                                    dotprompt.frontmatter.output.format.clone()
-                                )))
-                            )
-                        }
-                        Err(err) => {
-                            panic!("{}", err);
-                        }
-                    }
-                }
-                _ => {
-                    match rt.block_on(llm.chat_stream(&messages)) {
-                        Ok(stream) => {
-                            Ok(
-                                ExecutionOutput::StreamingOutput(Box::new(StreamingExecutionOutput::new(
-                                    partial_log_record,
-                                    rt,
-                                    stream,
-                                    dotprompt.frontmatter.output.format.clone()
-                                )))
-                            )
-                        }
-                        Err(err) => {
-                            panic!("{}", err);
-                        }
-                    }
-
-                }
-            }
-        } else {
+        fn exec_immediate(
+            rt: Runtime, llm: Box<dyn LLMProvider>, messages: Vec<ChatMessage>, start_time: Instant, partial_log_record: PartialLogRecord,
+            dotprompt: &DotPrompt
+        ) -> Result<ExecutionOutput, ExecutorErorr> {
             let result = rt.block_on(llm.chat(&messages));
 
             let elapsed = start_time.elapsed().as_secs() as u32;
@@ -391,6 +354,54 @@ impl Executor {
                 }
             }
             Ok(ExecutionOutput::ImmediateOutput(response_text))
+        }
+
+        if let Some(stream)= globals.stream.as_ref() && stream.value {
+            debug!("stream mode");
+
+            match model_info.provider.as_str() {
+                "openai" | "google" | "openrouter" => {
+                    match rt.block_on(llm.chat_stream_struct(&messages)) {
+                        Ok(stream) => {
+                            Ok(
+                                ExecutionOutput::StructuredStreamingOutput(Box::new(StructuredStreamingExecutionOutput::new(
+                                    partial_log_record,
+                                    rt,
+                                    stream,
+                                    dotprompt.frontmatter.output.format.clone()
+                                )))
+                            )
+                        }
+                        Err(err) => {
+                            panic!("{}", err);
+                        }
+                    }
+                },
+                "ollama" => {
+                    warn!("Ollama provider currently does not support streaming, defaulting to non-stream");
+                    exec_immediate(rt, llm, messages, start_time, partial_log_record, dotprompt)
+                }
+                _ => {
+                    match rt.block_on(llm.chat_stream(&messages)) {
+                        Ok(stream) => {
+                            Ok(
+                                ExecutionOutput::StreamingOutput(Box::new(StreamingExecutionOutput::new(
+                                    partial_log_record,
+                                    rt,
+                                    stream,
+                                    dotprompt.frontmatter.output.format.clone()
+                                )))
+                            )
+                        }
+                        Err(err) => {
+                            panic!("{}", err);
+                        }
+                    }
+
+                }
+            }
+        } else {
+            exec_immediate(rt, llm, messages, start_time, partial_log_record, dotprompt)
         }
     }
 

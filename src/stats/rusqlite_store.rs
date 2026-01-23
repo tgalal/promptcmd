@@ -131,12 +131,13 @@ impl StatsStore for RusqliteStore {
                 time_taken,
                 created,
                 cache_key
-            FROM logs WHERE cache_key = ?1 AND created > ?2
+            FROM logs WHERE cache_key = ?1 AND created > ?2 ORDER BY id DESC LIMIT 1
         ");
 
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(&sql)
             .map_err(|err| FetchError::GeneralError(err.to_string()))?;
+
 
         let result = stmt.query_one(params![cache_key, cutoff], |row| {
             Ok(

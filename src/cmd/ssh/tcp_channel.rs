@@ -2,7 +2,7 @@ use std::{string::FromUtf8Error, sync::Arc};
 
 use clap::{Command as ClapCommand};
 use log::debug;
-use tokio::net::{TcpListener};
+use tokio::net::{TcpListener, TcpStream};
 use thiserror::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -20,7 +20,6 @@ pub enum TcpChannelError {
 
 pub struct TcpChannelDispatcher {
     pub executor: Arc<Executor>,
-    pub prompts: Vec<String>
 }
 
 impl TcpChannelDispatcher {
@@ -28,25 +27,22 @@ impl TcpChannelDispatcher {
         loop {
             let channel = TcpChannel::new(
                 9999, self.executor.clone(),
-                &self.prompts
             ).await?;
             channel.run().await?;
         }
     }
 }
 
-struct TcpChannel<'a> {
+struct TcpChannel {
     listener: TcpListener,
     pub executor: Arc<Executor>,
-    pub prompts: &'a Vec<String>
 }
 
-impl<'a> TcpChannel<'a> {
+impl TcpChannel {
 
     pub async fn new(
         port: u32,
         executor: Arc<Executor>,
-        prompts: &'a Vec<String>
     ) -> Result<Self, TcpChannelError> {
         let addr = format!("127.0.0.1:{port}");
         let listener = TcpListener::bind(&addr)
@@ -56,18 +52,10 @@ impl<'a> TcpChannel<'a> {
         Ok(Self {
             listener,
             executor,
-            prompts
         })
     }
 
-    /// Run the server, accepting and handling connections
-    pub async fn run(self) -> Result<(), TcpChannelError> {
-        let (mut tcpstream, addr) = self
-            .listener
-            .accept()
-            .await?;
-
-
+    pub async fn handle_connection(&self, mut tcpstream: TcpStream) -> Result<(), TcpChannelError> {
         let mut buffer = Vec::new();
         // read until first unescaped new line
         loop {
@@ -112,7 +100,7 @@ impl<'a> TcpChannel<'a> {
 
                 let inputs: PromptInputs = argmatches.try_into().unwrap();
 
-                let result = self.executor.execute_dotprompt(&dotprompt,
+                let result = self.executor.clone().execute_dotprompt(&dotprompt,
                     None, None,
                     inputs, false, false).await.unwrap();
 
@@ -178,6 +166,20 @@ impl<'a> TcpChannel<'a> {
                 tcpstream.write_all(err.to_string().as_bytes()).await.unwrap();
             }
         }
+        Ok(())
+
+    }
+
+    /// Run the server, accepting and handling connections
+    pub async fn run(self) -> Result<(), TcpChannelError> {
+        let (tcpstream, _) = self
+            .listener
+            .accept()
+            .await?;
+
+        tokio::spawn(async move {
+            self.handle_connection(tcpstream).await
+        });
         Ok(())
     }
 }

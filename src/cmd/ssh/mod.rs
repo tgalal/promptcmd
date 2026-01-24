@@ -27,7 +27,6 @@ impl SshCmd {
         tokio::spawn(async {
             let dispatcher = tcp_channel::TcpChannelDispatcher {
                 executor,
-                prompts
             };
             dispatcher.new_channel().await.context("Error creating channel")?;
             Ok::<(), anyhow::Error>(())

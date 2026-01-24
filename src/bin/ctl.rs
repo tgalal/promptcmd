@@ -4,6 +4,7 @@ use promptcmd::cmd::BasicTextEditor;
 use promptcmd::config::appconfig::AppConfig;
 use promptcmd::config::{self, appconfig_locator, RUNNER_BIN_NAME};
 use promptcmd::executor::Executor;
+use promptcmd::installer::DotPromptInstaller;
 use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::RusqliteStore;
 use std::env;
@@ -63,6 +64,9 @@ enum Commands {
 
     #[clap(about = "Render prompts without API calls")]
     Render(cmd::render::RenderCmd),
+
+    #[clap(about = "SSH")]
+    Ssh(cmd::ssh::SshCmd),
 }
 
 static PROMPTS_STORAGE: OnceLock<FileSystemPromptFilesStorage> = OnceLock::new();
@@ -187,5 +191,24 @@ async fn main() -> Result<()> {
                 &mut std::io::stdout(),
                 &editor
             ),
+        Commands::Ssh(cmd) => {
+            let lb = WeightedLoadBalancer {
+                stats: statsstore
+            };
+            let executor = Executor {
+                loadbalancer: lb,
+                appconfig,
+                statsstore,
+                prompts_storage
+            };
+            let installed = installer.list()?
+                .keys()
+                .map(|k| k.to_string())
+                .collect();
+            cmd.exec(
+                Arc::new(executor),
+                installed
+            ).await
+        }
     }
 }

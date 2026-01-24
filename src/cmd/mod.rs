@@ -10,6 +10,7 @@ pub mod stats;
 pub mod resolve;
 pub mod config;
 pub mod render;
+pub mod ssh;
 
 mod templates;
 

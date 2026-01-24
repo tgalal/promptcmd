@@ -151,7 +151,7 @@ r#"############### promptcmd ################
 # cache_ttl = 0
 
 # [providers.openrouter]
-# model = "anthropic/claude-sonnet-4"
+# model = "anthropic/claude-sonnet-4-5"
 # api_key = "sk-or-xxxx"
 # temperature = 1.0
 # max_tokens = 1.0

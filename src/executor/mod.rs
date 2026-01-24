@@ -162,6 +162,9 @@ impl Executor {
         });
 
         let exec_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ExecHelper);
+        // let remote_exec_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::RemoteExecHelper {
+        //     destination: "pmx".to_string()
+        // });
         let concat_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ConcatHelper);
         let stdin_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::StdinHelper {
             inp: Mutex::new(BufReader::new(std::io::stdin()))
@@ -176,6 +179,7 @@ impl Executor {
 
         let helpers_map: HashMap<&str, Box<dyn HelperDef + Send + Sync>> = HashMap::from([
             ("exec", exec_helper),
+            // ("exec", remote_exec_helper),
             ("prompt", prompt_helper),
             ("concat", concat_helper),
             ("stdin", stdin_helper),

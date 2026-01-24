@@ -1,8 +1,8 @@
 use std::time::Instant;
 
 use llm::{chat::StreamResponse, error::LLMError};
-use tokio::runtime::Runtime;
 use futures::{Stream, StreamExt};
+use async_recursion::async_recursion;
 use log::error;
 
 use crate::{dotprompt::OutputFormat, executor::{partiallog::{ExecutionLogData, PartialLogRecord}, streaming_code_extractor::StreamingCodeExtractor, ExecutorErorr}};
@@ -10,8 +10,7 @@ use crate::{dotprompt::OutputFormat, executor::{partiallog::{ExecutionLogData, P
 
 pub struct StructuredStreamingExecutionOutput {
     pub partial_log_record: PartialLogRecord,
-    pub sync_runtime: Runtime,
-    pub stream: std::pin::Pin<Box<dyn Stream<Item = Result<StreamResponse, LLMError>>>>,
+    pub stream: std::pin::Pin<Box<dyn Stream<Item = Result<StreamResponse, LLMError>> + Send>>,
     result_data: String,
     start_time: Instant,
     usage_prompt_tokens: u32,
@@ -24,14 +23,12 @@ pub struct StructuredStreamingExecutionOutput {
 impl StructuredStreamingExecutionOutput {
     pub fn new(
         partial_log_record: PartialLogRecord,
-        sync_runtime: Runtime,
-        stream: std::pin::Pin<Box<dyn Stream<Item = Result<StreamResponse, LLMError>>>>,
+        stream: std::pin::Pin<Box<dyn Stream<Item = Result<StreamResponse, LLMError>> + Send>>,
         output_format: OutputFormat
     ) -> Self {
 
         Self {
             partial_log_record,
-            sync_runtime,
             stream,
             result_data: String::new(),
             start_time: Instant::now(),
@@ -43,19 +40,19 @@ impl StructuredStreamingExecutionOutput {
         }
     }
 
-    pub fn sync_collect(&mut self) -> Result<String, ExecutorErorr> {
+    pub async fn sync_collect(&mut self) -> Result<String, ExecutorErorr> {
         let mut result = String::new();
 
-        while let Some(res) = self.sync_next() {
+        while let Some(res) = self.sync_next().await {
             result.push_str(res?.as_str());
         }
 
         Ok(result)
     }
 
-    pub fn sync_next(&mut self) -> Option<Result<String, ExecutorErorr>> {
-        let rt = &self.sync_runtime;
-        match rt.block_on(self.stream.next()).map(|res| res.map_err(ExecutorErorr::LLMError)) {
+    #[async_recursion]
+    pub async fn sync_next(&mut self) -> Option<Result<String, ExecutorErorr>> {
+        match self.stream.next().await.map(|res| res.map_err(ExecutorErorr::LLMError)) {
             Some(Ok(res)) => {
                 let mapped = res.choices.iter()
                     .filter_map(
@@ -78,7 +75,7 @@ impl StructuredStreamingExecutionOutput {
                     if parsing_state {
                         Some(Ok(buffer))
                     } else {
-                        self.sync_next()
+                        self.sync_next().await
                     }
                 } else {
                     Some(Ok(mapped))

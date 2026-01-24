@@ -45,6 +45,7 @@ indenter = "0.3.4"
 regex = "1.12.2"
 xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
 futures = "0.3.31"
+async-recursion = "1.1.1"
 [dev-dependencies]
 temp-env = "0.3.6"
 tempfile = "3.8"

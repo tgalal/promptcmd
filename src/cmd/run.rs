@@ -42,7 +42,7 @@ pub enum RunCmdError {
 }
 
 impl RunCmd {
-    pub fn exec(&self,
+    pub async fn exec(&self,
         executor: Arc<Executor>,
         ) -> Result<()> {
 
@@ -63,7 +63,7 @@ impl RunCmd {
         let inputs: PromptInputs = argmatches.try_into()?;
 
         let result = executor.execute_dotprompt(&dotprompt, None,
-            None, inputs, self.dry, self.render)?;
+            None, inputs, self.dry, self.render).await?;
 
         match result{
             ExecutionOutput::StreamingOutput(mut stream) => {
@@ -71,7 +71,7 @@ impl RunCmd {
                 let mut handle = stdout.lock();
                 let mut ends_with_newline = false;
 
-                while let Some(res) = stream.sync_next() {
+                while let Some(res) = stream.sync_next().await {
                     let data_str = res?;
                     let data = data_str.as_bytes();
 
@@ -88,7 +88,7 @@ impl RunCmd {
                 let mut handle = stdout.lock();
                 let mut ends_with_newline = false;
 
-                while let Some(res) = stream.sync_next() {
+                while let Some(res) = stream.sync_next().await {
                     let data_str = res?;
                     let data = data_str.as_bytes();
 

@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use llm::{error::LLMError};
-use tokio::runtime::Runtime;
+use async_recursion::async_recursion;
 use futures::{Stream, StreamExt};
 use log::error;
 
@@ -10,8 +10,7 @@ use crate::{dotprompt::OutputFormat, executor::{partiallog::{ExecutionLogData, P
 
 pub struct StreamingExecutionOutput {
     pub partial_log_record: PartialLogRecord,
-    pub sync_runtime: Runtime,
-    pub stream: std::pin::Pin<Box<dyn Stream<Item = Result<String, LLMError>>>>,
+    pub stream: std::pin::Pin<Box<dyn Stream<Item = Result<String, LLMError>> + Send>>,
     result_data: String,
     start_time: Instant,
     output_format: OutputFormat,
@@ -22,14 +21,12 @@ pub struct StreamingExecutionOutput {
 impl StreamingExecutionOutput {
     pub fn new(
         partial_log_record: PartialLogRecord,
-        sync_runtime: Runtime,
-        stream: std::pin::Pin<Box<dyn Stream<Item = Result<String, LLMError>>>>,
+        stream: std::pin::Pin<Box<dyn Stream<Item = Result<String, LLMError>> + Send>>,
         output_format: OutputFormat,
     ) -> Self {
 
         StreamingExecutionOutput {
             partial_log_record,
-            sync_runtime,
             stream,
             result_data: String::new(),
             start_time: Instant::now(),
@@ -39,19 +36,19 @@ impl StreamingExecutionOutput {
         }
     }
 
-    pub fn sync_collect(&mut self) -> Result<String, ExecutorErorr> {
+    pub async fn sync_collect(&mut self) -> Result<String, ExecutorErorr> {
         let mut result = String::new();
 
-        while let Some(res) = self.sync_next() {
+        while let Some(res) = self.sync_next().await {
             result.push_str(res?.as_str());
         }
 
         Ok(result)
     }
 
-    pub fn sync_next(&mut self) -> Option<Result<String, ExecutorErorr>> {
-        let rt = &self.sync_runtime;
-        match rt.block_on(self.stream.next()).map(|res| res.map_err(ExecutorErorr::LLMError)) {
+    #[async_recursion]
+    pub async fn sync_next(&mut self) -> Option<Result<String, ExecutorErorr>> {
+        match self.stream.next().await.map(|res| res.map_err(ExecutorErorr::LLMError)) {
             Some(Ok(res)) => {
                 self.result_data.push_str(res.as_str());
                 // If the requested output is code and we found a code fence, then the we omit
@@ -63,7 +60,7 @@ impl StreamingExecutionOutput {
                     if parsing_state {
                         Some(Ok(buffer))
                     } else {
-                        self.sync_next()
+                        self.sync_next().await
                     }
                 } else {
                     Some(Ok(res))

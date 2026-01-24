@@ -9,13 +9,10 @@ pub struct PromptHelper {
     pub render_only: bool,
 }
 
-impl HelperDef for PromptHelper {
-    fn call<'reg: 'rc, 'rc>(
+impl PromptHelper {
+    async fn async_call<'reg: 'rc, 'rc>(
             &self,
             h: &Helper<'rc>,
-            _: &'reg Handlebars<'reg>,
-            _: &'rc Context,
-            _: &mut RenderContext<'reg, 'rc>,
             out: &mut dyn Output,
         ) -> HelperResult {
 
@@ -32,19 +29,19 @@ impl HelperDef for PromptHelper {
         }
 
 
-        let result = self.executor.clone().execute(&promptname, None, None, inputs, self.dry, self.render_only).map_err(|err: ExecutorErorr| {
+        let result = self.executor.clone().execute(&promptname, None, None, inputs, self.dry, self.render_only).await.map_err(|err: ExecutorErorr| {
             RenderError::from(RenderErrorReason::Other(err.to_string()))
         })?;
 
         match result {
             ExecutionOutput::StreamingOutput(mut stream) => {
-                let output = stream.sync_collect().map_err( |err|
+                let output = stream.sync_collect().await.map_err( |err|
                     RenderError::from(RenderErrorReason::Other(err.to_string()))
                 )?;
                 out.write(output.as_str())?;
             },
             ExecutionOutput::StructuredStreamingOutput(mut stream) => {
-                let output = stream.sync_collect().map_err( |err|
+                let output = stream.sync_collect().await.map_err( |err|
                     RenderError::from(RenderErrorReason::Other(err.to_string()))
                 )?;
                 out.write(output.as_str())?;
@@ -62,5 +59,24 @@ impl HelperDef for PromptHelper {
         };
 
         Ok(())
+
+    }
+}
+
+impl HelperDef for PromptHelper {
+
+    fn call<'reg: 'rc, 'rc>(
+            &self,
+            h: &Helper<'rc>,
+            _: &'reg Handlebars<'reg>,
+            _: &'rc Context,
+            _: &mut RenderContext<'reg, 'rc>,
+            out: &mut dyn Output,
+        ) -> HelperResult {
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                self.async_call(h, out).await
+            })
+        })
     }
 }

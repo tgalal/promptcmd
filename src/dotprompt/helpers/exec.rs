@@ -29,11 +29,13 @@ impl HelperDef for ExecHelper {
 
         let (mut reader, writer) = std::io::pipe()?;
 
-        let child = Command::new(&cmd)
+        let child =  {
+            Command::new(&cmd)
             .args(&args)
             .stdout(writer.try_clone()?)
             .stderr(writer)
-            .output()?;
+            .output()?
+        };
 
         let mut output = String::new();
         reader.read_to_string(&mut output)?;

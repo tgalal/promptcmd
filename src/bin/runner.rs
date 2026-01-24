@@ -23,7 +23,8 @@ static PROMPTS_STORAGE: OnceLock<FileSystemPromptFilesStorage> = OnceLock::new()
 static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();
 static STATS_STORE: OnceLock<RusqliteStore> = OnceLock::new();
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     env_logger::init();
 
     let prompt_storage_path = config::prompt_storage_dir()?;
@@ -206,7 +207,7 @@ fn main() -> Result<()> {
 
     let result = arc_executor.execute_dotprompt(&dotprompt,
         Some(resolved_cmd_properties), requested_model,
-        inputs, dry, render)?;
+        inputs, dry, render).await?;
 
     match result {
         ExecutionOutput::StreamingOutput(mut stream) => {
@@ -215,7 +216,7 @@ fn main() -> Result<()> {
 
             let mut ends_with_newline = false;
 
-            while let Some(res) = stream.sync_next() {
+            while let Some(res) = stream.sync_next().await {
                 let data_str = res?;
                 let data = data_str.as_bytes();
 
@@ -232,7 +233,7 @@ fn main() -> Result<()> {
             let mut handle = stdout.lock();
             let mut ends_with_newline = false;
 
-            while let Some(res) = stream.sync_next() {
+            while let Some(res) = stream.sync_next().await {
                 let data_str = res?;
                 let data = data_str.as_bytes();
 

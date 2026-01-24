@@ -7,7 +7,6 @@ use log::warn;
 use regex::RegexBuilder;
 use serde_json::Value;
 use thiserror::Error;
-use tokio::runtime::Runtime;
 use xxhash_rust::xxh3::xxh3_64;
 use crate::{
     config::{
@@ -145,7 +144,7 @@ impl Executor {
         xxh3_64(full_data.as_bytes()) as i64
     }
 
-    pub fn execute_dotprompt(
+    pub async fn execute_dotprompt(
         self: Arc<Self>,
         dotprompt: &dotprompt::DotPrompt,
         overrides: Option<ResolvedGlobalProperties>,
@@ -298,7 +297,6 @@ impl Executor {
                 .content(rendered_dotprompt)
                 .build(),
         ];
-        let rt = Runtime::new().unwrap();
 
         let start_time = Instant::now();
 
@@ -312,11 +310,11 @@ impl Executor {
             cache_key: Some(cache_key)
         };
 
-        fn exec_immediate(
-            rt: Runtime, llm: Box<dyn LLMProvider>, messages: Vec<ChatMessage>, start_time: Instant, partial_log_record: PartialLogRecord,
+        async fn exec_immediate(
+            llm: Box<dyn LLMProvider>, messages: Vec<ChatMessage>, start_time: Instant, partial_log_record: PartialLogRecord,
             dotprompt: &DotPrompt
         ) -> Result<ExecutionOutput, ExecutorErorr> {
-            let result = rt.block_on(llm.chat(&messages));
+            let result = llm.chat(&messages).await;
 
             let elapsed = start_time.elapsed().as_secs() as u32;
 
@@ -361,12 +359,11 @@ impl Executor {
 
             match model_info.provider.as_str() {
                 "openai" | "google" | "openrouter" => {
-                    match rt.block_on(llm.chat_stream_struct(&messages)) {
+                    match llm.chat_stream_struct(&messages).await {
                         Ok(stream) => {
                             Ok(
                                 ExecutionOutput::StructuredStreamingOutput(Box::new(StructuredStreamingExecutionOutput::new(
                                     partial_log_record,
-                                    rt,
                                     stream,
                                     dotprompt.frontmatter.output.format.clone()
                                 )))
@@ -379,15 +376,14 @@ impl Executor {
                 },
                 "ollama" => {
                     warn!("Ollama provider currently does not support streaming, defaulting to non-stream");
-                    exec_immediate(rt, llm, messages, start_time, partial_log_record, dotprompt)
+                    exec_immediate(llm, messages, start_time, partial_log_record, dotprompt).await
                 }
                 _ => {
-                    match rt.block_on(llm.chat_stream(&messages)) {
+                    match llm.chat_stream(&messages).await {
                         Ok(stream) => {
                             Ok(
                                 ExecutionOutput::StreamingOutput(Box::new(StreamingExecutionOutput::new(
                                     partial_log_record,
-                                    rt,
                                     stream,
                                     dotprompt.frontmatter.output.format.clone()
                                 )))
@@ -401,16 +397,16 @@ impl Executor {
                 }
             }
         } else {
-            exec_immediate(rt, llm, messages, start_time, partial_log_record, dotprompt)
+            exec_immediate(llm, messages, start_time, partial_log_record, dotprompt).await
         }
     }
 
-    pub fn execute(self: Arc<Self>, promptname: &str, overrides: Option<ResolvedGlobalProperties>,
+    pub async fn execute(self: Arc<Self>, promptname: &str, overrides: Option<ResolvedGlobalProperties>,
         requested_model: Option<String>, inputs: PromptInputs, dry: bool, render_only: bool) -> Result<ExecutionOutput,
     ExecutorErorr>{
         debug!("Executing prompt name: {}", promptname);
         let dotprompt = self.load_dotprompt(promptname)?;
 
-        self.execute_dotprompt(&dotprompt, overrides, requested_model,inputs, dry, render_only)
+        self.execute_dotprompt(&dotprompt, overrides, requested_model,inputs, dry, render_only).await
     }
 }

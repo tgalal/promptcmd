@@ -66,7 +66,8 @@ static PROMPTS_STORAGE: OnceLock<FileSystemPromptFilesStorage> = OnceLock::new()
 static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();
 static STATS_STORE: OnceLock<RusqliteStore> = OnceLock::new();
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     env_logger::init();
     config::bootstrap_directories()?;
 
@@ -119,71 +120,61 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Edit(cmd) => cmd.exec(
-            &mut BufReader::new(io::stdin()),
-            &mut std::io::stdout(),
-            prompts_storage,
-            &editor,),
-
+                &mut BufReader::new(io::stdin()),
+                &mut std::io::stdout(),
+                prompts_storage,
+                &editor,),
         Commands::Enable(cmd) => cmd.exec(
-            prompts_storage,
-            &mut installer),
-
+                prompts_storage,
+                &mut installer),
         Commands::Disable(cmd) => cmd.exec(&mut installer),
-
         Commands::Create(cmd) => cmd.exec(
-            &mut BufReader::new(io::stdin()),
-            &mut std::io::stdout(),
-            prompts_storage,
-            &mut installer,
-            &editor,
-            appconfig),
-
+                &mut BufReader::new(io::stdin()),
+                &mut std::io::stdout(),
+                prompts_storage,
+                &mut installer,
+                &editor,
+                appconfig),
         Commands::List(cmd) => cmd.exec(prompts_storage),
-
         Commands::Cat(cmd) => cmd.exec(
-            prompts_storage,
-            &mut std::io::stdout()),
-
+                prompts_storage,
+                &mut std::io::stdout()),
         Commands::Run(cmd) => {
-            let lb = WeightedLoadBalancer {
-                stats: statsstore
-            };
-            let executor = Executor {
-                loadbalancer: lb,
-                appconfig,
-                statsstore,
-                prompts_storage
-            };
-            let executor_arc = Arc::new(executor);
-            cmd.exec(
-                executor_arc
-            )
-        },
-
+                let lb = WeightedLoadBalancer {
+                    stats: statsstore
+                };
+                let executor = Executor {
+                    loadbalancer: lb,
+                    appconfig,
+                    statsstore,
+                    prompts_storage
+                };
+                let executor_arc = Arc::new(executor);
+                cmd.exec(
+                    executor_arc
+                ).await
+            },
         Commands::Import(cmd) => cmd.exec(
-            prompts_storage,
-            &mut installer,
-            appconfig
-        ),
-
+                prompts_storage,
+                &mut installer,
+                appconfig
+            ),
         Commands::Stats(cmd) => cmd.exec(
-            statsstore
-        ),
-
+                statsstore
+            ),
         Commands::Resolve(cmd) => cmd.exec(
-            appconfig,
-            &mut std::io::stdout(),
-        ),
-
+                appconfig,
+                &mut std::io::stdout(),
+            ),
         Commands::Config(cmd) => cmd.exec(
-            &mut BufReader::new(io::stdin()),
-            &mut std::io::stdout(),
-            &editor
-        ),
+                &mut BufReader::new(io::stdin()),
+                &mut std::io::stdout(),
+                &editor
+            ),
         Commands::Render(cmd) => cmd.exec(
-            prompts_storage,
-            &mut std::io::stdout(),
-            &editor
-        ),
+                prompts_storage,
+                &mut std::io::stdout(),
+                &editor
+            ),
     }
 }

@@ -63,7 +63,7 @@ impl RunCmd {
         let inputs: PromptInputs = argmatches.try_into()?;
 
         let result = executor.execute_dotprompt(&dotprompt, None,
-            None, inputs, self.dry, self.render).await?;
+            None, inputs, None, self.dry, self.render).await?;
 
         match result{
             ExecutionOutput::StreamingOutput(mut stream) => {

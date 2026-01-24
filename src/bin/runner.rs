@@ -216,7 +216,7 @@ async fn main() -> Result<()> {
 
     let result = arc_executor.execute_dotprompt(&dotprompt,
         Some(resolved_cmd_properties), requested_model,
-        inputs, dry, render).await?;
+        inputs, None, dry, render).await?;
 
     match result {
         ExecutionOutput::StreamingOutput(mut stream) => {

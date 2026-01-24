@@ -34,7 +34,12 @@ fn generate_shell_function(cmd_name: &str, port: u32) -> String {
         for arg in "$@"; do
             printf '"%s" ' "$arg"
         done
-        printf "\n"
+        printf "\0"
+        # Only read stdin if it's not a terminal (i.e., piped data)
+        if [ ! -t 0 ]; then
+            cat
+        fi
+        printf "\0"
         }} | nc localhost {port}
 }}"#,
         cmd_name = cmd_name,

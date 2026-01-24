@@ -70,10 +70,12 @@ impl RenderCmd {
         let exec_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ExecHelper);
         let concat_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ConcatHelper);
         let stdin_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::StdinHelper {
-            inp: Mutex::new(BufReader::new(std::io::stdin()))
+            inp: Mutex::new(BufReader::new(std::io::stdin())),
+            preset_stdin: None
         });
         let stdin_helper2: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::StdinHelper {
-            inp: Mutex::new(BufReader::new(std::io::stdin()))
+            inp: Mutex::new(BufReader::new(std::io::stdin())),
+            preset_stdin: None
         });
         let ask_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::AskHelper {
             promptname: dotprompt.name.clone(),

@@ -150,6 +150,7 @@ impl Executor {
         overrides: Option<ResolvedGlobalProperties>,
         requested_model: Option<String>,
         inputs: PromptInputs,
+        stdin: Option<String>,
         dry: bool,
         render_only: bool) -> Result<ExecutionOutput, ExecutorErorr>{
 
@@ -167,10 +168,12 @@ impl Executor {
         // });
         let concat_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ConcatHelper);
         let stdin_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::StdinHelper {
-            inp: Mutex::new(BufReader::new(std::io::stdin()))
+            inp: Mutex::new(BufReader::new(std::io::stdin())),
+            preset_stdin: stdin.clone()
         });
         let stdin_helper2: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::StdinHelper {
-            inp: Mutex::new(BufReader::new(std::io::stdin()))
+            inp: Mutex::new(BufReader::new(std::io::stdin())),
+            preset_stdin: stdin
         });
         let ask_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::AskHelper {
             promptname: dotprompt.name.clone(),
@@ -406,11 +409,11 @@ impl Executor {
     }
 
     pub async fn execute(self: Arc<Self>, promptname: &str, overrides: Option<ResolvedGlobalProperties>,
-        requested_model: Option<String>, inputs: PromptInputs, dry: bool, render_only: bool) -> Result<ExecutionOutput,
+        requested_model: Option<String>, inputs: PromptInputs, preset_stdin: Option<String>, dry: bool, render_only: bool) -> Result<ExecutionOutput,
     ExecutorErorr>{
         debug!("Executing prompt name: {}", promptname);
         let dotprompt = self.load_dotprompt(promptname)?;
 
-        self.execute_dotprompt(&dotprompt, overrides, requested_model,inputs, dry, render_only).await
+        self.execute_dotprompt(&dotprompt, overrides, requested_model,inputs, preset_stdin, dry, render_only).await
     }
 }

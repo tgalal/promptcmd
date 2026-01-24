@@ -29,7 +29,12 @@ impl PromptHelper {
         }
 
 
-        let result = self.executor.clone().execute(&promptname, None, None, inputs, self.dry, self.render_only).await.map_err(|err: ExecutorErorr| {
+        let result = self.executor
+            .clone()
+            .execute(&promptname, None, None, inputs,  None,
+                self.dry, self.render_only)
+            .await
+            .map_err(|err: ExecutorErorr| {
             RenderError::from(RenderErrorReason::Other(err.to_string()))
         })?;
 

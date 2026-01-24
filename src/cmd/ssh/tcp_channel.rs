@@ -47,15 +47,12 @@ impl TcpChannel {
         let listener = TcpListener::bind(&addr)
             .await?;
 
-
         Ok(Self {
             listener,
             executor,
         })
     }
 
-
-    // Run the server, accepting and handling connections
     pub async fn run(&self) -> Result<(), TcpChannelError> {
         loop {
             let (tcpstream, _) = self
@@ -71,30 +68,52 @@ impl TcpChannel {
         }
     }
 }
-async fn handle_connection(executor: Arc<Executor>, mut tcpstream: TcpStream) -> Result<(), TcpChannelError> {
-    debug!("Handling incoming connection");
+
+async fn read_command(tcpstream: &mut TcpStream) -> Result<String, TcpChannelError> {
     let mut buffer = Vec::new();
-    // read until first unescaped new line
     loop {
         let byte = tcpstream
             .read_u8()
             .await?;
 
-        // 10 is new line char
-        // TODO: check if escaped
-        if byte == 10 {
+        if byte == 0 {
             break;
         }
 
         buffer.push(byte);
     }
-    let command_full = String::from_utf8(buffer)?;
+    let command_line = String::from_utf8(buffer)?;
+    debug!("Got command: {command_line}");
+    Ok(command_line)
+}
+
+async fn read_stdin(tcpstream: &mut TcpStream) -> Result<String, TcpChannelError> {
+    let mut buffer = Vec::new();
+    loop {
+        let byte = tcpstream
+            .read_u8()
+            .await?;
+
+        // TODO: check if escaped
+        if byte == 0 {
+            break;
+        }
+
+        buffer.push(byte);
+    }
+    let stdin = String::from_utf8(buffer)?;
+    debug!("Got stdin: {stdin}");
+    Ok(stdin)
+}
+
+async fn handle_connection(executor: Arc<Executor>, mut tcpstream: TcpStream) -> Result<(), TcpChannelError> {
+    debug!("Handling incoming connection");
+
+    let command_full = read_command(&mut tcpstream).await?;
+    let stdin = read_stdin(&mut tcpstream).await?;
+
     let (promptname, command_args_string) = command_full.split_once(" ")
         .unwrap_or((command_full.as_str(), ""));
-    // let command_split = command_full.split_once(" ").unwrap_or(command_full);
-    // let promptname = command_split.0.to_string();
-    // let command_args_string = command_split.1.to_string();
-
 
     debug!("Prompt name: {promptname}");
     debug!("Prompt args: {command_args_string}");
@@ -119,7 +138,7 @@ async fn handle_connection(executor: Arc<Executor>, mut tcpstream: TcpStream) ->
 
             let result = executor.clone().execute_dotprompt(&dotprompt,
                 None, None,
-                inputs, false, false).await.unwrap();
+                inputs, Some(stdin), false, false).await.unwrap();
 
 
             match result {

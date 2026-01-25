@@ -1,14 +1,16 @@
 use anyhow::{anyhow, bail, Result};
 use promptcmd::{cmd, ENV_CONFIG};
 use promptcmd::cmd::BasicTextEditor;
+use promptcmd::cmd::ssh::{controlpath, utils};
 use promptcmd::config::appconfig::AppConfig;
 use promptcmd::config::{self, appconfig_locator, RUNNER_BIN_NAME};
-use promptcmd::executor::Executor;
+use promptcmd::executor::{ExecContext, Executor, MultiplexedSession, RemoteExecContext};
 use promptcmd::installer::DotPromptInstaller;
 use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::RusqliteStore;
 use std::env;
 use std::path::PathBuf;
+use std::{process};
 use std::sync::{Arc, OnceLock};
 use promptcmd::installer::symlink::SymlinkInstaller;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
@@ -161,7 +163,8 @@ async fn main() -> Result<()> {
                     loadbalancer: lb,
                     appconfig,
                     statsstore,
-                    prompts_storage
+                    prompts_storage,
+                    exec_context: ExecContext::Local
                 };
                 let executor_arc = Arc::new(executor);
                 cmd.exec(
@@ -195,11 +198,21 @@ async fn main() -> Result<()> {
             let lb = WeightedLoadBalancer {
                 stats: statsstore
             };
+
+            let (destination, _) = utils::parse_ssh_command(&cmd.ssh_args).context("Could not parse ssh command")?;
+            let controlpath = controlpath::control_path( process::id()).context("Could not determine control path")?;
+
+            let session_info = MultiplexedSession {
+                controlpath,
+                destination
+            };
+
             let executor = Executor {
                 loadbalancer: lb,
                 appconfig,
                 statsstore,
-                prompts_storage
+                prompts_storage,
+                exec_context: ExecContext::Remote(RemoteExecContext::MultiplexedSession(session_info.clone()))
             };
             let installed = installer.list()?
                 .keys()
@@ -207,7 +220,8 @@ async fn main() -> Result<()> {
                 .collect();
             cmd.exec(
                 Arc::new(executor),
-                installed
+                installed,
+                session_info
             ).await
         }
     }

@@ -5,7 +5,7 @@ use promptcmd::config::appconfig::{AppConfig, GlobalProviderProperties};
 use promptcmd::cmd::run;
 use promptcmd::dotprompt::renderers::argmatches::DotPromptArgMatches;
 use promptcmd::dotprompt::DotPrompt;
-use promptcmd::executor::{ExecutionOutput, Executor, PromptInputs};
+use promptcmd::executor::{ExecContext, ExecutionOutput, Executor, PromptInputs, RemoteExecContext};
 use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::{RusqliteStore};
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
@@ -177,7 +177,8 @@ async fn main() -> Result<()> {
         loadbalancer: lb,
         appconfig,
         statsstore,
-        prompts_storage
+        prompts_storage,
+        exec_context: ExecContext::Local
     };
 
     let arc_executor = Arc::new(executor);

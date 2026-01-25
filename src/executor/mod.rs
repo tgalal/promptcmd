@@ -9,20 +9,15 @@ use serde_json::Value;
 use thiserror::Error;
 use xxhash_rust::xxh3::xxh3_64;
 use crate::{
-    config::{
+    cmd::ssh::utils::SshDestination, config::{
         appconfig::{
             self, GlobalProviderProperties
         },
         resolver::{
-            error::ResolveError,
-            ResolvedGlobalProperties,
-            ResolvedPropertySource,
-            Resolver}
-    },
-    dotprompt::{
-        helpers, DotPrompt, OutputFormat
-    },
-    executor::{
+            ResolvedGlobalProperties, ResolvedPropertySource, Resolver, error::ResolveError}
+    }, dotprompt::{
+        DotPrompt, OutputFormat, helpers
+    }, executor::{
         partiallog::{ExecutionLogData, PartialLogRecord}, streaming_output::StreamingExecutionOutput, structured_streaming_output::StructuredStreamingExecutionOutput
     }
 };
@@ -94,11 +89,29 @@ pub enum ExecutorErorr {
     Other(String),
 }
 
+pub enum ExecContext {
+    Local,
+    Remote(RemoteExecContext)
+}
+
+#[derive(Clone, Debug)]
+pub struct MultiplexedSession {
+    pub controlpath: String,
+    pub destination: SshDestination
+}
+
+#[derive(Clone)]
+pub enum RemoteExecContext {
+    MultiplexedSession(MultiplexedSession),
+    Destination(String)
+}
+
 pub struct Executor {
     pub loadbalancer: lb::WeightedLoadBalancer,
     pub appconfig: &'static appconfig::AppConfig,
     pub statsstore: &'static dyn store::StatsStore,
     pub prompts_storage: &'static dyn storage::PromptFilesStorage,
+    pub exec_context: ExecContext
 }
 
 pub(crate) fn extract_fenced_code(input: &str) -> Vec<String> {
@@ -162,7 +175,12 @@ impl Executor {
             dry, render_only
         });
 
-        let exec_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ExecHelper);
+        let exec_helper: Box<dyn HelperDef + Send + Sync> = match &self.exec_context {
+            ExecContext::Local => Box::new(helpers::ExecHelper),
+            ExecContext::Remote(cxt) =>  Box::new(helpers::RemoteExecHelper {
+                context: cxt.clone()
+            })
+        };
         // let remote_exec_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::RemoteExecHelper {
         //     destination: "pmx".to_string()
         // });

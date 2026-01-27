@@ -1395,6 +1395,7 @@ version = "1.0.7"
 dependencies = [
  "anyhow",
  "async-recursion",
+ "async-trait",
  "chrono",
  "clap",
  "clap-stdin",

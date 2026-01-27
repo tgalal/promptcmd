@@ -52,6 +52,7 @@ libc = "0.2.180"
 rand = "0.9.2"
 glob = "0.3.3"
 url = "2.5.8"
+async-trait = "0.1.89"
 [dev-dependencies]
 pretty_assertions = "1.4.1"
 rstest = "0.26.1"

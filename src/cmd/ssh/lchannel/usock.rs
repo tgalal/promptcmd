@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::net::UnixListener;
+use crate::cmd::ssh::lchannel::LChannel;
 use crate::executor::Executor;
 use super::stream_common;
-
+use async_trait::async_trait;
 use super::ChannelError;
 
 
@@ -12,8 +13,9 @@ pub struct USocketChannel {
     pub path: PathBuf,
 }
 
-impl USocketChannel {
-    pub async fn run(&self) -> Result<(), ChannelError> {
+#[async_trait]
+impl LChannel for USocketChannel {
+    async fn run(&self) -> Result<(), ChannelError> {
         if self.path.exists() {
             std::fs::remove_file(&self.path)?;
         }

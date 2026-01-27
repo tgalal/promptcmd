@@ -1,9 +1,11 @@
 use std::sync::Arc;
 use tokio::net::{TcpListener};
 
+use crate::cmd::ssh::lchannel::LChannel;
 use crate::executor::Executor;
 use super::stream_common;
 use super::ChannelError;
+use async_trait::async_trait;
 
 
 pub struct TcpChannel {
@@ -11,8 +13,9 @@ pub struct TcpChannel {
     pub port: u32
 }
 
-impl TcpChannel {
-    pub async fn run(&self) -> Result<(), ChannelError> {
+#[async_trait]
+impl LChannel for  TcpChannel {
+    async fn run(&self) -> Result<(), ChannelError> {
 
         let addr = format!("127.0.0.1:{}", self.port);
         let listener = TcpListener::bind(&addr).await?;

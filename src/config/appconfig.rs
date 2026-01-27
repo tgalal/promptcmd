@@ -20,6 +20,122 @@ pub struct AppConfig {
     pub providers: Providers,
     #[serde(default)]
     pub groups: HashMap<String, GroupConfig>,
+    #[serde(default)]
+    pub remote: Vec<Remote>,
+}
+
+impl AppConfig {
+    pub fn find_remote_best_match(&self, host: &str, user: Option<&str>) -> Option<&Remote> {
+        self.remote
+            .iter()
+            .filter_map(|remote| {
+                let remote_user = remote.user.as_ref().map(|s| s.as_str());
+                // Check if host matches (either equal or None)
+                let host_matches = remote.host.as_deref() == Some(host) || remote.host.is_none();
+                // Check if user matches (either equal or None)
+                let user_matches = remote_user == user || remote_user.is_none() || user.is_none();
+
+                // Only consider remotes that match
+                if host_matches && user_matches {
+                    // Calculate match score: 2 points for exact match, 1 point for None
+                    let score = 
+                        (if remote.host.as_deref() == Some(host) { 2 } else { 1 }) +
+                        (if remote_user == user { 2 } else { 1 });
+                    Some((remote, score))
+                } else {
+                    None
+                }
+            })
+            .max_by_key(|(_, score)| *score)
+            .map(|(remote, _)| remote)
+    }
+}
+
+#[derive(Debug, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ShellOptions {
+    #[default]
+    Auto,
+    Bash,
+    Zsh,
+    Sh,
+}
+
+#[derive(Debug, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ChannelOptions {
+    #[default]
+    Auto,
+    Nc,
+    Socat,
+    BashTcp
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Remote {
+    pub host: Option<String>,
+    pub user: Option<String>,
+    #[serde(default)]
+    pub shell: ShellOptions,
+    #[serde(default)]
+    pub channel: ChannelOptions,
+    #[serde(default)]
+    pub remote_socket: RemoteSocket,
+    #[serde(default)]
+    pub remote_ports: PortSettings,
+    #[serde(default)]
+    pub local_ports: PortSettings
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RemoteSocket {
+    #[serde(default = "default_socket_path")]
+    pub path: String,
+    #[serde(default = "default_socket_random")]
+    pub random: bool
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PortSettings {
+    #[serde(default = "default_port_start")]
+    pub start: u32,
+    #[serde(default = "default_port_end")]
+    pub end: u32,
+}
+
+fn default_port_start() -> u32 { 49152 }
+fn default_port_end() -> u32 { 65535 }
+fn default_socket_path() -> String { "/tmp/".to_string() }
+fn default_socket_random() -> bool { true }
+
+impl Default for PortSettings {
+   fn default() -> Self {
+        Self {
+            start: default_port_start(),
+            end: default_port_end(),
+        }
+    } 
+}
+impl Default for RemoteSocket {
+    fn default() -> Self {
+        Self {
+            random: default_socket_random(),
+            path: default_socket_path()
+        }
+    }
+}
+impl Default for Remote {
+    fn default() -> Self {
+        Self {
+            host: None,
+            user: None,
+            shell: ShellOptions::Auto,
+            channel: ChannelOptions::Auto,
+            remote_socket: RemoteSocket::default(),
+            remote_ports: PortSettings::default(),
+            local_ports: PortSettings::default(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -137,6 +253,7 @@ pub enum ModelError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     #[test]
     fn test_parse_basic_config() {
@@ -224,4 +341,109 @@ providers = [
         println!("{:?}", groups);
     }
 
+    #[rstest]
+    #[case(
+        r#"
+[[remote]]
+host = "host1"
+shell = "sh"
+user = "user1"
+
+"#, "host1", Some("user1"), Some(ShellOptions::Sh))]
+
+    #[case(
+        r#"
+[[remote]]
+host = "host1"
+shell = "sh"
+user = "user1"
+
+"#, "host5", None, None)]
+
+    #[case(
+        r#"
+[[remote]]
+host = "host1"
+shell = "sh"
+user = "user1"
+
+"#, "host1", None, Some(ShellOptions::Sh))]
+
+    #[case(
+        r#"
+[[remote]]
+host = "host1"
+shell = "bash"
+
+[[remote]]
+host = "host1"
+user = "user1"
+shell = "zsh"
+
+"#, "host1", None, Some(ShellOptions::Bash))]
+
+    #[case(
+        r#"
+[[remote]]
+host = "host1"
+shell = "bash"
+
+[[remote]]
+host = "host1"
+user = "user1"
+shell = "zsh"
+
+"#, "host1", Some("user1"), Some(ShellOptions::Zsh))]
+
+    #[case(
+        r#"
+[[remote]]
+host = "host1"
+shell = "bash"
+
+[[remote]]
+host = "host1"
+user = "user1"
+shell = "zsh"
+
+"#, "host1", Some("user2"), Some(ShellOptions::Bash))]
+
+    #[case(
+        r#"
+[[remote]]
+host = "host1"
+shell = "bash"
+
+[[remote]]
+host = "host1"
+user = "user1"
+shell = "zsh"
+
+"#, "", Some("user1"), None)]
+    #[case(
+        r#"
+[[remote]]
+host = "host1"
+shell = "bash"
+
+[[remote]]
+host = "host1"
+user = "user1"
+shell = "zsh"
+
+"#, "", Some(""), None)]
+    fn test_remote(#[case] toml_content: &str,
+        #[case] host: &str,
+        #[case] user: Option<&str>,
+        #[case] shellopt: Option<ShellOptions>) {
+        let config = AppConfig::try_from(toml_content).unwrap();
+
+        let rconf = config.find_remote_best_match(host, user);
+
+        if let Some(shellopt) = shellopt {
+            assert_eq!(shellopt, rconf.unwrap().shell);
+        } else {
+            assert!(rconf.is_none());
+        }
+    }
 }

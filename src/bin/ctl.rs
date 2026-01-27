@@ -221,7 +221,8 @@ async fn main() -> Result<()> {
             cmd.exec(
                 Arc::new(executor),
                 installed,
-                session_info
+                session_info,
+                appconfig
             ).await
         }
     }

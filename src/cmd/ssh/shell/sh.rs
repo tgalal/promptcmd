@@ -1,7 +1,8 @@
-pub fn setup(workdir: &str, functions: &str) -> String {
+pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str) -> String {
     format!(r#"
 mkdir -p {workdir}
 cat > {workdir}/{functions_file} << "EOF"
+{dispatcher_func}
 {functions}
 EOF
 

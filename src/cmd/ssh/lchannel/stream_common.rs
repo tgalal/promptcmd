@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use clap::{Command as ClapCommand};
 use log::debug;
+use log::warn;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::dotprompt::renderers::argmatches::DotPromptArgMatches;
@@ -90,12 +91,19 @@ pub async fn handle_stream<S: AsyncReadExt + AsyncWriteExt + Unpin>(executor: Ar
                         let data = data_str.as_bytes();
 
                         ends_with_newline = data_str.ends_with("\n");
-                        stream.write_all(data).await.unwrap();
-                        stream.flush().await.unwrap();
+                        if let Err(err) = stream.write_all(data).await {
+                            warn!("{err}");
+                            break;
+                        }
+                        if let Err(err) = stream.flush().await {
+                            warn!("{err}");
+                            break;
+                        }
                     }
-                    if !ends_with_newline {
-                        stream.write_all("\n".as_bytes()).await.unwrap();
+                    if !ends_with_newline  && let Err(err) = stream.write_all("\n".as_bytes()).await {
+                        warn!("{err}");
                     }
+                    
                 }
                 ExecutionOutput::StructuredStreamingOutput(mut tokstream) => {
                     let mut ends_with_newline = false;
@@ -105,11 +113,17 @@ pub async fn handle_stream<S: AsyncReadExt + AsyncWriteExt + Unpin>(executor: Ar
                         let data = data_str.as_bytes();
 
                         ends_with_newline = data_str.ends_with("\n");
-                        stream.write_all(data).await.unwrap();
-                        stream.flush().await.unwrap();
+                        if let Err(err) = stream.write_all(data).await {
+                            warn!("{err}");
+                            break;
+                        }
+                        if let Err(err) = stream.flush().await {
+                            warn!("{err}");
+                            break;
+                        }
                     }
-                    if !ends_with_newline {
-                        stream.write_all("\n".as_bytes()).await.unwrap();
+                    if !ends_with_newline  && let Err(err) = stream.write_all("\n".as_bytes()).await {
+                        warn!("{err}");
                     }
                 }
                 ExecutionOutput::ImmediateOutput(output) => {

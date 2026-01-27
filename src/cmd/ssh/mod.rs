@@ -82,7 +82,7 @@ impl SshCmd {
 
         let bootstrap_data = bootstrap::setup(executor, &prompts, shell, channel);
 
-        println!("{}", &bootstrap_data.script);
+        // println!("{}", &bootstrap_data.script);
 
         tokio::spawn(async move {
             bootstrap_data.lchannel.run().await.context("Channel Error")?;
@@ -90,7 +90,7 @@ impl SshCmd {
         });
 
 
-        println!("Fwd: {:#?}", &bootstrap_data.forwards);
+        // println!("Fwd: {:#?}", &bootstrap_data.forwards);
 
         let connection_sharing_args = vec![
             "-o".to_string(),

@@ -1,19 +1,21 @@
 use clap::{value_parser, Arg, ArgGroup, Command};
+use promptcmd::cmd::ssh::{controlpath, utils};
 use promptcmd::config::resolver::{ResolvedGlobalProperties, ResolvedPropertySource};
 use promptcmd::config::{self, appconfig_locator};
 use promptcmd::config::appconfig::{AppConfig, GlobalProviderProperties};
 use promptcmd::cmd::run;
 use promptcmd::dotprompt::renderers::argmatches::DotPromptArgMatches;
 use promptcmd::dotprompt::DotPrompt;
-use promptcmd::executor::{ExecContext, ExecutionOutput, Executor, PromptInputs, RemoteExecContext};
+use promptcmd::executor::{ExecContext, ExecutionOutput, Executor, MultiplexedSession, PromptInputs, RemoteExecContext};
 use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::{RusqliteStore};
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use promptcmd::storage::PromptFilesStorage;
 use promptcmd::ENV_CONFIG;
+use tokio::process::Child;
 use std::sync::{Arc};
-use std::{env};
 use anyhow::{Context, Result, anyhow, bail};
+use std::{env, process};
 use std::path::PathBuf;
 use std::fs;
 use log::debug;
@@ -135,6 +137,12 @@ async fn main() -> Result<()> {
             .short('h')
             .action(clap::ArgAction::Help)
             .help("Print help")
+        )
+        .arg(
+            Arg::new("remote")
+            .hide(true)
+            .long("remote")
+            .help("Execute commands on a remote host")
         );
     command = command.next_help_heading("Optional Configuration Overrides")
         .arg(Arg::new("model")
@@ -173,13 +181,81 @@ async fn main() -> Result<()> {
     let lb = WeightedLoadBalancer {
         stats: statsstore
     };
-    let executor = Executor {
-        loadbalancer: lb,
-        appconfig,
-        statsstore,
-        prompts_storage,
-        exec_context: ExecContext::Local
+
+    let remote = matches.get_one::<String>("remote");
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let (ssh_handle, executor) = if let Some(remote) = remote {
+        let remote = remote.clone();
+        let controlpath = controlpath::control_path(process::id()).context("Could not determine control path")?;
+        let destination = utils::get_destination(&remote);
+
+        let session_info = MultiplexedSession {
+            controlpath: controlpath.clone(),
+            destination
+        };
+
+        let connection_sharing_args = vec![
+            "-o".to_string(),
+            "ControlMaster=yes".to_string(),
+            "-o".to_string(),
+            format!("ControlPath={}", &controlpath),
+            "-o".to_string(),
+            "ControlPersist=no".to_string(),
+        ];
+
+
+        // println!("{:#?}", &connection_sharing_args);
+
+
+        let ssh_cmd_handle = tokio::spawn(async move {
+
+            let mut child = tokio::process::Command::new("ssh")
+                .arg("-t")
+                .arg("-N")
+                // .arg("-R")
+                // .args(&bootstrap_data.forwards)
+                .args(connection_sharing_args)
+                // .args(ssh_args)
+                // .arg(&bootstrap_data.script)
+                .arg(remote)
+                .spawn().context("Error in ssh proc")?;
+                // .output().await.context("Errot in ssh proc")?;
+                // .spawn().context("Error spawning ssh")?
+                // .wait().await.context("Error in ssh proc")?;
+
+            tokio::select! {
+                _ = child.wait() => {
+                    // Process exited on its own
+                }
+                 _ = rx => {
+                // Shutdown signal received
+                let _ = child.kill().await;
+            }
+
+            }
+            Ok::<Child, anyhow::Error>(child)
+        });
+
+        (Some(ssh_cmd_handle),
+        Executor {
+            loadbalancer: lb,
+            appconfig,
+            statsstore,
+            prompts_storage,
+            exec_context: ExecContext::Remote( RemoteExecContext::MultiplexedSession(session_info.clone()))
+        })
+    } else {
+        (None, Executor {
+            loadbalancer: lb,
+            appconfig,
+            statsstore,
+            prompts_storage,
+            exec_context: ExecContext::Local
+        })
     };
+
+
 
     let arc_executor = Arc::new(executor);
 
@@ -274,6 +350,11 @@ async fn main() -> Result<()> {
             println!("{}", &output);
         }
     };
+
+    if let Some(handle) = ssh_handle {
+        let _ = tx.send(());
+        let _ = handle.await;
+    }
 
     Ok(())
 }

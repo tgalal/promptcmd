@@ -99,6 +99,7 @@ macro_rules! create_provider {
 
         impl fmt::Display for ResolvedProviderConfig {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                #![allow(unused_assignments)]
 
                 let mut first = true;
 

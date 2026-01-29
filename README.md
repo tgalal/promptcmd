@@ -52,7 +52,7 @@ for cost optimization.
 providers = ["openai", "google"]
 ```
 ```bash
-$ cat README.md | render-md -m "balanced"
+$ cat README.md | render-md -m balanced
 ```
 
 [More on Groups](https://docs.promptcmd.sh/configuration/groups).
@@ -71,7 +71,7 @@ cache_ttl = 60 # number of seconds
 Set/Override during execution:
 
 ```bash
-$ cat README.md | render-md -m "balanced" --config-cache-ttl 120
+$ cat README.md | render-md --config-cache-ttl 120
 ```
 
 [More on Caching](https://docs.promptcmd.sh/configuration/caching).

@@ -523,6 +523,9 @@ system = "rust-coder sys msg"
 system = "rust-coder sys msg"
 model = "clauderust"
 
+[providers.anthropic.override_apikey]
+api_key = "overridden_key"
+
 [groups.group_of_short_bases]
 providers = ["anthropic", "openai"]
 
@@ -709,6 +712,38 @@ Templ
                     system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder".to_string()),                   value: String::from("rust-coder sys msg") }),
                     max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
                     model: Some(ResolvedProperty {       source: ResolvedPropertySource::Inputs,                             value: "custom_model".to_string() }),
+                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                },
+    }))
+)]
+#[case::variant_with_overriden_apikey(
+  Some("override_apikey".to_string()),
+  Ok(ResolvedConfig::Variant(Variant {
+                base_name: "anthropic".to_string(),
+                name: "override_apikey".to_string(),
+                resolved:
+                    ResolvedProviderConfig::Anthropic(anthropic::ResolvedProviderConfig {
+                        api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Variant("override_apikey".to_string()),                 value: String::from("overridden_key") }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("anthropic".to_string()),                   value: String::from("system 5") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                        },
+                    })
+                ,
+                model_info: Ok(ModelInfo {
+                    provider: "anthropic".to_string(),
+                    model: "claude".to_string()
+                }),
+                globals: ResolvedGlobalProperties {
+                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("anthropic".to_string()),                   value: String::from("system 5") }),
+                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
                     stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
                 },
     }))

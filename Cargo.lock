@@ -1377,7 +1377,7 @@ dependencies = [
 
 [[package]]
 name = "promptcmd"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "anyhow",
  "async-recursion",

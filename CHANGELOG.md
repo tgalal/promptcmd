@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Version 1.0.7 (2026-01-29)
+
+### Fixed
+
+- Command-given model resolution not properly overriding FM
+- Variant name resolution
+
 ## Version 1.0.6 (2026-01-22)
 
 ### Added

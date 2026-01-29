@@ -1,7 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use std::process::Command;
 use std::sync::OnceLock;
+use std::time::Duration;
+use openssh::Stdio;
 use thiserror::Error;
+use std::thread;
 
 #[derive(Error, Debug)]
 pub enum ParsedSshArgsError {
@@ -15,6 +18,30 @@ type SshOptions = HashMap<String, String>;
 
 /// Cached SSH options discovered from the system's SSH binary
 static SSH_OPTIONS: OnceLock<SshOptions> = OnceLock::new();
+
+
+pub fn wait_for_master_ready(control_path: &str, host: &str, timeout: Duration) -> Result<(), String> {
+    let start = std::time::Instant::now();
+
+    while start.elapsed() < timeout {
+        let status = Command::new("ssh")
+            .args(["-O", "check", "-o", &format!("ControlPath={}", control_path), host])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+
+        if let Ok(status) = status {
+            if status.success() {
+                return Ok(());
+            }
+        }
+
+        thread::sleep(Duration::from_millis(200));
+    }
+
+    Err("Timeout: master connection failed to establish".to_string())
+}
+
 
 /// Get SSH options by parsing ssh's help output or using fallback
 fn ssh_options() -> &'static SshOptions {

@@ -3,7 +3,7 @@ use promptcmd::cmd::ssh::{controlpath, utils};
 use promptcmd::config::resolver::{ResolvedGlobalProperties, ResolvedPropertySource};
 use promptcmd::config::{self, appconfig_locator};
 use promptcmd::config::appconfig::{AppConfig, GlobalProviderProperties};
-use promptcmd::cmd::run;
+use promptcmd::cmd::{self, run};
 use promptcmd::dotprompt::renderers::argmatches::DotPromptArgMatches;
 use promptcmd::dotprompt::DotPrompt;
 use promptcmd::executor::{ExecContext, ExecutionOutput, Executor, MultiplexedSession, PromptInputs, RemoteExecContext};
@@ -16,6 +16,7 @@ use tokio::process::Child;
 use std::sync::{Arc};
 use anyhow::{Context, Result, anyhow, bail};
 use std::{env, process};
+use std::time::Duration;
 use std::path::PathBuf;
 use std::fs;
 use log::debug;
@@ -186,7 +187,7 @@ async fn main() -> Result<()> {
 
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     let (ssh_handle, executor) = if let Some(remote) = remote {
-        let remote = remote.clone();
+        let remote_host = remote.clone();
         let controlpath = controlpath::control_path(process::id()).context("Could not determine control path")?;
         let destination = utils::get_destination(&remote);
 
@@ -204,38 +205,34 @@ async fn main() -> Result<()> {
             "ControlPersist=no".to_string(),
         ];
 
-
-        // println!("{:#?}", &connection_sharing_args);
-
-
+        debug!("Setting up master connection to {}", &remote);
         let ssh_cmd_handle = tokio::spawn(async move {
-
             let mut child = tokio::process::Command::new("ssh")
                 .arg("-t")
                 .arg("-N")
-                // .arg("-R")
-                // .args(&bootstrap_data.forwards)
                 .args(connection_sharing_args)
-                // .args(ssh_args)
-                // .arg(&bootstrap_data.script)
-                .arg(remote)
+                .arg(&remote_host)
                 .spawn().context("Error in ssh proc")?;
-                // .output().await.context("Errot in ssh proc")?;
-                // .spawn().context("Error spawning ssh")?
-                // .wait().await.context("Error in ssh proc")?;
 
             tokio::select! {
                 _ = child.wait() => {
-                    // Process exited on its own
+                    debug!("SSH session terminated normally");
                 }
                  _ = rx => {
-                // Shutdown signal received
-                let _ = child.kill().await;
-            }
-
+                    debug!("Terminating master SSH session due to shutdown signal");
+                    let _ = child.kill().await;
+                }
             }
             Ok::<Child, anyhow::Error>(child)
         });
+        debug!("Waiting 30 seconds for master connection to succeed");
+        cmd::ssh::utils::wait_for_master_ready(
+            &controlpath,
+            remote,
+            Duration::from_secs(30)).map_err(|err|
+            anyhow!(err)
+        )?;
+        debug!("Master connection succeeded, proceeding.");
 
         (Some(ssh_cmd_handle),
         Executor {
@@ -243,7 +240,7 @@ async fn main() -> Result<()> {
             appconfig,
             statsstore,
             prompts_storage,
-            exec_context: ExecContext::Remote( RemoteExecContext::MultiplexedSession(session_info.clone()))
+            exec_context: ExecContext::Remote(RemoteExecContext::MultiplexedSession(session_info.clone()))
         })
     } else {
         (None, Executor {
@@ -254,7 +251,6 @@ async fn main() -> Result<()> {
             exec_context: ExecContext::Local
         })
     };
-
 
 
     let arc_executor = Arc::new(executor);

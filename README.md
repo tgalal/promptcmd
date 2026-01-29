@@ -16,16 +16,89 @@ pipelines.
 
 ## Key Features
 
-- **Prompts as CLI Commands**: Create a `.prompt` file, enable it with
-`promptctl`, and execute it like any native tool.
+### Prompts as CLI Commands
 
-- **Multi-Provider Support**: Supports Anthropic (Claude),
-OpenAI (GPT), Google (Gemini), OpenRouter, and Ollama.
+Create a `.prompt` file, enable it with `promptctl`, and execute it like any
+native tool.
 
-- **Caching and Load Balancing**:
-Configure load balancing groups to distribute requests across providers with
-equal or weighted distribution for cost optimization. Configure caching in
-order to not waste tokens on identical prompts.
+```bash
+$ promptctl create bashme_a_script_that
+$ bashme_a_script_that renames all files in current directly to ".backup"
+```
+
+[More on Execution](https://docs.promptcmd.sh/usage/exec).
+
+### Local and Remote Provider Support
+
+Use your Ollama endpoint or configure an API key for OpenAI, OpenRouter,
+Anthropic, or Google. Swap between them with easeA.
+
+```bash
+$ promptctl create render-md
+$ cat README.md | render-md -m openai
+$ cat README.md | render-md -m ollama/gpt-oss:20b
+```
+
+[More on Providers](https://docs.promptcmd.sh/configuration/providers).
+
+### Group and Load Balancing
+
+Distribute requests across several providers with equal or weighted distribution
+for cost optimization.
+
+```toml
+# config.toml
+[groups.balanced]
+providers = ["openai", "google"]
+```
+```bash
+$ cat README.md | render-md -m "balanced"
+```
+
+[More on Groups](https://docs.promptcmd.sh/configuration/groups).
+
+### Caching
+
+Cache responses for a configured amount of time for adding determinism in
+pipelines and more efficient token consumption.
+
+```toml
+# config.toml
+[providers.openai]
+cache_ttl = 60 # number of seconds
+```
+
+Set/Override during execution:
+
+```bash
+$ cat README.md | render-md -m "balanced" --config-cache-ttl 120
+```
+
+[More on Caching](https://docs.promptcmd.sh/configuration/caching).
+
+### Custom Models with Character
+
+Use Variants to define custom models with own personality or specialization in
+tasks:
+
+```config.toml
+[providers.anthropic]
+api_key = "sk-xxxxx"
+model = "claude-sonnet-4-5"
+
+[providers.anthropic.glados]
+system = "Use sarcasm and offending jokes like the GlaDoS character from Portal."
+
+[providers.anthropic.wheatley]
+system = "Reply as if you are Wheatley from Portal."
+```
+
+```bash
+$ tipoftheday -m glados
+$ tipoftheday -m wheatley
+```
+
+[More on Variants](https://docs.promptcmd.sh/configuration/variants).
 
 ## Quick Start
 

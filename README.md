@@ -31,7 +31,7 @@ $ bashme_a_script_that renames all files in current directly to ".backup"
 ### Local and Remote Provider Support
 
 Use your Ollama endpoint or configure an API key for OpenAI, OpenRouter,
-Anthropic, or Google. Swap between them with easeA.
+Anthropic, or Google. Swap between them with ease.
 
 ```bash
 $ promptctl create render-md

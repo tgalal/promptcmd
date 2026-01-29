@@ -47,6 +47,8 @@ xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
 futures = "0.3.31"
 async-recursion = "1.1.1"
 [dev-dependencies]
+pretty_assertions = "1.4.1"
+rstest = "0.26.1"
 temp-env = "0.3.6"
 tempfile = "3.8"
 

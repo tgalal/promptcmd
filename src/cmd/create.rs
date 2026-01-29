@@ -94,7 +94,7 @@ impl CreateCmd {
                         .join("\n");
 
                     if let Some(model_name) = model_name {
-                        let mut resolver = Resolver {
+                        let resolver = Resolver {
                             fm_properties: Some(ResolvedGlobalProperties {
                                     model: Some(ResolvedProperty {
                                         source: ResolvedPropertySource::Dotprompt(model_name.clone()),

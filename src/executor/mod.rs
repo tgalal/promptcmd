@@ -191,7 +191,7 @@ impl Executor {
             return Ok(ExecutionOutput::RenderOnly(rendered_dotprompt));
         }
 
-        let mut resolver = Resolver {
+        let resolver = Resolver {
             overrides,
             fm_properties: Some(ResolvedGlobalProperties::from((
                 &GlobalProviderProperties::from(&dotprompt.frontmatter),

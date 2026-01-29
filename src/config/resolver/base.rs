@@ -5,7 +5,7 @@ use crate::config::{providers::{error::ToModelInfoError, ModelInfo}, resolver::{
     ResolvedProviderConfig}};
 use crate::config::providers;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Base {
     pub name: String,
     pub resolved: ResolvedProviderConfig,
@@ -26,15 +26,6 @@ impl Base {
             ($provider:ident, $base_config:ident) => {
 
             {
-                // Cheap hack for when a frontmatter's model is only the provider name
-                // This omits the model from the FM to prevent it from overriding a default one
-                let fm_properties = fm_properties.map(|mut fm| {
-                    if let Some(model) = fm.model.as_ref() && ["ollama", "anthropic", "openrouter", "google", "openai"].contains(&model.value.as_str()) {
-                        fm.model = None;
-                    }
-                    fm
-                });
-
                 providers::$provider::ResolvedProviderConfigBuilder::from_defaults()
                     .apply_providers_env()
                     .apply_global_overrides(Some(global_provider_properties))

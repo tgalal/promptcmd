@@ -9,7 +9,7 @@ pub enum ToLLMBuilderError {
     ModelError(#[from] ToModelInfoError)
 }
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq)]
 #[error("'{0}' is required but not configured")]
 pub enum ToModelInfoError {
     RequiredConfiguration(&'static str)

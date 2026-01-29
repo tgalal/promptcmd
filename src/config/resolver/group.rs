@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::config::resolver::{base::Base, variant::Variant};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum GroupMember {
     Base(Base, u32),
     Variant(Variant, u32)
@@ -30,7 +30,7 @@ impl fmt::Display for GroupMember {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Group {
     pub name: String,
     pub members: Vec<GroupMember>

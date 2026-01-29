@@ -47,7 +47,7 @@ macro_rules! create_provider {
         }
 
         // Finalized Configuration with all sources
-        #[derive(Debug)]
+        #[derive(Debug, PartialEq)]
         pub struct ResolvedProviderConfig {
             pub globals: ResolvedGlobalProperties,
             $(pub $field: Option<ResolvedProperty<$type>>),*

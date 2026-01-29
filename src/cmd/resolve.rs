@@ -13,7 +13,7 @@ pub struct ResolveCmd {
 impl ResolveCmd {
     pub fn exec(&self, appconfig: &AppConfig, out: &mut impl std::io::Write) -> Result<()> {
 
-        let mut resolver = Resolver {
+        let resolver = Resolver {
             overrides: None,
             fm_properties: None
         };

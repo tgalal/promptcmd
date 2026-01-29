@@ -8,7 +8,7 @@ pub mod openrouter;
 pub mod constants;
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ModelInfo {
     pub provider: String,
     pub model: String

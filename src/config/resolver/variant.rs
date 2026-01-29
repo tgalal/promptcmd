@@ -3,7 +3,7 @@ use llm::builder::LLMBuilder;
 use crate::config::{providers::{error::ToModelInfoError, ModelInfo}, resolver::{ResolvedGlobalProperties, ResolvedProperty, ResolvedPropertySource, ResolvedProviderConfig, VariantProviderConfigSource}};
 use crate::config::providers;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Variant {
     pub name: String,
     pub base_name: String,
@@ -24,6 +24,7 @@ impl Variant {
 
         macro_rules! resolve_final_config {
             ($provider:ident, $base_config:ident, $variant_config:ident) => {
+            {
 
             providers::$provider::ResolvedProviderConfigBuilder::from_defaults()
                 .apply_providers_env()
@@ -41,6 +42,7 @@ impl Variant {
                 .apply_global_overrides(overrides)
                 .override_model(model_resolved_property)
                 .build()
+            }
             }
         }
 

@@ -20,7 +20,7 @@ pub use group::{Group, GroupMember};
 use log::debug;
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ResolvedConfig {
     Base(base::Base),
     Variant(variant::Variant),
@@ -43,7 +43,7 @@ pub enum VariantProviderConfigSource<'a> {
     OpenRouter(&'a openrouter::Config, &'a openrouter::Config),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ResolvedProviderConfig {
     Ollama(ollama::ResolvedProviderConfig),
     Anthropic(anthropic::ResolvedProviderConfig),
@@ -53,7 +53,7 @@ pub enum ResolvedProviderConfig {
 }
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ResolvedProperty<T> {
     pub source: ResolvedPropertySource,
     pub value: T
@@ -73,7 +73,7 @@ pub enum ResolvedPropertySource {
     Other(String)
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct ResolvedGlobalProperties {
     pub temperature: Option<ResolvedProperty<f32>>,
     pub max_tokens: Option<ResolvedProperty<u32>>,
@@ -104,7 +104,7 @@ pub struct Resolver {
 
 impl Resolver {
 
-    fn resolve_base(&mut self, appconfig: &AppConfig, base_name_property: ResolvedProperty<String>) -> Result<Base, error::ResolveError> {
+    fn resolve_base(&self, appconfig: &AppConfig, base_name_property: ResolvedProperty<String>) -> Result<Base, error::ResolveError> {
 
         let base_name = base_name_property.value.as_str();
         debug!("Attempting to resolve {base_name} as Base");
@@ -115,7 +115,7 @@ impl Resolver {
             (base_name, None)
         };
 
-
+        // If the base name is a short form (e.g., openai) this is going to be None.
         let model_resolved_property = model.map(|val| {
             ResolvedProperty {
                 source: base_name_property.source.clone(),
@@ -127,70 +127,97 @@ impl Resolver {
             (&appconfig.providers.globals, ResolvedPropertySource::Globals)
         );
 
-        match provider {
+        // In certain cases we omit the model specified in FM:
+        // - We have a model specified via command line/inputs, this should
+        // override whatever the frontmatter says
+        // - The model name comes from inside a group, in this case whatever the
+        // FM says about the model name is irrelevant
+        // - The FM has only a "shortform" (e.g., openai). This is not a full
+        // model name and has already been used in resolving the
+        // provider/group/variant.
+        let fm_properties = self.fm_properties.clone().map(|props| {
+            let model =  if matches!(base_name_property.source,
+                ResolvedPropertySource::Inputs | ResolvedPropertySource::Group(_, _)) {
+                None
+            } else {
+                props.model.and_then(|m| if !m.value.contains("/") {None} else {Some(m)})
+            };
+            ResolvedGlobalProperties {
+                model,
+                ..props
+            }
+        });
+
+        let base = match provider {
             "ollama" => {
                 debug!("Resolving {base_name} as Ollama Base");
-                Ok(Base::new(
+                Base::new(
                     provider.to_string(),
                     BaseProviderConfigSource::Ollama(&appconfig.providers.ollama.config),
-                    self.fm_properties.take(),
-                    self.overrides.take(),
+                    fm_properties,
+                    self.overrides.clone(),
                     global_provider_properties,
                     model_resolved_property
-                ))
+                )
             }
             "anthropic" => {
                 debug!("Resolving {base_name} as Anthropic Base");
-                Ok(Base::new(
+                Base::new(
                     provider.to_string(),
                     BaseProviderConfigSource::Anthropic(&appconfig.providers.anthropic.config),
-                    self.fm_properties.take(),
-                    self.overrides.take(),
+                    fm_properties,
+                    self.overrides.clone(),
                     global_provider_properties,
                     model_resolved_property
-                ))
+                )
             }
             "openai" => {
                 debug!("Resolving {base_name} as OpenAI Base");
-                Ok(Base::new(
+                Base::new(
                     provider.to_string(),
                     BaseProviderConfigSource::OpenAI(&appconfig.providers.openai.config),
-                    self.fm_properties.take(),
-                    self.overrides.take(),
+                    fm_properties,
+                    self.overrides.clone(),
                     global_provider_properties,
                     model_resolved_property
-                ))
+                )
             },
             "google" => {
                 debug!("Resolving {base_name} as Google Base");
-                Ok(Base::new(
+                Base::new(
                     provider.to_string(),
                     BaseProviderConfigSource::Google(&appconfig.providers.google.config),
-                    self.fm_properties.take(),
-                    self.overrides.take(),
+                    fm_properties,
+                    self.overrides.clone(),
                     global_provider_properties,
                     model_resolved_property
-                ))
+                )
             },
             "openrouter" => {
                 debug!("Resolving {base_name} as OpenRouter Base");
-                Ok(Base::new(
+                Base::new(
                     provider.to_string(),
                     BaseProviderConfigSource::OpenRouter(&appconfig.providers.openrouter.config),
-                    self.fm_properties.take(),
-                    self.overrides.take(),
+                    fm_properties,
+                    self.overrides.clone(),
                     global_provider_properties,
                     model_resolved_property
-                ))
+                )
             },
             _ => {
-                Err(error::ResolveError::NotFound(base_name.to_string()))
+                Err(error::ResolveError::NotFound(base_name.to_string()))?
             }
+        };
+
+        if base.model_info.is_err() {
+            Err(error::ResolveError::NoNameToResolve)
+        } else {
+            Ok(base)
         }
     }
 
     fn resolve_variant(
-            &mut self,
+            &self,
             appconfig: &AppConfig,
             variant_name_property: ResolvedProperty<String>,
             ) -> Result<Variant, error::ResolveError> {
@@ -213,66 +240,93 @@ impl Resolver {
             }
         });
 
+        // In certain cases we omit the model specified in FM:
+        // - We have a model specified via command line/inputs, this should
+        // override whatever the frontmatter says
+        // - The model name comes from inside a group, in this case whatever the
+        // FM says about the model name is irrelevant
+        // - The FM has only a "shortform" (e.g., openai). This is not a full
+        // model name and has already been used in resolving the
+        // provider/group/variant.
+        let fm_properties = self.fm_properties.clone().map(|props| {
+            let model =  if matches!(variant_name_property.source,
+                ResolvedPropertySource::Inputs | ResolvedPropertySource::Group(_, _)) {
+                None
+            } else {
+                props.model.and_then(|m| if !m.value.contains("/") {None} else {Some(m)})
+            };
+            ResolvedGlobalProperties {
+                model,
+                ..props
+            }
+        });
+
         let global_provider_properties = ResolvedGlobalProperties::from(
             (&appconfig.providers.globals, ResolvedPropertySource::Globals)
         );
 
-        if let Some(conf) = appconfig.providers.ollama.named.get(provider) {
-            Ok(Variant::new(
+        let variant = if let Some(conf) = appconfig.providers.ollama.named.get(provider) {
+            Variant::new(
                 provider.into(),
                 "ollama".into(),
                 VariantProviderConfigSource::Ollama(conf, &appconfig.providers.ollama.config),
-                self.fm_properties.take(),
-                self.overrides.take(),
+                fm_properties,
+                self.overrides.clone(),
                 global_provider_properties,
                 model_resolved_property
-            ))
+            )
         } else if let Some(conf) = appconfig.providers.anthropic.named.get(provider) {
-            Ok(Variant::new(
+            Variant::new(
                 provider.into(),
                 "anthropic".into(),
                 VariantProviderConfigSource::Anthropic(conf, &appconfig.providers.anthropic.config),
-                self.fm_properties.take(),
-                self.overrides.take(),
+                fm_properties,
+                self.overrides.clone(),
                 global_provider_properties,
                 model_resolved_property
-            ))
+            )
         } else if let Some(conf) = appconfig.providers.openai.named.get(provider) {
-            Ok(Variant::new(
+            Variant::new(
                 provider.into(),
                 "openai".into(),
                 VariantProviderConfigSource::OpenAI(conf, &appconfig.providers.openai.config),
-                self.fm_properties.take(),
-                self.overrides.take(),
+                fm_properties,
+                self.overrides.clone(),
                 global_provider_properties,
                 model_resolved_property
-            ))
+            )
         } else if let Some(conf) = appconfig.providers.google.named.get(provider) {
-            Ok(Variant::new(
+            Variant::new(
                 provider.into(),
                 "google".into(),
                 VariantProviderConfigSource::Google(conf, &appconfig.providers.google.config),
-                self.fm_properties.take(),
-                self.overrides.take(),
+                fm_properties,
+                self.overrides.clone(),
                 global_provider_properties,
                 model_resolved_property
-            ))
+            )
         } else if let Some(conf) = appconfig.providers.openrouter.named.get(provider) {
-            Ok(Variant::new(
+            Variant::new(
                 provider.into(),
                 "openrouter".into(),
                 VariantProviderConfigSource::OpenRouter(conf, &appconfig.providers.openrouter.config),
-                self.fm_properties.take(),
-                self.overrides.take(),
+                fm_properties,
+                self.overrides.clone(),
                 global_provider_properties,
                 model_resolved_property
-            ))
+            )
         } else {
-            Err(error::ResolveError::NotFound(variant_name.to_string()))
+            Err(error::ResolveError::NotFound(variant_name.to_string()))?
+        };
+
+        if variant.model_info.is_err() {
+            Err(error::ResolveError::NoNameToResolve)
+        } else {
+            Ok(variant)
         }
     }
 
-    fn resolve_group(&mut self, appconfig: &AppConfig,
+    fn resolve_group(&self, appconfig: &AppConfig,
             group_name_property: ResolvedProperty<String>,
     ) -> Result<Group, error::ResolveError> {
         let group_name = group_name_property.value.as_str();
@@ -316,6 +370,22 @@ impl Resolver {
         })
     }
 
+    /// This functions determines the name of the provider and model to use in resolution.
+    /// It does several look ups fro highest to lower priority. The end result
+    /// is either a short form (e.g., openai) or a full one  (e.g., openai/gpt5).
+    ///
+    /// If only a provider is found, then it gets use for resolving the configuration.
+    /// If additionally a model is specified, then depending on configuration resolution
+    /// it may or may not be used as the final model name, depending on its and how this
+    /// source fits in the configuration resolution priority list.
+    ///
+    /// The current name look up list (high to low prio) is:
+    /// - Direct input (e.g., from a command override)
+    /// - Direct Overrides
+    /// - Frontmatter
+    /// - Global Configuration for all Providers (model key)
+    /// - Global Configuration for all Providers (default key)
+    /// - Environment Variable
     fn resolve_name(&self, input_name: Option<String>,
         global_provider_properties: &GlobalProviderProperties,
         config_default: Option<&String>,
@@ -357,7 +427,7 @@ impl Resolver {
     }
 
     pub fn resolve(
-        &mut self,
+        &self,
         appconfig: &AppConfig,
         input_name: Option<String>,
     ) -> Result<ResolvedConfig, error::ResolveError> {
@@ -403,780 +473,1456 @@ impl Resolver {
 #[cfg(test)]
 mod tests {
 
+    use rstest::{rstest};
+    use pretty_assertions::{assert_eq};
+
+    use crate::{config::{providers::{constants::DEFAULT_STREAM, ModelInfo}, resolver::error::ResolveError}, dotprompt::DotPrompt};
+
     use super::*;
 
-    #[test]
-    fn test_openai() {
-        let mut resolver = Resolver {
-            overrides: Some(
-                ResolvedGlobalProperties::from((
-                     &GlobalProviderProperties {
-                        cache_ttl: Some(80),
-                        // temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(800),
-                        // model: Some("model 8".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Inputs
-                ))
-            ),
-            fm_properties: Some(
-                ResolvedGlobalProperties::from((
-                    &GlobalProviderProperties {
-                        cache_ttl: Some(70),
-                        temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(700),
-                        // model: Some("model 7".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Dotprompt("test".to_string())
-                ))
-            )};
+    enum ResolveType {Base, Variant, Group, Fail}
+    // env, appconfig, promptfile, overrides (e.g., from command line)
+    const CONFIG_1: (&str, &str, &str, GlobalProviderProperties) = (
+r#"
+PROMPTCMD_OPENAI_CACHE_TTL=30
+PROMPTCMD_OPENAI_TEMPERATURE=0.3
+PROMPTCMD_OPENAI_SYSTEM=system 3
+PROMPTCMD_OPENAI_MAX_TOKENS=300
+PROMPTCMD_ANTHROPIC_STREAM=true
+"#,
+r#"
+[providers]
+cache_ttl = 20
+temperature = 0.2
+system = "system 2"
+max_tokens = 200
+default = "openai"
 
-        let mut appconfig = AppConfig::default();
+[providers.openai]
+api_key = "openaikey"
+endpoint = "openaiendpoint"
+model = "gpt4"
+cache_ttl = 40
+temperature = 0.4
+system = "system 4"
 
-        appconfig.providers.globals = GlobalProviderProperties {
-                cache_ttl: Some(20),
-                temperature: Some(0.2),
-                system: Some("system 2".to_string()),
-                max_tokens: Some(200),
-                model: Some("model 2".to_string()),
-                ..Default::default()
-        };
+[providers.anthropic]
+api_key = "anthropickey"
+model = "claude"
+cache_ttl = 50
+temperature = 0.5
+system = "system 5"
 
-        appconfig.providers.openai = openai::Providers {
-            config: openai::Config {
-                cache_ttl: Some(40),
-                temperature: Some(0.4),
-                system: Some("system 4".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
+[providers.google]
+api_key = "googlekey"
 
-        appconfig.providers.anthropic = anthropic::Providers {
-            config: anthropic::Config {
-                cache_ttl: Some(41),
-                temperature: Some(0.41),
-                system: Some("system 41".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
+[providers.anthropic.rust-coder]
+system = "rust-coder sys msg"
 
-        temp_env::with_vars([
-            ("PROMPTCMD_OPENAI_CACHE_TTL", Some("30")),
-            ("PROMPTCMD_OPENAI_TEMPERATURE", Some("0.3")),
-            ("PROMPTCMD_OPENAI_SYSTEM", Some("system 3")),
-            ("PROMPTCMD_OPENAI_MAX_TOKENS", Some("300")),
-            // ("PROMPTCMD_OPENAI_MODEL", Some("model 3")),
-        ], || {
-            if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, Some("openai".to_string())).unwrap() {
-                if let ResolvedProviderConfig::OpenAI(conf) = base.resolved {
-                        // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
+[providers.anthropic.rust-coder-diffmodel]
+system = "rust-coder sys msg"
+model = "clauderust"
 
-                        // temp not set in above
-                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
+[groups.group_of_short_bases]
+providers = ["anthropic", "openai"]
 
-                        // system  not set in above
-                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
-                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
+[groups.group_of_short_variants]
+providers = ["rust-coder-diffmodel", "rust-coder"]
 
-                        // max_tokens not set in above
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
+[groups.group_of_mixed_shorts]
+providers = ["openai", "rust-coder"]
 
-                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Globals);
-                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "model 2");
-                } else {
-                    panic!("Wrong provider");
-                }
-            } else {
-                panic!("Wrong resolution");
+[groups.group_with_missing_provider]
+providers = ["openai", "badname"]
+
+"#,
+r#"
+---
+config:
+    cache_ttl: 70
+    temperature: 0.7
+---
+Templ
+"#, GlobalProviderProperties {
+    cache_ttl: Some(80),
+    temperature: None,
+    max_tokens: None,
+    model: None,
+    system: None,
+    stream: None
+}
+);
+
+    #[rstest]
+#[case::one(
+  Some("openai".to_string()),
+  Ok(ResolvedConfig::Base(Base {
+                name: "openai".to_string(),
+                resolved:
+                    ResolvedProviderConfig::OpenAI(openai::ResolvedProviderConfig {
+                        api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("openaikey") }),
+                        endpoint: Some(ResolvedProperty {        source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("openaiendpoint") }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("system 4") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()), value: 300 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("openai".to_string()),                     value: "gpt4".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Default,                                        value: DEFAULT_STREAM }),
+                        },
+                    })
+                ,
+                model_info: Ok(ModelInfo {
+                    provider: "openai".to_string(),
+                    model: "gpt4".to_string()
+                }),
+                globals: ResolvedGlobalProperties {
+                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("system 4") }),
+                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()), value: 300 }),
+                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("openai".to_string()),                     value: "gpt4".to_string() }),
+                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Default,                                        value: DEFAULT_STREAM }),
+                },
+    }))
+)]
+#[case::two(
+  Some("openai/gpt5".to_string()),
+  Ok(ResolvedConfig::Base(Base {
+                name: "openai".to_string(),
+                resolved:
+                    ResolvedProviderConfig::OpenAI(openai::ResolvedProviderConfig {
+                        api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("openaikey") }),
+                        endpoint: Some(ResolvedProperty {        source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("openaiendpoint") }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("system 4") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()), value: 300 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Inputs,                                        value: "gpt5".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Default,                                        value: DEFAULT_STREAM }),
+                        },
+                    })
+                ,
+                model_info: Ok(ModelInfo {
+                    provider: "openai".to_string(),
+                    model: "gpt5".to_string()
+                }),
+                globals: ResolvedGlobalProperties {
+                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("system 4") }),
+                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()), value: 300 }),
+                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Inputs,                                        value: "gpt5".to_string() }),
+                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Default,                                        value: DEFAULT_STREAM }),
+                },
+    }))
+)]
+#[case::three(
+  Some("anthropic".to_string()),
+  Ok(ResolvedConfig::Base(Base {
+                name: "anthropic".to_string(),
+                resolved:
+                    ResolvedProviderConfig::Anthropic(anthropic::ResolvedProviderConfig {
+                        api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("anthropic".to_string()),                 value: String::from("anthropickey") }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("anthropic".to_string()),                   value: String::from("system 5") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                        },
+                    })
+                ,
+                model_info: Ok(ModelInfo {
+                    provider: "anthropic".to_string(),
+                    model: "claude".to_string()
+                }),
+                globals: ResolvedGlobalProperties {
+                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("anthropic".to_string()),                   value: String::from("system 5") }),
+                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
+                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                },
+    }))
+)]
+#[case::variant(
+  Some("rust-coder".to_string()),
+  Ok(ResolvedConfig::Variant(Variant {
+                base_name: "anthropic".to_string(),
+                name: "rust-coder".to_string(),
+                resolved:
+                    ResolvedProviderConfig::Anthropic(anthropic::ResolvedProviderConfig {
+                        api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("anthropic".to_string()),                 value: String::from("anthropickey") }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder".to_string()),                   value: String::from("rust-coder sys msg") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                        },
+                    })
+                ,
+                model_info: Ok(ModelInfo {
+                    provider: "anthropic".to_string(),
+                    model: "claude".to_string()
+                }),
+                globals: ResolvedGlobalProperties {
+                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder".to_string()),                   value: String::from("rust-coder sys msg") }),
+                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
+                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                },
+    }))
+)]
+#[case::variant_withmodel(
+  Some("rust-coder/custom_model".to_string()),
+  Ok(ResolvedConfig::Variant(Variant {
+                base_name: "anthropic".to_string(),
+                name: "rust-coder".to_string(),
+                resolved:
+                    ResolvedProviderConfig::Anthropic(anthropic::ResolvedProviderConfig {
+                        api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("anthropic".to_string()),                 value: String::from("anthropickey") }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder".to_string()),                   value: String::from("rust-coder sys msg") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Inputs,                             value: "custom_model".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                        },
+                    })
+                ,
+                model_info: Ok(ModelInfo {
+                    provider: "anthropic".to_string(),
+                    model: "custom_model".to_string()
+                }),
+                globals: ResolvedGlobalProperties {
+                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder".to_string()),                   value: String::from("rust-coder sys msg") }),
+                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Inputs,                             value: "custom_model".to_string() }),
+                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                },
+    }))
+)]
+#[case::variant_with_diffmodel(
+  Some("rust-coder-diffmodel".to_string()),
+  Ok(ResolvedConfig::Variant(Variant {
+                base_name: "anthropic".to_string(),
+                name: "rust-coder-diffmodel".to_string(),
+                resolved:
+                    ResolvedProviderConfig::Anthropic(anthropic::ResolvedProviderConfig {
+                        api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("anthropic".to_string()),                 value: String::from("anthropickey") }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder-diffmodel".to_string()),                   value: String::from("rust-coder sys msg") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Variant("rust-coder-diffmodel".to_string()),                             value: "clauderust".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                        },
+                    })
+                ,
+                model_info: Ok(ModelInfo {
+                    provider: "anthropic".to_string(),
+                    model: "clauderust".to_string()
+                }),
+                globals: ResolvedGlobalProperties {
+                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder-diffmodel".to_string()),                   value: String::from("rust-coder sys msg") }),
+                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Variant("rust-coder-diffmodel".to_string()),                             value: "clauderust".to_string() }),
+                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                },
+    }))
+)]
+#[case::none(
+  None,
+  Ok(ResolvedConfig::Base(Base {
+                name: "openai".to_string(),
+                resolved:
+                    ResolvedProviderConfig::OpenAI(openai::ResolvedProviderConfig {
+                        api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("openaikey") }),
+                        endpoint: Some(ResolvedProperty {        source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("openaiendpoint") }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("system 4") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()), value: 300 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("openai".to_string()),                     value: "gpt4".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Default,                                        value: DEFAULT_STREAM }),
+                        },
+                    })
+                ,
+                model_info: Ok(ModelInfo {
+                    provider: "openai".to_string(),
+                    model: "gpt4".to_string()
+                }),
+                globals: ResolvedGlobalProperties {
+                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("system 4") }),
+                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()), value: 300 }),
+                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("openai".to_string()),                     value: "gpt4".to_string() }),
+                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Default,                                        value: DEFAULT_STREAM }),
+                },
+    }))
+)]
+#[case::group_of_short_bases(
+    Some("group_of_short_bases".to_string()),
+    Ok(ResolvedConfig::Group(
+            Group {
+                name: "group_of_short_bases".to_string(),
+                members: vec![
+                    GroupMember::Base( Base {
+                        name: "anthropic".to_string(),
+                        resolved:
+                            ResolvedProviderConfig::Anthropic(anthropic::ResolvedProviderConfig {
+                                api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("anthropic".to_string()),                 value: String::from("anthropickey") }),
+                                globals: ResolvedGlobalProperties {
+                                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("anthropic".to_string()),                   value: String::from("system 5") }),
+                                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
+                                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                                },
+                            })
+                        ,
+                        model_info: Ok(ModelInfo {
+                            provider: "anthropic".to_string(),
+                            model: "claude".to_string()
+                        }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("anthropic".to_string()),                   value: String::from("system 5") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                        },
+                        } , 1),
+                    GroupMember::Base(Base {
+                        name: "openai".to_string(),
+                        resolved:
+                            ResolvedProviderConfig::OpenAI(openai::ResolvedProviderConfig {
+                                api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("openaikey") }),
+                                endpoint: Some(ResolvedProperty {        source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("openaiendpoint") }),
+                                globals: ResolvedGlobalProperties {
+                                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("system 4") }),
+                                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()), value: 300 }),
+                                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("openai".to_string()),                     value: "gpt4".to_string() }),
+                                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Default,                                        value: DEFAULT_STREAM }),
+                                },
+                            })
+                        ,
+                        model_info: Ok(ModelInfo {
+                            provider: "openai".to_string(),
+                            model: "gpt4".to_string()
+                        }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("system 4") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()), value: 300 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("openai".to_string()),                     value: "gpt4".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Default,                                        value: DEFAULT_STREAM }),
+                        },
+                    }, 1)
+                ]
             }
-        });
-
-
-    }
-
-    #[test]
-    fn test_anththropic() {
-        let mut resolver = Resolver {
-            overrides: Some(
-                ResolvedGlobalProperties::from((
-                     &GlobalProviderProperties {
-                        cache_ttl: Some(80),
-                        // temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(800),
-                        // model: Some("model 8".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Inputs
-                ))
-            ),
-            fm_properties: Some(
-                ResolvedGlobalProperties::from((
-                    &GlobalProviderProperties {
-                        cache_ttl: Some(70),
-                        temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(700),
-                        // model: Some("model 7".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Dotprompt("test".to_string())
-                ))
-            )};
-
-        let mut appconfig = AppConfig::default();
-
-        appconfig.providers.globals = GlobalProviderProperties {
-                cache_ttl: Some(20),
-                temperature: Some(0.2),
-                system: Some("system 2".to_string()),
-                max_tokens: Some(200),
-                model: Some("model 2".to_string()),
-                 ..Default::default()
-        };
-
-        appconfig.providers.openai = openai::Providers {
-            config: openai::Config {
-                cache_ttl: Some(40),
-                temperature: Some(0.4),
-                system: Some("system 4".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        appconfig.providers.anthropic = anthropic::Providers {
-            config: anthropic::Config {
-                cache_ttl: Some(41),
-                temperature: Some(0.41),
-                system: Some("system 41".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        temp_env::with_vars([
-            ("PROMPTCMD_OPENAI_CACHE_TTL", Some("30")),
-            ("PROMPTCMD_OPENAI_TEMPERATURE", Some("0.3")),
-            ("PROMPTCMD_OPENAI_SYSTEM", Some("system 3")),
-            ("PROMPTCMD_OPENAI_MAX_TOKENS", Some("300")),
-            ("PROMPTCMD_ANTHROPIC_CACHE_TTL", Some("31")),
-            ("PROMPTCMD_ANTHROPIC_TEMPERATURE", Some("0.31")),
-            ("PROMPTCMD_ANTHROPIC_SYSTEM", Some("system 31")),
-            ("PROMPTCMD_ANTHROPIC_MAX_TOKENS", Some("301")),
-            // ("PROMPTCMD_OPENAI_MODEL", Some("model 3")),
-        ], || {
-            if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, Some("anthropic".to_string())).unwrap() {
-                if let ResolvedProviderConfig::Anthropic(conf) = base.resolved {
-                        // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
-
-                        // temp not set in above
-                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
-
-                        // system  not set in above
-                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("anthropic".to_string()));
-                        assert_eq!(conf.globals.system.unwrap().value, "system 41");
-
-                        // max_tokens not set in above
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 301);
-
-                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Globals);
-                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "model 2");
-                } else {
-                    panic!("Wrong provider");
-                }
-            } else {
-                panic!("Wrong resolution");
+    ))
+)]
+#[case::group_of_short_variants(
+    Some("group_of_short_variants".to_string()),
+    Ok(ResolvedConfig::Group(
+            Group {
+                name: "group_of_short_variants".to_string(),
+                members: vec![
+                    GroupMember::Variant(Variant {
+                        base_name: "anthropic".to_string(),
+                        name: "rust-coder-diffmodel".to_string(),
+                        resolved:
+                            ResolvedProviderConfig::Anthropic(anthropic::ResolvedProviderConfig {
+                                api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("anthropic".to_string()),                 value: String::from("anthropickey") }),
+                                globals: ResolvedGlobalProperties {
+                                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder-diffmodel".to_string()),                   value: String::from("rust-coder sys msg") }),
+                                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Variant("rust-coder-diffmodel".to_string()),                             value: "clauderust".to_string() }),
+                                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                                },
+                            })
+                        ,
+                        model_info: Ok(ModelInfo {
+                            provider: "anthropic".to_string(),
+                            model: "clauderust".to_string()
+                        }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder-diffmodel".to_string()),                   value: String::from("rust-coder sys msg") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Variant("rust-coder-diffmodel".to_string()),                             value: "clauderust".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                        },
+                        } , 1),
+                    GroupMember::Variant(Variant {
+                        base_name: "anthropic".to_string(),
+                        name: "rust-coder".to_string(),
+                        resolved:
+                            ResolvedProviderConfig::Anthropic(anthropic::ResolvedProviderConfig {
+                                api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("anthropic".to_string()),                 value: String::from("anthropickey") }),
+                                globals: ResolvedGlobalProperties {
+                                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder".to_string()),                   value: String::from("rust-coder sys msg") }),
+                                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
+                                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                                },
+                            })
+                        ,
+                        model_info: Ok(ModelInfo {
+                            provider: "anthropic".to_string(),
+                            model: "claude".to_string()
+                        }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder".to_string()),                   value: String::from("rust-coder sys msg") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                        },
+                    }, 1)
+                ]
             }
-        });
-    }
-
-    #[test]
-    fn test_openai_with_modelname() {
-        let mut resolver = Resolver {
-            overrides: Some(
-                ResolvedGlobalProperties::from((
-                     &GlobalProviderProperties {
-                        cache_ttl: Some(80),
-                        // temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(800),
-                        // model: Some("model 8".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Inputs
-                ))
-            ),
-            fm_properties: Some(
-                ResolvedGlobalProperties::from((
-                    &GlobalProviderProperties {
-                        cache_ttl: Some(70),
-                        temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(700),
-                        // model: Some("model 7".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Dotprompt("test".to_string())
-                ))
-            )};
-
-        let mut appconfig = AppConfig::default();
-
-        appconfig.providers.globals = GlobalProviderProperties {
-                cache_ttl: Some(20),
-                temperature: Some(0.2),
-                system: Some("system 2".to_string()),
-                max_tokens: Some(200),
-                model: Some("model 2".to_string()),
-                 ..Default::default()
-        };
-
-        appconfig.providers.openai = openai::Providers {
-            config: openai::Config {
-                cache_ttl: Some(40),
-                temperature: Some(0.4),
-                system: Some("system 4".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        appconfig.providers.anthropic = anthropic::Providers {
-            config: anthropic::Config {
-                cache_ttl: Some(41),
-                temperature: Some(0.41),
-                system: Some("system 41".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        temp_env::with_vars([
-            ("PROMPTCMD_OPENAI_CACHE_TTL", Some("30")),
-            ("PROMPTCMD_OPENAI_TEMPERATURE", Some("0.3")),
-            ("PROMPTCMD_OPENAI_SYSTEM", Some("system 3")),
-            ("PROMPTCMD_OPENAI_MAX_TOKENS", Some("300")),
-            // ("PROMPTCMD_OPENAI_MODEL", Some("model 3")),
-        ], || {
-            if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, Some("openai/gpt5".to_string())).unwrap() {
-                if let ResolvedProviderConfig::OpenAI(conf) = base.resolved {
-                        // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
-
-                        // temp not set in above
-                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
-
-                        // system  not set in above
-                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
-                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
-
-                        // max_tokens not set in above
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
-
-                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "gpt5");
-                } else {
-                    panic!("Wrong provider");
-                }
-            } else {
-                panic!("Wrong resolution");
+    ))
+)]
+#[case::group_of_mixed_shorts(
+    Some("group_of_mixed_shorts".to_string()),
+    Ok(ResolvedConfig::Group(
+            Group {
+                name: "group_of_mixed_shorts".to_string(),
+                members: vec![
+                    GroupMember::Base(Base {
+                        name: "openai".to_string(),
+                        resolved:
+                            ResolvedProviderConfig::OpenAI(openai::ResolvedProviderConfig {
+                                api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("openaikey") }),
+                                endpoint: Some(ResolvedProperty {        source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("openaiendpoint") }),
+                                globals: ResolvedGlobalProperties {
+                                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("system 4") }),
+                                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()), value: 300 }),
+                                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("openai".to_string()),                     value: "gpt4".to_string() }),
+                                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Default,                                        value: DEFAULT_STREAM }),
+                                },
+                            })
+                        ,
+                        model_info: Ok(ModelInfo {
+                            provider: "openai".to_string(),
+                            model: "gpt4".to_string()
+                        }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Base("openai".to_string()),                     value: String::from("system 4") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()), value: 300 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("openai".to_string()),                     value: "gpt4".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Default,                                        value: DEFAULT_STREAM }),
+                        },
+                    }, 1),
+                    GroupMember::Variant(Variant {
+                        base_name: "anthropic".to_string(),
+                        name: "rust-coder".to_string(),
+                        resolved:
+                            ResolvedProviderConfig::Anthropic(anthropic::ResolvedProviderConfig {
+                                api_key: Some(ResolvedProperty {         source: ResolvedPropertySource::Base("anthropic".to_string()),                 value: String::from("anthropickey") }),
+                                globals: ResolvedGlobalProperties {
+                                    cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                                    temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                                    system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder".to_string()),                   value: String::from("rust-coder sys msg") }),
+                                    max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                                    model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
+                                    stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                                },
+                            })
+                        ,
+                        model_info: Ok(ModelInfo {
+                            provider: "anthropic".to_string(),
+                            model: "claude".to_string()
+                        }),
+                        globals: ResolvedGlobalProperties {
+                            cache_ttl: Some(ResolvedProperty {   source: ResolvedPropertySource::Inputs,                                         value: 80 }),
+                            temperature: Some(ResolvedProperty { source: ResolvedPropertySource::Dotprompt("test".to_string()),                  value: 0.7 }),
+                            system: Some(ResolvedProperty {      source: ResolvedPropertySource::Variant("rust-coder".to_string()),                   value: String::from("rust-coder sys msg") }),
+                            max_tokens: Some(ResolvedProperty {  source: ResolvedPropertySource::Globals, value: 200 }),
+                            model: Some(ResolvedProperty {       source: ResolvedPropertySource::Base("anthropic".to_string()),                             value: "claude".to_string() }),
+                            stream: Some(ResolvedProperty {      source: ResolvedPropertySource::Env("PROMPTCMD_ANTHROPIC_STREAM".to_string()),             value: true }),
+                        },
+                    }, 1)
+                ]
             }
-        });
-    }
+    ))
+)]
+#[case(
+  Some("group_with_missing_provider".to_string()), Err(ResolveError::GroupMemberNotFound("group_with_missing_provider".to_string(), "badname".to_string()))
+)]
+#[case::groups_cannot_be_indexed(
+  Some("group_of_short_bases/openai".to_string()), Err(ResolveError::NotFound("group_of_short_bases/openai".to_string()))
+)]
+#[case(
+  Some("google".to_string()), Err(ResolveError::NoNameToResolve)
+)]
+#[case(
+  Some("badname".to_string()), Err(ResolveError::NotFound("badname".to_string()))
+)]
+    pub fn test_basic_resolution(
+        #[case] resolve_name: Option<String>,
+        #[case] expected_resolution: Result<ResolvedConfig, ResolveError>
+    ) {
 
-    #[test]
-    fn test_openai_with_modelname_in_frontmatter() {
-        let mut resolver = Resolver {
-            overrides: Some(
-                ResolvedGlobalProperties::from((
-                     &GlobalProviderProperties {
-                        cache_ttl: Some(80),
-                        // temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(800),
-                        // model: Some("model 8".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Inputs
-                ))
-            ),
-            fm_properties: Some(
-                ResolvedGlobalProperties::from((
-                    &GlobalProviderProperties {
-                        cache_ttl: Some(70),
-                        temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(700),
-                        model: Some("model 7".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Dotprompt("test".to_string())
-                ))
-            )};
+        let (env, appconfig, promptfile, overrides) = CONFIG_1;
 
-        let mut appconfig = AppConfig::default();
+        let appconfig = AppConfig::try_from(appconfig).unwrap();
+        let promptfile = DotPrompt::try_from(promptfile).unwrap();
 
-        appconfig.providers.globals = GlobalProviderProperties {
-                cache_ttl: Some(20),
-                temperature: Some(0.2),
-                system: Some("system 2".to_string()),
-                max_tokens: Some(200),
-                model: Some("model 2".to_string()),
-                 ..Default::default()
-        };
+        // parse the env data into key value
+        let env = env.trim().split("\n").map(|item| {
+            item.split_once("=").map(|(k, v)| (k.trim().to_string(), Some(v.to_string()))).unwrap()
+        }).collect::<Vec<_>>();
 
-        appconfig.providers.openai = openai::Providers {
-            config: openai::Config {
-                cache_ttl: Some(40),
-                temperature: Some(0.4),
-                system: Some("system 4".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        appconfig.providers.anthropic = anthropic::Providers {
-            config: anthropic::Config {
-                cache_ttl: Some(41),
-                temperature: Some(0.41),
-                system: Some("system 41".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        temp_env::with_vars([
-            ("PROMPTCMD_OPENAI_CACHE_TTL", Some("30")),
-            ("PROMPTCMD_OPENAI_TEMPERATURE", Some("0.3")),
-            ("PROMPTCMD_OPENAI_SYSTEM", Some("system 3")),
-            ("PROMPTCMD_OPENAI_MAX_TOKENS", Some("300")),
-            // ("PROMPTCMD_OPENAI_MODEL", Some("model 3")),
-        ], || {
-            if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, Some("openai".to_string())).unwrap() {
-                if let ResolvedProviderConfig::OpenAI(conf) = base.resolved {
-                        // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
-
-                        // temp not set in above
-                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
-
-                        // system  not set in above
-                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
-                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
-
-                        // max_tokens not set in above
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
-
-                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "model 7");
-                } else {
-                    panic!("Wrong provider");
-                }
-            } else {
-                panic!("Wrong resolution");
-            }
-        });
-    }
-    #[test]
-    fn test_openai_with_modelname_in_frontmatter_overriden_by_input() {
-        let mut resolver = Resolver {
-            overrides: Some(
-                ResolvedGlobalProperties::from((
-                     &GlobalProviderProperties {
-                        cache_ttl: Some(80),
-                        // temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(800),
-                        // model: Some("model 8".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Inputs
-                ))
-            ),
-            fm_properties: Some(
-                ResolvedGlobalProperties::from((
-                    &GlobalProviderProperties {
-                        cache_ttl: Some(70),
-                        temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(700),
-                        model: Some("model 7".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Dotprompt("test".to_string())
-                ))
-            )};
-
-        let mut appconfig = AppConfig::default();
-
-        appconfig.providers.globals = GlobalProviderProperties {
-                cache_ttl: Some(20),
-                temperature: Some(0.2),
-                system: Some("system 2".to_string()),
-                max_tokens: Some(200),
-                model: Some("model 2".to_string()),
-                 ..Default::default()
-        };
-
-        appconfig.providers.openai = openai::Providers {
-            config: openai::Config {
-                cache_ttl: Some(40),
-                temperature: Some(0.4),
-                system: Some("system 4".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        appconfig.providers.anthropic = anthropic::Providers {
-            config: anthropic::Config {
-                cache_ttl: Some(41),
-                temperature: Some(0.41),
-                system: Some("system 41".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        temp_env::with_vars([
-            ("PROMPTCMD_OPENAI_CACHE_TTL", Some("30")),
-            ("PROMPTCMD_OPENAI_TEMPERATURE", Some("0.3")),
-            ("PROMPTCMD_OPENAI_SYSTEM", Some("system 3")),
-            ("PROMPTCMD_OPENAI_MAX_TOKENS", Some("300")),
-            // ("PROMPTCMD_OPENAI_MODEL", Some("model 3")),
-        ], || {
-            if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, Some("openai/gpt5".to_string())).unwrap() {
-                if let ResolvedProviderConfig::OpenAI(conf) = base.resolved {
-                        // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
-
-                        // temp not set in above
-                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
-
-                        // system  not set in above
-                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
-                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
-
-                        // max_tokens not set in above
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
-
-                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "gpt5");
-                } else {
-                    panic!("Wrong provider");
-                }
-            } else {
-                panic!("Wrong resolution");
-            }
-        });
-    }
-
-    #[test]
-    fn test_openai_with_full_modelname_in_frontmatter() {
-        let mut resolver = Resolver {
-            overrides: Some(
-                ResolvedGlobalProperties::from((
-                     &GlobalProviderProperties {
-                        cache_ttl: Some(80),
-                        // temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(800),
-                        // model: Some("model 8".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Inputs
-                ))
-            ),
-            fm_properties: Some(
-                ResolvedGlobalProperties::from((
-                    &GlobalProviderProperties {
-                        cache_ttl: Some(70),
-                        temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(700),
-                        model: Some("openai/model 7".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Dotprompt("test".to_string())
-                ))
-            )};
-
-        let mut appconfig = AppConfig::default();
-
-        appconfig.providers.globals = GlobalProviderProperties {
-                cache_ttl: Some(20),
-                temperature: Some(0.2),
-                system: Some("system 2".to_string()),
-                max_tokens: Some(200),
-                model: Some("model 2".to_string()),
-                 ..Default::default()
-        };
-
-        appconfig.providers.openai = openai::Providers {
-            config: openai::Config {
-                cache_ttl: Some(40),
-                temperature: Some(0.4),
-                system: Some("system 4".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        appconfig.providers.anthropic = anthropic::Providers {
-            config: anthropic::Config {
-                cache_ttl: Some(41),
-                temperature: Some(0.41),
-                system: Some("system 41".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        temp_env::with_vars([
-            ("PROMPTCMD_OPENAI_CACHE_TTL", Some("30")),
-            ("PROMPTCMD_OPENAI_TEMPERATURE", Some("0.3")),
-            ("PROMPTCMD_OPENAI_SYSTEM", Some("system 3")),
-            ("PROMPTCMD_OPENAI_MAX_TOKENS", Some("300")),
-            // ("PROMPTCMD_OPENAI_MODEL", Some("model 3")),
-        ], || {
-            if let ResolvedConfig::Base(base) = resolver.resolve(&appconfig, None).unwrap() {
-                if let ResolvedProviderConfig::OpenAI(conf) = base.resolved {
-                        // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
-
-                        // temp not set in above
-                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
-
-                        // system  not set in above
-                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openai".to_string()));
-                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
-
-                        // max_tokens not set in above
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENAI_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
-
-                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "model 7");
-                } else {
-                    panic!("Wrong provider");
-                }
-            } else {
-                panic!("Wrong resolution");
-            }
+        temp_env::with_vars(env, || {
+            let resolver = Resolver {
+                overrides: Some(ResolvedGlobalProperties::from((&overrides, ResolvedPropertySource::Inputs))),
+                fm_properties: Some(
+                    ResolvedGlobalProperties::from(
+                        (&GlobalProviderProperties::from(&promptfile.frontmatter), ResolvedPropertySource::Dotprompt("test".to_string()))
+                    )
+                )
+            };
+            let resolved = resolver.resolve(&appconfig, resolve_name);
+            assert_eq!(resolved, expected_resolution);
         });
     }
 
-    #[test]
-    fn test_openrouter_variant() {
-        let mut resolver = Resolver {
-            overrides: Some(
-                ResolvedGlobalProperties::from((
-                     &GlobalProviderProperties {
-                        cache_ttl: Some(80),
-                        // temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(800),
-                        // model: Some("model 8".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Inputs
-                ))
-            ),
-            fm_properties: Some(
-                ResolvedGlobalProperties::from((
-                    &GlobalProviderProperties {
-                        cache_ttl: Some(70),
-                        temperature: Some(0.7),
-                        // system: Some("system 7".to_string()),
-                        // max_tokens: Some(700),
-                        // model: Some("openai/model 7".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Dotprompt("test".to_string())
-                ))
-            )};
+    #[rstest]
+    #[case::from_env_full(
+r#"
+PROMPTCMD_MODEL=openai/gpt5
+"#,
 
-        let mut appconfig = AppConfig::default();
+r#"
+"#,
 
-        appconfig.providers.globals = GlobalProviderProperties {
-                cache_ttl: Some(20),
-                temperature: Some(0.2),
-                system: Some("system 2".to_string()),
-                max_tokens: Some(200),
-                model: Some("model 2".to_string()),
-                 ..Default::default()
-        };
+r#"
+---
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "openai".to_string(),
+            model: "gpt5".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Env("PROMPTCMD_MODEL".to_string()),
+            value: "gpt5".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::from_env_short_no_default(
+r#"
+PROMPTCMD_MODEL=openai
+"#,
 
-        appconfig.providers.openrouter = openrouter::Providers {
-            config: openrouter::Config {
-                cache_ttl: Some(40),
-                temperature: Some(0.4),
-                system: Some("system 4".to_string()),
-                // max_tokens: Some(400),
-                // model: Some("model 4".to_string()),
-                // api_key: Some("api_key 4".to_string()),
-                // endpoint: Some("endpoint 4".to_string())
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        appconfig.providers.openrouter.named.insert("myvariant".to_string(),
-            openrouter::Config {
-                ..Default::default()
-            }
-        );
+r#"
+"#,
 
-        temp_env::with_vars([
-            ("PROMPTCMD_OPENROUTER_CACHE_TTL", Some("30")),
-            ("PROMPTCMD_OPENROUTER_TEMPERATURE", Some("0.3")),
-            ("PROMPTCMD_OPENROUTER_SYSTEM", Some("system 3")),
-            ("PROMPTCMD_OPENROUTER_MAX_TOKENS", Some("300")),
-            // ("PROMPTCMD_OPENAI_MODEL", Some("model 3")),
-        ], || {
-            if let ResolvedConfig::Variant(variant) = resolver.resolve(&appconfig, Some("myvariant".to_string())).unwrap() {
-                if let ResolvedProviderConfig::OpenRouter(conf) = variant.resolved {
-                        // cache_ttl comes from overrides, highest priority
-                        assert_eq!(conf.globals.cache_ttl.as_ref().unwrap().source, ResolvedPropertySource::Inputs);
-                        assert_eq!(conf.globals.cache_ttl.unwrap().value, 80);
+r#"
+---
+---
+Templ
+"#,
+        None,
+        None, None, ResolveType::Fail
+    )]
+    #[case::from_env_short_with_default_in_base(
+r#"
+PROMPTCMD_MODEL=openai
+"#,
 
-                        // temp not set in above
-                        assert_eq!(conf.globals.temperature.as_ref().unwrap().source, ResolvedPropertySource::Dotprompt("test".to_string()));
-                        assert_eq!(conf.globals.temperature.unwrap().value, 0.7);
+r#"
+[providers.openai]
+model="gpt5"
+"#,
 
-                        // system  not set in above
-                        assert_eq!(conf.globals.system.as_ref().unwrap().source, ResolvedPropertySource::Base("openrouter".to_string()));
-                        assert_eq!(conf.globals.system.unwrap().value, "system 4");
+r#"
+---
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "openai".to_string(),
+            model: "gpt5".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Base("openai".to_string()),
+            value: "gpt5".to_string()
+        }),
+        ResolveType::Base
+    )]
+    #[case::from_frontmatter_short(
+r#"
+PROMPTCMD_MODEL=anthropic
+"#,
 
-                        // max_tokens not set in above
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().source, ResolvedPropertySource::Env("PROMPTCMD_OPENROUTER_MAX_TOKENS".to_string()));
-                        assert_eq!(conf.globals.max_tokens.as_ref().unwrap().value, 300);
+r#"
+[providers]
+default="anthropic"
 
-                        assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Globals);
-                        assert_eq!(conf.globals.model.as_ref().unwrap().value, "model 2");
-                } else {
-                    panic!("Wrong provider");
-                }
-            } else {
-                panic!("Wrong resolution");
-            }
-        });
+[providers.openai]
+model="gpt5"
+"#,
 
+r#"
+---
+model: openai
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "openai".to_string(),
+            model: "gpt5".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Base("openai".to_string()),
+            value: "gpt5".to_string()
+        }),
+        ResolveType::Base
+    )]
+    #[case::from_frontmatter_fullbase(
+r#"
+PROMPTCMD_MODEL=anthropic
+"#,
 
-    }
+r#"
+[providers]
+default="anthropic"
 
-    #[test]
-    fn test_frontmatter_model_shortform() {
-        let mut resolver = Resolver {
-            overrides: None,
-            fm_properties: Some(
-                ResolvedGlobalProperties::from((
-                    &GlobalProviderProperties {
-                        model: Some("google".to_string()),
-                        ..Default::default()
-                    },
-                    ResolvedPropertySource::Dotprompt("test".to_string())
-                ))
-            )};
+[providers.openai]
+model="gpt5"
+"#,
 
-        let mut appconfig = AppConfig::default();
+r#"
+---
+model: ollama/gpt-oss:20b
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "ollama".to_string(),
+            model: "gpt-oss:20b".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Dotprompt("test".to_string()),
+            value: "gpt-oss:20b".to_string()
+        }),
+        ResolveType::Base
+    )]
+    #[case::input_overrides_frontmatter(
+r#"
+PROMPTCMD_MODEL=anthropic
+"#,
 
-        appconfig.providers.globals = GlobalProviderProperties {
-                ..Default::default()
-        };
+r#"
+[providers]
+default="anthropic"
 
-        appconfig.providers.google = google::Providers {
-            config: google::Config {
-                 model: Some("google_model".to_string()),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        let resolved = resolver.resolve(&appconfig, Some("google".to_string())).unwrap();
-        if let ResolvedConfig::Base(base) = resolved {
-            if let ResolvedProviderConfig::Google(conf) = base.resolved {
-                assert_eq!(conf.globals.model.as_ref().unwrap().source, ResolvedPropertySource::Base("google".to_string()));
-                assert_eq!(conf.globals.model.as_ref().unwrap().value, "google_model");
-            } else {
-                panic!("Wrong provider: {:#?}", &base);
-            }
+[providers.openai]
+model="gpt5"
+
+[providers.openai.rust-coder]
+"#,
+
+r#"
+---
+model: rust-coder
+---
+Templ
+"#,
+        Some("ollama/somemodel".to_string()),
+        Some(ModelInfo {
+            provider: "ollama".to_string(),
+            model: "somemodel".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Inputs,
+            value: "somemodel".to_string()
+        }),
+        ResolveType::Base
+    )]
+    #[case::input_overrides_frontmatter_but_fails_if_no_default(
+r#"
+PROMPTCMD_MODEL=anthropic
+"#,
+
+r#"
+[providers]
+default="anthropic"
+
+[providers.openai]
+model="gpt5"
+
+[providers.openai.rust-coder]
+"#,
+
+r#"
+---
+model: rust-coder
+---
+Templ
+"#,
+        Some("ollama".to_string()),
+        None,
+        None,
+        ResolveType::Fail
+    )]
+    #[case::from_frontmatter_variant(
+r#"
+PROMPTCMD_MODEL=anthropic
+"#,
+
+r#"
+[providers]
+default="anthropic"
+
+[providers.openai]
+model="gpt5"
+
+[providers.openai.rust-coder]
+"#,
+
+r#"
+---
+model: rust-coder
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "openai".to_string(),
+            model: "gpt5".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Base("openai".to_string()),
+            value: "gpt5".to_string()
+        }),
+        ResolveType::Variant
+    )]
+    #[case::from_override_short(
+r#"
+"#,
+
+r#"
+[providers.openai]
+model = "gpt4"
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        Some("openai".to_string()),
+        Some(ModelInfo {
+            provider: "openai".to_string(),
+            model: "gpt4".to_string()
+        }),
+        Some(ResolvedProperty {
+            // The source is Base (not Inputs) because inputs only gave the
+            // provider name while the model itself what configured in base
+            // config
+            source: ResolvedPropertySource::Base("openai".to_string()),
+            value: "gpt4".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::from_override_short_and_model_in_globals(
+r#"
+"#,
+
+r#"
+[providers]
+model = "gpt4"
+
+[providers.openai]
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        Some("openai".to_string()),
+        Some(ModelInfo {
+            provider: "openai".to_string(),
+            model: "gpt4".to_string()
+        }),
+        Some(ResolvedProperty {
+            // The source is Base (not Inputs) because inputs only gave the
+            // provider name while the model itself what configured in base
+            // config
+            source: ResolvedPropertySource::Globals,
+            value: "gpt4".to_string()
+        }), ResolveType::Base
+    )]
+    // So should never use the model in FM something is given in cmd
+    #[case::from_override_short_and_no_model(
+r#"
+"#,
+
+r#"
+[providers]
+
+[providers.openai]
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        Some("openrouter".to_string()),
+        None,
+        None, ResolveType::Fail
+    )]
+    #[case::from_override_long(
+r#"
+"#,
+
+r#"
+[providers.openai]
+model = "gpt4"
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        Some("openai/gpt5".to_string()),
+        Some(ModelInfo {
+            provider: "openai".to_string(),
+            model: "gpt5".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Inputs,
+            value: "gpt5".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::from_variant_override_short(
+r#"
+"#,
+
+r#"
+[providers.openai]
+model = "gpt4"
+
+[providers.openai.myvariant]
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        Some("myvariant".to_string()),
+        Some(ModelInfo {
+            provider: "openai".to_string(),
+            model: "gpt4".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Base("openai".to_string()),
+            value: "gpt4".to_string()
+        }), ResolveType::Variant
+    )]
+    #[case::from_variant_override_short_and_model_in_variantconfig(
+r#"
+"#,
+
+r#"
+[providers.openai]
+model = "gpt4"
+
+[providers.openai.myvariant]
+model = "gpt100"
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        Some("myvariant".to_string()),
+        Some(ModelInfo {
+            provider: "openai".to_string(),
+            model: "gpt100".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Variant("myvariant".to_string()),
+            value: "gpt100".to_string()
+        }), ResolveType::Variant
+    )]
+    #[case::from_variant_override_long(
+r#"
+"#,
+
+r#"
+[providers.openai]
+model = "gpt4"
+
+[providers.openai.myvariant]
+model = "gpt100"
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        Some("myvariant/gpt200".to_string()),
+        Some(ModelInfo {
+            provider: "openai".to_string(),
+            model: "gpt200".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Inputs,
+            value: "gpt200".to_string()
+        }), ResolveType::Variant
+    )]
+    #[case::from_group_override(
+r#"
+"#,
+
+r#"
+[providers.openai]
+model = "gpt4"
+
+[providers.anthropic]
+model = "claude"
+
+[groups.mygroup]
+providers = ["openai"]
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        Some("mygroup".to_string()),
+        Some(ModelInfo {
+            provider: "openai".to_string(),
+            model: "gpt4".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Base("openai".to_string()),
+            value: "gpt4".to_string()
+        }), ResolveType::Group
+    )]
+    #[case::from_group_with_variants_override(
+r#"
+"#,
+
+r#"
+[providers.openai]
+model = "gpt4"
+
+[providers.anthropic]
+model = "abc"
+
+[providers.anthropic.coder]
+
+[groups.mygroup]
+providers = ["coder"]
+"#,
+
+r#"
+---
+model: openai/gpt4
+---
+Templ
+"#,
+        Some("mygroup".to_string()),
+        Some(ModelInfo {
+            provider: "anthropic".to_string(),
+            model: "abc".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Base("anthropic".to_string()),
+            value: "abc".to_string()
+        }), ResolveType::Group
+    )]
+    #[case::from_group_with_variants_and_model_override(
+r#"
+"#,
+
+r#"
+[providers.openai]
+model = "gpt4"
+
+[providers.anthropic]
+model = "abc"
+
+[providers.anthropic.coder]
+
+[groups.mygroup]
+providers = ["coder/xyz"]
+"#,
+
+r#"
+---
+model: openai/gpt4
+---
+Templ
+"#,
+        Some("mygroup".to_string()),
+        Some(ModelInfo {
+            provider: "anthropic".to_string(),
+            model: "xyz".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Group("mygroup".to_string(), "coder/xyz".to_string()),
+            value: "xyz".to_string()
+        }), ResolveType::Group
+    )]
+    pub fn test_model_sources(
+        #[case] env: &str,
+        #[case] appconfig: &str,
+        #[case] dotprompt: &str,
+        // How the command line (currently) overrides all configured models
+        #[case] requested_model: Option<String>,
+        #[case] modelinfo: Option<ModelInfo>,
+        #[case] model: Option<ResolvedProperty<String>>,
+        #[case] resolve_type: ResolveType
+    ) {
+
+        let appconfig = AppConfig::try_from(appconfig).unwrap();
+        let dotprompt = DotPrompt::try_from(dotprompt).unwrap();
+
+        // parse the env data into key value
+        let env = if env.trim().is_empty() {
+            Vec::new()
         } else {
-            panic!("Wrong resolution");
-        }
+            env.trim().split("\n").map(|item| {
+                item.split_once("=").map(|(k, v)| (k.trim().to_string(), Some(v.to_string()))).unwrap()
+            }).collect::<Vec<_>>()
+        };
 
+        temp_env::with_vars(env, || {
+            let resolver = Resolver {
+                overrides: None,
+                fm_properties: Some(
+                    ResolvedGlobalProperties::from(
+                        (&GlobalProviderProperties::from(&dotprompt.frontmatter), ResolvedPropertySource::Dotprompt("test".to_string()))
+                    )
+                )
+            };
+            let resolved = resolver.resolve(&appconfig, requested_model);
+            match resolved  {
+                Ok(ResolvedConfig::Base(base)) => {
+                    assert!(matches!(resolve_type, ResolveType::Base));
+                    if let Some(modelinfo) = modelinfo {
+                        assert_eq!(base.model_info.unwrap(), modelinfo);
+                    } else {
+                        assert!(base.model_info.is_err())
+                    }
 
+                    match base.resolved {
+                        ResolvedProviderConfig::Ollama(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::Anthropic(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                    }
+                }
+                Ok(ResolvedConfig::Variant(variant)) => {
+                    assert!(matches!(resolve_type, ResolveType::Variant));
+                    assert_eq!(variant.model_info.unwrap(), modelinfo.unwrap());
+                    match variant.resolved {
+                        ResolvedProviderConfig::Ollama(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::Anthropic(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                    }
+                }
+                Ok(ResolvedConfig::Group(group)) => {
+                    assert!(matches!(resolve_type, ResolveType::Group));
+                    let member = group.members.first().unwrap();
+                    match member {
+                        GroupMember::Base(base, _) => {
+                            if let Some(modelinfo) = modelinfo {
+                                assert_eq!(base.model_info.as_ref().unwrap(), &modelinfo);
+                            } else {
+                                assert!(base.model_info.is_err())
+                            }
+
+                            match &base.resolved {
+                                ResolvedProviderConfig::Ollama(conf) => assert_eq!(conf.globals.model, model),
+                                ResolvedProviderConfig::Anthropic(conf) => assert_eq!(conf.globals.model, model),
+                                ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
+                                ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
+                                ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                            }
+                        }
+                        GroupMember::Variant(variant, _) => {
+                            assert_eq!(variant.model_info.as_ref().unwrap(), modelinfo.as_ref().unwrap());
+                            match &variant.resolved {
+                                ResolvedProviderConfig::Ollama(conf) => assert_eq!(conf.globals.model, model),
+                                ResolvedProviderConfig::Anthropic(conf) => assert_eq!(conf.globals.model, model),
+                                ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
+                                ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
+                                ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                            }
+                        }
+                    }
+                }
+                Err(_) => {
+                    assert!(matches!(resolve_type, ResolveType::Fail));
+                }
+            }
+        });
+    }
+
+    #[rstest]
+    #[case::as_default_short(
+r#"
+"#,
+
+r#"
+[providers]
+default = "openrouter"
+
+[providers.openrouter]
+model = "openai/gpt5"
+"#,
+
+r#"
+---
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "openrouter".to_string(),
+            model: "openai/gpt5".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Base("openrouter".to_string()),
+            value: "openai/gpt5".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::as_default_full(
+r#"
+"#,
+
+r#"
+[providers]
+default = "openrouter/anthropic/claude"
+
+[providers.openrouter]
+model = "openai/gpt5"
+"#,
+
+r#"
+---
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "openrouter".to_string(),
+            model: "anthropic/claude".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Globals,
+            value: "anthropic/claude".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::as_default_env_short(
+r#"
+PROMPTCMD_MODEL=openrouter
+"#,
+
+r#"
+
+[providers.openrouter]
+model = "openai/gpt5"
+"#,
+
+r#"
+---
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "openrouter".to_string(),
+            model: "openai/gpt5".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Base("openrouter".to_string()),
+            value: "openai/gpt5".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::as_default_env_long(
+r#"
+PROMPTCMD_MODEL=openrouter/openai/gpt4
+"#,
+
+r#"
+
+[providers.openrouter]
+model = "openai/gpt5"
+"#,
+
+r#"
+---
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "openrouter".to_string(),
+            model: "openai/gpt4".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Env("PROMPTCMD_MODEL".to_string()),
+            value: "openai/gpt4".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::from_frontmatter_short(
+r#"
+"#,
+
+r#"
+
+[providers.openrouter]
+model = "openai/gpt5"
+"#,
+
+r#"
+---
+model: openrouter
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "openrouter".to_string(),
+            model: "openai/gpt5".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Base("openrouter".to_string()),
+            value: "openai/gpt5".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::from_frontmatter_long(
+r#"
+"#,
+
+r#"
+
+[providers.openrouter]
+model = "openai/gpt5"
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "openrouter".to_string(),
+            model: "anthropic/claude".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Dotprompt("test".to_string()),
+            value: "anthropic/claude".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::from_frontmatter_long_withno_default(
+r#"
+"#,
+
+r#"
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "openrouter".to_string(),
+            model: "anthropic/claude".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Dotprompt("test".to_string()),
+            value: "anthropic/claude".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::from_override_short(
+r#"
+"#,
+
+r#"
+[providers.openrouter]
+model = "random/model"
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        Some("openrouter".to_string()),
+        Some(ModelInfo {
+            provider: "openrouter".to_string(),
+            model: "random/model".to_string()
+        }),
+        Some(ResolvedProperty {
+            // The source is Base (not Inputs) because inputs only gave the
+            // provider name while the model itself what configured in base
+            // config
+            source: ResolvedPropertySource::Base("openrouter".to_string()),
+            value: "random/model".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::from_override_long(
+r#"
+"#,
+
+r#"
+[providers.openrouter]
+model = "random/model"
+"#,
+
+r#"
+---
+model: openrouter/anthropic/claude
+---
+Templ
+"#,
+        Some("openrouter/random2/model2".to_string()),
+        Some(ModelInfo {
+            provider: "openrouter".to_string(),
+            model: "random2/model2".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Inputs,
+            value: "random2/model2".to_string()
+        }), ResolveType::Base
+    )]
+    pub fn test_openrouter(
+        #[case] env: &str,
+        #[case] appconfig: &str,
+        #[case] dotprompt: &str,
+        // How the command line (currently) overrides all configured models
+        #[case] requested_model: Option<String>,
+        #[case] modelinfo: Option<ModelInfo>,
+        #[case] model: Option<ResolvedProperty<String>>,
+        #[case] resolve_type: ResolveType
+    ) {
+
+        let appconfig = AppConfig::try_from(appconfig).unwrap();
+        let dotprompt = DotPrompt::try_from(dotprompt).unwrap();
+
+        // parse the env data into key value
+        let env = if env.trim().is_empty() {
+            Vec::new()
+        } else {
+            env.trim().split("\n").map(|item| {
+                item.split_once("=").map(|(k, v)| (k.trim().to_string(), Some(v.to_string()))).unwrap()
+            }).collect::<Vec<_>>()
+        };
+
+        temp_env::with_vars(env, || {
+            let resolver = Resolver {
+                overrides: None,
+                fm_properties: Some(
+                    ResolvedGlobalProperties::from(
+                        (&GlobalProviderProperties::from(&dotprompt.frontmatter), ResolvedPropertySource::Dotprompt("test".to_string()))
+                    )
+                )
+            };
+            let resolved = resolver.resolve(&appconfig, requested_model);
+            match resolved  {
+                Ok(ResolvedConfig::Base(base)) => {
+                    assert!(matches!(resolve_type, ResolveType::Base));
+                    if let Some(modelinfo) = modelinfo {
+                        assert_eq!(base.model_info.unwrap(), modelinfo);
+                    } else {
+                        assert!(base.model_info.is_err())
+                    }
+
+                    match base.resolved {
+                        ResolvedProviderConfig::Ollama(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::Anthropic(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                    }
+                }
+                Ok(ResolvedConfig::Variant(variant)) => {
+                    assert!(matches!(resolve_type, ResolveType::Variant));
+                    assert_eq!(variant.model_info.unwrap(), modelinfo.unwrap());
+                    match variant.resolved {
+                        ResolvedProviderConfig::Ollama(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::Anthropic(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                    }
+                }
+                Ok(ResolvedConfig::Group(_)) => {
+                    assert!(matches!(resolve_type, ResolveType::Group));
+                }
+                Err(_) => {
+                    assert!(matches!(resolve_type, ResolveType::Fail));
+                }
+            }
+        });
     }
 }

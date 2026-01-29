@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum ResolveError {
     #[error("'{0}' not found")]
     NotFound(String),
@@ -10,6 +10,6 @@ pub enum ResolveError {
     GroupMemberNotFound(String, String),
     #[error("Group '{0}' failed to load member: {1}")]
     GroupMemberError(String, Box<ResolveError>),
-    #[error("Found no name to resolve")]
+    #[error("Resolve Error: No model name specified and no default one set. Try using fully qualified name format e.g., provider/model_name")]
     NoNameToResolve,
 }

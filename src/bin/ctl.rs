@@ -1,5 +1,5 @@
 use anyhow::Result;
-use promptcmd::cmd;
+use promptcmd::{cmd, ENV_CONFIG};
 use promptcmd::cmd::BasicTextEditor;
 use promptcmd::config::appconfig::AppConfig;
 use promptcmd::config::{self, appconfig_locator, RUNNER_BIN_NAME};
@@ -7,6 +7,7 @@ use promptcmd::executor::Executor;
 use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::RusqliteStore;
 use std::env;
+use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use promptcmd::installer::symlink::SymlinkInstaller;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
@@ -21,6 +22,8 @@ use anyhow::Context;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+    #[arg(short, long, help="Use given configuration file path instead of default")]
+    pub config: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
@@ -70,8 +73,7 @@ static STATS_STORE: OnceLock<RusqliteStore> = OnceLock::new();
 async fn main() -> Result<()> {
     env_logger::init();
     config::bootstrap_directories()?;
-
-
+    let cli = Cli::parse();
 
     let prompt_storage_path = config::prompt_storage_dir()?;
     let base_home_dir = config::base_home_dir()?;
@@ -85,8 +87,13 @@ async fn main() -> Result<()> {
         }
     );
 
-    let appconfig = if let Some(appconfig_path) = appconfig_locator::path() {
-        let appconfig_data = fs::read_to_string(&appconfig_path)?;
+    let appconfig_path =
+        cli.config
+        .or_else(|| env::var(ENV_CONFIG).ok().map(PathBuf::from))
+        .or_else(appconfig_locator::path);
+
+    let appconfig = if let Some(appconfig_path) = appconfig_path.as_ref() {
+        let appconfig_data = fs::read_to_string(appconfig_path)?;
 
         APP_CONFIG.get_or_init(||
             match AppConfig::try_from(appconfig_data.as_str()) {
@@ -116,7 +123,6 @@ async fn main() -> Result<()> {
 
     let editor = BasicTextEditor {};
 
-    let cli = Cli::parse();
 
     match cli.command {
         Commands::Edit(cmd) => cmd.exec(
@@ -169,7 +175,8 @@ async fn main() -> Result<()> {
         Commands::Config(cmd) => cmd.exec(
                 &mut BufReader::new(io::stdin()),
                 &mut std::io::stdout(),
-                &editor
+                &editor,
+                appconfig_path
             ),
         Commands::Render(cmd) => cmd.exec(
                 prompts_storage,

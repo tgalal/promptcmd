@@ -1,4 +1,5 @@
-use std::{io::Write, path::Path};
+use std::path::PathBuf;
+use std::{io::Write};
 use std::io;
 use std::fs;
 use clap::{Parser, Subcommand};
@@ -38,11 +39,12 @@ impl ConfigCmd {
     pub fn exec(&self,
         inp: &mut impl std::io::BufRead,
         out: &mut impl Write,
-        editor: &impl TextEditor
+        editor: &impl TextEditor,
+        config_path: Option<PathBuf>
     )-> Result<()> {
 
         match &self.action {
-            Action::Edit(action) => action.exec(inp, out, editor),
+            Action::Edit(action) => action.exec(inp, out, editor, config_path),
             Action::List(action) => action.exec(out)
         }
     }
@@ -50,7 +52,7 @@ impl ConfigCmd {
 
 fn validate_and_write(
     inp: &mut impl std::io::BufRead,
-    path: &Path,
+    path: &PathBuf,
     contents: &str,
     force_write: bool) -> Result<WriteResult> {
 

@@ -38,7 +38,7 @@ impl AppConfig {
                 // Only consider remotes that match
                 if host_matches && user_matches {
                     // Calculate match score: 2 points for exact match, 1 point for None
-                    let score = 
+                    let score =
                         (if remote.host.as_deref() == Some(host) { 2 } else { 1 }) +
                         (if remote_user == user { 2 } else { 1 });
                     Some((remote, score))
@@ -59,6 +59,7 @@ pub enum ShellOptions {
     Bash,
     Zsh,
     Sh,
+    Fish
 }
 
 #[derive(Debug, Deserialize, Default, PartialEq)]
@@ -114,7 +115,7 @@ impl Default for PortSettings {
             start: default_port_start(),
             end: default_port_end(),
         }
-    } 
+    }
 }
 impl Default for RemoteSocket {
     fn default() -> Self {

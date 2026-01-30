@@ -1,6 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
+use thiserror::Error;
 
-use crate::{cmd::ssh::{lchannel::{self, LChannel}, shell::{Channel, Shell}}, executor::Executor};
+use crate::{cmd::ssh::{lchannel::{self, LChannel}, shell::{Channel, Shell, ShellError}}, executor::Executor};
 
 pub struct BootstrapData {
     pub script: String,
@@ -8,10 +9,16 @@ pub struct BootstrapData {
     pub lchannel: Box<dyn LChannel>
 }
 
-pub fn setup(executor: Arc<Executor>, promptnames: &[String], shell: Shell, channel: Channel) -> BootstrapData {
-    let bootstrap_script = shell.build(&channel, promptnames);
+#[derive(Error, Debug)]
+pub enum BootstrapError {
+    #[error("{0}")]
+    ShellError(#[from] ShellError)
+}
 
-    match channel {
+pub fn setup(executor: Arc<Executor>, promptnames: &[String], shell: Shell, channel: Channel) -> Result<BootstrapData, BootstrapError> {
+    let bootstrap_script = shell.build(&channel, promptnames)?;
+
+    let res = match channel {
         Channel::Nc(local_port, remote_port) => {
             BootstrapData {
                 script: bootstrap_script,
@@ -42,6 +49,6 @@ pub fn setup(executor: Arc<Executor>, promptnames: &[String], shell: Shell, chan
                 })
             }
         },
-
-    }
+    };
+    Ok(res)
 }

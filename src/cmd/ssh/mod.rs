@@ -51,6 +51,7 @@ impl SshCmd {
             ShellOptions::Bash => Shell::Bash,
             ShellOptions::Zsh => Shell::Zsh(REMOTE_WORKDIR),
             ShellOptions::Sh => Shell::Sh(REMOTE_WORKDIR),
+            ShellOptions::Fish => Shell::Fish(REMOTE_WORKDIR)
         };
 
         let mut rng = rand::rng();
@@ -80,7 +81,7 @@ impl SshCmd {
             }
         };
 
-        let bootstrap_data = bootstrap::setup(executor, &prompts, shell, channel);
+        let bootstrap_data = bootstrap::setup(executor, &prompts, shell, channel)?;
 
         // println!("{}", &bootstrap_data.script);
 
@@ -88,7 +89,6 @@ impl SshCmd {
             bootstrap_data.lchannel.run().await.context("Channel Error")?;
             Ok::<(), anyhow::Error>(())
         });
-
 
         // println!("Fwd: {:#?}", &bootstrap_data.forwards);
 
@@ -100,7 +100,6 @@ impl SshCmd {
             "-o".to_string(),
             "ControlPersist=no".to_string(),
         ];
-
 
         let ssh_cmd_handle = tokio::spawn(async move {
             Command::new("ssh")

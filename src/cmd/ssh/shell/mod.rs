@@ -96,13 +96,13 @@ exec 3>&-"#.to_string()
 
 impl Shell {
 
-    pub fn build(&self, channel: &Channel, prompts: &[String]) -> Result<String, ShellError> {
+    pub fn build(&self, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
         match self  {
-            Shell::Bash => self.build_bash(channel, prompts),
-            Shell::Zsh(workdir) => self.build_zsh(workdir, channel, prompts),
-            Shell::Sh(workdir) => self.build_sh(workdir, channel, prompts),
-            Shell::Auto(workdir) => self.build_auto(workdir, channel, prompts),
-            Shell::Fish(workdir) => self.build_fish(workdir, channel, prompts)
+            Shell::Bash => self.build_bash(channel, prompts, remote_cmd),
+            Shell::Zsh(workdir) => self.build_zsh(workdir, channel, prompts, remote_cmd),
+            Shell::Sh(workdir) => self.build_sh(workdir, channel, prompts, remote_cmd),
+            Shell::Auto(workdir) => self.build_auto(workdir, channel, prompts, remote_cmd),
+            Shell::Fish(workdir) => self.build_fish(workdir, channel, prompts, remote_cmd)
     }
     }
 
@@ -150,14 +150,14 @@ impl Shell {
         Ok(res)
     }
 
-    fn build_auto(&self, workdir: &str, channel: &Channel, prompts: &[String]) -> Result<String, ShellError> {
+    fn build_auto(&self, workdir: &str, channel: &Channel, prompts: &[String], remte_cmd: Option<&[&str]>) -> Result<String, ShellError> {
 
         let prompt_functions = self.build_bashlike_functions("pcmd_dispatch", prompts);
         let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
 
-        let bash_expose = bash::expose("pcmd_dispatch", prompts);
-        let zsh_expose = zsh::expose(workdir, &prompt_functions, &dispatcher_func);
-        let sh_expose  = sh::expose(workdir, &prompt_functions, &dispatcher_func);
+        let bash_expose = bash::expose("pcmd_dispatch", prompts, remte_cmd);
+        let zsh_expose = zsh::expose(workdir, &prompt_functions, &dispatcher_func, remte_cmd);
+        let sh_expose  = sh::expose(workdir, &prompt_functions, &dispatcher_func, remte_cmd);
 
         Ok(format!(r#"
 {prompt_functions}
@@ -173,10 +173,10 @@ esac
         ))
     }
 
-    fn build_bash(&self, channel: &Channel, prompts: &[String]) -> Result<String, ShellError> {
+    fn build_bash(&self, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
         let mut result = self.build_dispatcher_func("pcmd_dispatch", channel)?;
         let prompt_functions = self.build_bashlike_functions("pcmd_dispatch", prompts);
-        let expose_string = bash::expose("pcmd_dispatch", prompts);
+        let expose_string = bash::expose("pcmd_dispatch", prompts, remote_cmd);
 
         result.push('\n');
         result.push_str(&prompt_functions);
@@ -186,29 +186,29 @@ esac
         Ok(result)
     }
 
-    fn build_zsh(&self, workdir: &str, channel: &Channel, prompts: &[String]) -> Result<String, ShellError> {
+    fn build_zsh(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
         let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
         let prompt_functions = self.build_bashlike_functions("pcmd_dispatch", prompts);
 
-        Ok(zsh::expose(workdir, &prompt_functions, &dispatcher_func))
+        Ok(zsh::expose(workdir, &prompt_functions, &dispatcher_func, remote_cmd))
     }
 
-    fn build_sh(&self, workdir: &str, channel: &Channel, prompts: &[String]) -> Result<String, ShellError> {
+    fn build_sh(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
         let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
         let prompt_functions = self.build_bashlike_functions("pcmd_dispatch", prompts);
 
-        Ok(sh::expose(workdir, &prompt_functions, &dispatcher_func))
+        Ok(sh::expose(workdir, &prompt_functions, &dispatcher_func, remote_cmd))
     }
 
     fn build_bashlike_functions(&self, dispatcher_name: &str, prompts: &[String]) -> String {
         bash::create_cmd_functions(prompts, dispatcher_name)
     }
 
-    fn build_fish(&self, workdir: &str, channel: &Channel, prompts: &[String]) -> Result<String, ShellError> {
+    fn build_fish(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
         let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
         let prompt_functions = fish::create_cmd_functions(prompts, "pcmd_dispatch");
 
-        Ok(fish::expose(workdir, &prompt_functions, &dispatcher_func))
+        Ok(fish::expose(workdir, &prompt_functions, &dispatcher_func, remote_cmd))
     }
 }
 

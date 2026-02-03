@@ -15,7 +15,12 @@ pub fn create_cmd_functions(cmd_names: &[String], dispatcher_name: &str) -> Stri
         .join("\n")
 }
 
-pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str) -> String {
+pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd: Option<&[&str]>) -> String {
+    let remote_cmd = if let Some(remote_cmd) = remote_cmd {
+        remote_cmd.join(" ")
+    } else {
+        "".to_string()
+    };
     format!(r#"
 mkdir -p {workdir}
 cat > {workdir}/{functions_file} << "EOF"
@@ -26,7 +31,7 @@ function fish
 end
 EOF
 
-exec fish -C "source {workdir}/{functions_file}"
+exec fish -C "source {workdir}/{functions_file};{remote_cmd}"
 "#,
     functions_file="funcs",
     )

@@ -199,7 +199,7 @@ async fn main() -> Result<()> {
                 stats: statsstore
             };
 
-            let (destination, _) = utils::parse_ssh_command(&cmd.ssh_args).context("Could not parse ssh command")?;
+            let (destination, parsed_sshg_args) = utils::parse_ssh_command(&cmd.ssh_args).context("Could not parse ssh command")?;
             let controlpath = controlpath::control_path( process::id()).context("Could not determine control path")?;
 
             let session_info = MultiplexedSession {
@@ -214,6 +214,7 @@ async fn main() -> Result<()> {
                 prompts_storage,
                 exec_context: ExecContext::Remote(RemoteExecContext::MultiplexedSession(session_info.clone()))
             };
+
             let installed = installer.list()?
                 .keys()
                 .map(|k| k.to_string())
@@ -222,7 +223,8 @@ async fn main() -> Result<()> {
                 Arc::new(executor),
                 installed,
                 session_info,
-                appconfig
+                appconfig,
+                parsed_sshg_args
             ).await
         }
     }

@@ -3,14 +3,15 @@ use std::{path::PathBuf, sync::Arc, time::{SystemTime, UNIX_EPOCH}};
 use clap::{Parser};
 use anyhow::{Context, Result};
 use tokio::process::Command;
-use crate::{cmd::ssh::shell::{Channel, Shell}, config::appconfig::{AppConfig, ChannelOptions, Remote, ShellOptions}, executor::{Executor, MultiplexedSession}};
+use crate::{cmd::ssh::{shell::{Channel, Shell}, utils::ParsedSshArgs}, config::appconfig::{AppConfig, ChannelOptions, Remote, ShellOptions}, executor::{Executor, MultiplexedSession}};
 pub mod controlpath;
 pub mod utils;
 use rand::Rng;
+use log::debug;
 
-mod shell;
-mod lchannel;
-mod bootstrap;
+pub mod shell;
+pub mod lchannel;
+pub mod bootstrap;
 
 const REMOTE_WORKDIR: &str = "/tmp/pcmd";
 
@@ -25,12 +26,10 @@ impl SshCmd {
         executor: Arc<Executor>,
         prompts: Vec<String>,
         session_info: MultiplexedSession,
-        appconfig: &AppConfig
+        appconfig: &AppConfig,
+        parsed_ssh_args: ParsedSshArgs
     )-> Result<()> {
 
-        let ssh_args: Vec<String> = self.ssh_args.clone();
-
-        // println!("{:#?}", &session_info);
         let controlpath = session_info.controlpath;
         let usock_path = PathBuf::from(&controlpath)
             .parent()
@@ -44,7 +43,6 @@ impl SshCmd {
             &session_info.destination.hostname_for_match,
             session_info.destination.username.as_deref())
             .unwrap_or(&remote_default);
-
 
         let shell = match remote_config.shell {
             ShellOptions::Auto => Shell::Auto(REMOTE_WORKDIR),
@@ -81,18 +79,18 @@ impl SshCmd {
             }
         };
 
-        let bootstrap_data = bootstrap::setup(executor, &prompts, shell, channel)?;
-
-        // println!("{}", &bootstrap_data.script);
+        let remote_cmd = if parsed_ssh_args.server_args.len() > 1 {
+            Some(&parsed_ssh_args.server_args[1..].iter().map(|s| s.as_str()).collect::<Vec<_>>()[..])
+        } else { None };
+        let bootstrap_data = bootstrap::setup(executor, &prompts, shell, channel, remote_cmd)?;
 
         tokio::spawn(async move {
             bootstrap_data.lchannel.run().await.context("Channel Error")?;
             Ok::<(), anyhow::Error>(())
         });
 
-        // println!("Fwd: {:#?}", &bootstrap_data.forwards);
 
-        let connection_sharing_args = vec![
+        let connection_sharing_args = [
             "-o".to_string(),
             "ControlMaster=yes".to_string(),
             "-o".to_string(),
@@ -101,16 +99,29 @@ impl SshCmd {
             "ControlPersist=no".to_string(),
         ];
 
+        debug!("SSH Args: {:?}", &parsed_ssh_args.ssh_args);
+        debug!("Server Args: {:?}", &parsed_ssh_args.server_args);
+
+
         let ssh_cmd_handle = tokio::spawn(async move {
+
+        let initial_args = [String::from("-t"), String::from("-R")];
+        let forwards: Vec<String> = bootstrap_data.forwards.iter()
+                    .map(|f| format!("{}:localhost:{}", f.remote, f.local)).collect();
+
+        let full_args: Vec<&str> = initial_args.iter()
+            .chain(forwards.iter())
+            .chain(connection_sharing_args.iter())
+            .chain(parsed_ssh_args.ssh_args.iter())
+            .chain(std::iter::once(&parsed_ssh_args.server_args[0]))
+            .chain(std::iter::once(&bootstrap_data.script))
+            .map(|s| s.as_str())
+            .collect();
+
+            // debug!("ssh {:?}", full_args[..full_args.lenv)-1]);
+
             Command::new("ssh")
-                .arg("-t")
-                .arg("-R")
-                .args(&bootstrap_data.forwards)
-                //.arg(&forwarding_arg)
-                // .arg("9999:localhost:9999")
-                .args(connection_sharing_args)
-                .args(ssh_args)
-                .arg(&bootstrap_data.script)
+                .args(full_args)
                 .spawn().context("Error spawning ssh")?
                 .wait().await.context("Error in ssh proc")?;
             Ok::<(), anyhow::Error>(())

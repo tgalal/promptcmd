@@ -15,7 +15,12 @@ pub fn create_cmd_functions(cmd_names: &[String], dispatcher_name: &str) -> Stri
 }
 
 
-pub fn expose(dispatcher_name: &str, commands: &[String]) -> String {
+pub fn expose(dispatcher_name: &str, commands: &[String], remote_cmd: Option<&[&str]>) -> String {
+    let remote_cmd = if let Some(remote_cmd) = remote_cmd {
+        remote_cmd.join(" ")
+    } else {
+        "exec bash -l".to_string()
+    };
     let mut exports = commands.iter()
         .map(|cmd| format!("export -f {cmd} 2>/dev/null || true"))
         .collect::<Vec<_>>()
@@ -26,7 +31,7 @@ pub fn expose(dispatcher_name: &str, commands: &[String]) -> String {
 
     format!(r#"
 {exports}
-exec bash -l
+{remote_cmd}
 "#,
     )
 }

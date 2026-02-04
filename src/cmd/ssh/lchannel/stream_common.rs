@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use clap::Arg;
 use clap::{Command as ClapCommand};
 use log::debug;
 use log::warn;
@@ -62,13 +63,38 @@ pub async fn handle_stream<S: AsyncReadExt + AsyncWriteExt + Unpin>(executor: Ar
 
     let mut command: ClapCommand = ClapCommand::new(promptname.to_string());
     // command = command.disable_help_flag(true);
+    //
+    command = command.arg(Arg::new("dry")
+            .long("dry")
+            .help("Dry run")
+            .action(clap::ArgAction::SetTrue)
+            .required(false)
+        )
+        .arg(Arg::new("render")
+            .long("render")
+            .short('r')
+            .help("Render only mode")
+            .action(clap::ArgAction::SetTrue)
+            .required(false)
+        );
     command = command.next_help_heading("Prompt inputs");
     command = run::generate_arguments_from_dotprompt(command, &dotprompt).unwrap();
+    command = command.next_help_heading("Optional Configuration Overrides")
+        .arg(Arg::new("model")
+            .long("config-model")
+            .short('m')
+        );
     let args = shlex::split(command_full.as_str()).expect("Failed to parse command line");
     let matches = command.try_get_matches_from(args);
 
+
     match matches {
         Ok(matches) => {
+
+            let dry = *matches.get_one::<bool>("dry").unwrap_or(&false);
+            let render = *matches.get_one::<bool>("render").unwrap_or(&false);
+            let requested_model = matches.get_one::<String>("model").map(|s| s.to_string());
+
             let argmatches = DotPromptArgMatches {
                 matches,
                 dotprompt: &dotprompt
@@ -77,8 +103,8 @@ pub async fn handle_stream<S: AsyncReadExt + AsyncWriteExt + Unpin>(executor: Ar
             let inputs: PromptInputs = argmatches.try_into().unwrap();
 
             let result = executor.clone().execute_dotprompt(&dotprompt,
-                None, None,
-                inputs, Some(stdin), false, false).await.unwrap();
+                None, requested_model,
+                inputs, Some(stdin), dry, render).await.unwrap();
 
 
             match result {
@@ -103,7 +129,6 @@ pub async fn handle_stream<S: AsyncReadExt + AsyncWriteExt + Unpin>(executor: Ar
                     if !ends_with_newline  && let Err(err) = stream.write_all("\n".as_bytes()).await {
                         warn!("{err}");
                     }
-                    
                 }
                 ExecutionOutput::StructuredStreamingOutput(mut tokstream) => {
                     let mut ends_with_newline = false;
@@ -127,13 +152,11 @@ pub async fn handle_stream<S: AsyncReadExt + AsyncWriteExt + Unpin>(executor: Ar
                     }
                 }
                 ExecutionOutput::ImmediateOutput(output) => {
-                    debug!("Going to write {output}" );
                     stream.write_all(output.as_bytes()).await.unwrap();
                     if !output.ends_with("\n") {
                         stream.write_all("\n".as_bytes()).await.unwrap();
                     }
                     stream.flush().await.unwrap();
-                    debug!("Finishe Writing");
                 }
                 ExecutionOutput::DryRun => {
                     // println!("[dry run, no llm response]");

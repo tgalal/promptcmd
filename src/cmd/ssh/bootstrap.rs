@@ -29,7 +29,7 @@ pub fn setup(executor: Arc<Executor>, promptnames: &[String], shell: Shell,
 
             BootstrapData {
                 script: bootstrap_script,
-                forwards: vec![ForwardingConfiguration {remote: remote_port.to_string(), local: local_port.to_string()}],
+                forwards: vec![ForwardingConfiguration {remote: remote_port.to_string(), local: format!("localhost:{local_port}")}],
                 lchannel: Box::new(lchannel::tcp::TcpChannel {
                     executor,
                     port: local_port
@@ -49,7 +49,7 @@ pub fn setup(executor: Arc<Executor>, promptnames: &[String], shell: Shell,
         Channel::BashTcp(local_port, remote_port) => {
             BootstrapData {
                 script: bootstrap_script,
-                forwards: vec![ForwardingConfiguration {remote: remote_port.to_string(), local: local_port.to_string()}],
+                forwards: vec![ForwardingConfiguration {remote: remote_port.to_string(), local: format!("localhost:{local_port}")}],
                 lchannel: Box::new(lchannel::tcp::TcpChannel {
                     executor,
                     port: local_port

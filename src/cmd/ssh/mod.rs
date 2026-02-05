@@ -107,7 +107,7 @@ impl SshCmd {
 
         let initial_args = [String::from("-t"), String::from("-R")];
         let forwards: Vec<String> = bootstrap_data.forwards.iter()
-                    .map(|f| format!("{}:localhost:{}", f.remote, f.local)).collect();
+                    .map(|f| format!("{}:{}", f.remote, f.local)).collect();
 
         let full_args: Vec<&str> = initial_args.iter()
             .chain(forwards.iter())

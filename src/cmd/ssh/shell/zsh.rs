@@ -21,7 +21,7 @@ EOF
 
 echo "source {workdir}/{functions_file}" > {workdir}/.zshenv
 echo "[[ -e ~/.zshenv ]] &&  source ~/.zshenv" >> {workdir}/.zshenv
-echo "source ~/.zshrc" > {workdir}/.zshrc
+echo "source ~/.zshrc 2> /dev/null" > {workdir}/.zshrc
 {remote_cmd}
 "#,
     functions_file="funcs"

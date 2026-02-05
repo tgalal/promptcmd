@@ -14,11 +14,11 @@ pub enum ShellError {
 pub enum Shell {
     Bash,
     // workdir
-    Zsh(&'static str),
+    Zsh(String),
     // workdir
-    Sh(&'static str),
-    Fish(&'static str),
-    Auto(&'static str)
+    Sh(String),
+    Fish(String),
+    Auto(String)
 }
 
 pub enum Channel {

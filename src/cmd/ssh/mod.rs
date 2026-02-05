@@ -13,7 +13,7 @@ pub mod shell;
 pub mod lchannel;
 pub mod bootstrap;
 
-const REMOTE_WORKDIR: &str = "/tmp/pcmd";
+const REMOTE_WORKDIR: &str = "/tmp";
 
 #[derive(Parser)]
 pub struct SshCmd {
@@ -44,15 +44,20 @@ impl SshCmd {
             session_info.destination.username.as_deref())
             .unwrap_or(&remote_default);
 
+        let mut rng = rand::rng();
+        let rand_suffix = rng.random_range(u32::MIN..u32::MAX).to_string();
+
+        let remote_workdir = PathBuf::from(REMOTE_WORKDIR)
+            .join(format!("pcmd_{rand_suffix}"))
+            .to_string_lossy().to_string();
         let shell = match remote_config.shell {
-            ShellOptions::Auto => Shell::Auto(REMOTE_WORKDIR),
+            ShellOptions::Auto => Shell::Auto(remote_workdir),
             ShellOptions::Bash => Shell::Bash,
-            ShellOptions::Zsh => Shell::Zsh(REMOTE_WORKDIR),
-            ShellOptions::Sh => Shell::Sh(REMOTE_WORKDIR),
-            ShellOptions::Fish => Shell::Fish(REMOTE_WORKDIR)
+            ShellOptions::Zsh => Shell::Zsh(remote_workdir),
+            ShellOptions::Sh => Shell::Sh(remote_workdir),
+            ShellOptions::Fish => Shell::Fish(remote_workdir)
         };
 
-        let mut rng = rand::rng();
         let local_port = rng.random_range(remote_config.local_ports.start..=remote_config.local_ports.end);
         let remote_port = rng.random_range(remote_config.remote_ports.start..=remote_config.remote_ports.end);
 
@@ -118,7 +123,8 @@ impl SshCmd {
             .map(|s| s.as_str())
             .collect();
 
-            // debug!("ssh {:?}", full_args[..full_args.lenv)-1]);
+            // println!("ssh {}", full_args.join(" "));
+            // println!("{}", &bootstrap_data.script);
 
             Command::new("ssh")
                 .args(full_args)

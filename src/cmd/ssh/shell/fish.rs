@@ -30,6 +30,12 @@ cat > {workdir}/{functions_file} << "EOF"
 function fish
     command fish -C "source {workdir}/{functions_file}"
 end
+
+if not test -f "{workdir}/trap"
+    touch {workdir}/trap
+    trap 'rm -rf {workdir}' EXIT
+end
+
 EOF
 
 exec fish -C "source {workdir}/{functions_file};{remote_cmd}"

@@ -12,6 +12,11 @@ chmod 700 {workdir}
 cat > {workdir}/{functions_file} << "EOF"
 {dispatcher_func}
 {functions}
+if [ ! -f "{workdir}/trap" ]; then
+    touch {workdir}/trap
+    echo "setting trap"
+    trap 'rm -rf {workdir}' EXIT
+fi
 EOF
 
 echo "source {workdir}/{functions_file}" > {workdir}/.zshenv

@@ -28,8 +28,12 @@ chmod 700 {workdir}
 cat > {workdir}/{functions_file} << "EOF"
 {dispatcher_func}
 {functions}
-EOF
+if [ ! -f "{workdir}/trap" ]; then
+    touch {workdir}/trap
+    trap 'rm -rf {workdir}' EXIT
+fi
 
+EOF
 ENV={workdir}/{functions_file} {remote_cmd}
 "#,
     functions_file="funcs",

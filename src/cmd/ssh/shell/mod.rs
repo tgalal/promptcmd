@@ -195,7 +195,7 @@ esac
 
     fn build_sh(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
         let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
-        let prompt_functions = self.build_bashlike_functions("pcmd_dispatch", prompts);
+        let prompt_functions = sh::create_cmd_functions(prompts, "pcmd_dispatch");
 
         Ok(sh::expose(workdir, &prompt_functions, &dispatcher_func, remote_cmd))
     }

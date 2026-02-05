@@ -13,7 +13,7 @@ use promptcmd::storage::PromptFilesStorage;
 use promptcmd::ENV_CONFIG;
 use std::sync::{Arc};
 use std::{env};
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use std::path::PathBuf;
 use std::fs;
 use log::debug;
@@ -44,13 +44,19 @@ async fn main() -> Result<()> {
         env::var(ENV_CONFIG).ok().map(PathBuf::from)
         .or_else(appconfig_locator::path);
 
-    let appconfig = if let Some(appconfig_path) = appconfig_path && appconfig_path.exists() {
-        let appconfig_data = fs::read_to_string(&appconfig_path)?;
-        let appconfig = match AppConfig::try_from(appconfig_data.as_str()) {
-            Ok(appconfig) => appconfig,
-            Err(err) => panic!("Failed to parse configuration at {}: {}", appconfig_path.to_string_lossy(), err)
-        };
-        APP_CONFIG.get_or_init(|| appconfig)
+    let appconfig = if let Some(appconfig_path) = appconfig_path.as_ref() {
+        if !appconfig_path.exists() {
+            bail!("Could not find a config file at {} ", appconfig_path.to_string_lossy());
+        }
+        let appconfig_data = fs::read_to_string(appconfig_path)
+        .map_err(|e| anyhow!("Error reading config at {}: {e}", appconfig_path.to_string_lossy()))?;
+
+        APP_CONFIG.get_or_init(||
+            match AppConfig::try_from(appconfig_data.as_str()) {
+                Ok(appconfig) => appconfig,
+                Err(err) => panic!("Failed to initialize: {}", err)
+            }
+        )
     } else {
         APP_CONFIG.get_or_init(AppConfig::default)
     };

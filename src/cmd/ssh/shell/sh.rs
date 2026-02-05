@@ -24,6 +24,7 @@ pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd:
     };
     format!(r#"
 mkdir -p {workdir}
+chmod 700 {workdir}
 cat > {workdir}/{functions_file} << "EOF"
 {dispatcher_func}
 {functions}

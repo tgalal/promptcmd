@@ -59,6 +59,8 @@ pub enum ShellOptions {
     Bash,
     Zsh,
     Sh,
+    Ash,
+    Dash,
     Fish
 }
 

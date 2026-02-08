@@ -18,9 +18,9 @@ pub fn create_cmd_functions(cmd_names: &[String], dispatcher_name: &str) -> Stri
 
 pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd: Option<&[&str]>) -> String {
     let remote_cmd = if let Some(remote_cmd) = remote_cmd {
-        format!("sh -c \"{}\"", remote_cmd.join(" "))
+        format!("dash -c \"{}\"", remote_cmd.join(" "))
     } else {
-        "exec sh -i -l".to_string()
+        "exec dash -i -l".to_string()
     };
     let dispatcher_func = dispatcher_func.replace("'", "'\\''");
     let functions = functions.replace("'", "'\\''");
@@ -44,7 +44,7 @@ if [ ! -f "{workdir}/trap" ]; then
 fi
 ' > {workdir}/{functions_file}
 
-{remote_cmd} -c "ENV={workdir}/{functions_file} exec sh -i"
+ENV={workdir}/{functions_file} {remote_cmd}
 "#,
     functions_file="funcs",
     )

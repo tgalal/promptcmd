@@ -20,7 +20,7 @@ pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd:
     let remote_cmd = if let Some(remote_cmd) = remote_cmd {
         format!("sh -c \"{}\"", remote_cmd.join(" "))
     } else {
-        "exec sh -i -l".to_string()
+        "exec ash -i -l".to_string()
     };
     let dispatcher_func = dispatcher_func.replace("'", "'\\''");
     let functions = functions.replace("'", "'\\''");
@@ -44,7 +44,7 @@ if [ ! -f "{workdir}/trap" ]; then
 fi
 ' > {workdir}/{functions_file}
 
-{remote_cmd} -c "ENV={workdir}/{functions_file} exec sh -i"
+{remote_cmd} -c "ENV={workdir}/{functions_file} exec ash -i"
 "#,
     functions_file="funcs",
     )

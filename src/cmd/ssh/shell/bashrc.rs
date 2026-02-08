@@ -1,8 +1,6 @@
 fn create_cmd_function(cmd_name: &str, dispatcher_name: &str) -> String {
-    let sanitized_function_name = cmd_name.replace("-", "_");
-
     format!(
-        r#"{sanitized_function_name}() {{
+        r#"{cmd_name}() {{
         {dispatcher_name} {cmd_name} "$@"
 }}"#,
     )
@@ -16,11 +14,13 @@ pub fn create_cmd_functions(cmd_names: &[String], dispatcher_name: &str) -> Stri
         .join("\n")
 }
 
+
 pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd: Option<&[&str]>) -> String {
     let remote_cmd = if let Some(remote_cmd) = remote_cmd {
-        format!("sh -c \"{}\"", remote_cmd.join(" "))
+        // let remote_cmd_joined = remote_cmd.join(" ");
+        todo!("Not implemented");
     } else {
-        "exec sh -i -l".to_string()
+        format!("exec bash --rcfile {workdir}/.bashrc -i")
     };
     let dispatcher_func = dispatcher_func.replace("'", "'\\''");
     let functions = functions.replace("'", "'\\''");
@@ -30,6 +30,7 @@ mkdir -p {workdir}
 chmod 700 {workdir}
 
 printf '%s' '
+
 {dispatcher_func}
 {functions}
 
@@ -42,10 +43,13 @@ if [ ! -f "{workdir}/trap" ]; then
     touch {workdir}/trap
     trap "pcmd_exit" EXIT
 fi
+[[ -e ~/.bashrc ]] && source ~/.bashrc
+alias bash="bash --rcfile {workdir}/.bashrc"
 ' > {workdir}/{functions_file}
 
-{remote_cmd} -c "ENV={workdir}/{functions_file} exec sh -i"
+{remote_cmd}
 "#,
-    functions_file="funcs",
+    functions_file=".bashrc"
     )
 }
+

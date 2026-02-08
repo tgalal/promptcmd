@@ -1,7 +1,11 @@
 pub mod zsh;
 pub mod bash;
 pub mod sh;
+pub mod ash;
+pub mod dash;
 pub mod fish;
+pub mod bashrc;
+pub mod bashposix;
 
 use thiserror::Error;
 
@@ -12,11 +16,11 @@ pub enum ShellError {
 }
 
 pub enum Shell {
-    Bash,
-    // workdir
+    Bash(String),
     Zsh(String),
-    // workdir
     Sh(String),
+    Ash(String),
+    Dash(String),
     Fish(String),
     Auto(String)
 }
@@ -56,13 +60,19 @@ impl Channel {
 
     fn build_nc(&self, port: u32, shell: &Shell) -> ChannelCode {
         match shell {
-            Shell::Auto(_) | Shell::Bash | Shell::Zsh(_) | Shell::Sh(_) | Shell::Fish(_) => ChannelCode::from_post(format!("| nc localhost {port}")),
+            Shell::Auto(_) |
+            Shell::Bash(_) |
+            Shell::Zsh(_) |
+            Shell::Sh(_) |
+            Shell::Ash(_) |
+            Shell::Dash(_) |
+            Shell::Fish(_) => ChannelCode::from_post(format!("| nc localhost {port}")),
         }
     }
 
     fn build_bashtcp(&self, port: u32, shell: &Shell) -> Result<ChannelCode, ShellError> {
         match shell {
-            Shell::Bash => {
+            Shell::Bash(_) => {
                 Ok(ChannelCode {
                     pre: Some(format!("exec 3<>/dev/tcp/localhost/{port}")),
                     post: r#">&3
@@ -75,7 +85,7 @@ exec 3>&-"#.to_string()
             Shell::Zsh(_) => {
                 Err(ShellError::UnsupportedMode( "Cannot use bashtcp mode with zsh".to_string()))
             },
-            Shell::Sh(_) => {
+            Shell::Sh(_) | Shell::Ash(_) | Shell::Dash(_) => {
                 Err(ShellError::UnsupportedMode( "Cannot use bashtcp mode with sh".to_string()))
             },
             Shell::Fish(_) => {
@@ -89,7 +99,13 @@ exec 3>&-"#.to_string()
 
     fn build_socat(&self, socket_path: &str, shell: &Shell) -> ChannelCode {
         match shell {
-            Shell::Auto(_) | Shell::Bash | Shell::Zsh(_) | Shell::Sh(_) | Shell::Fish(_) => ChannelCode::from_post(format!("| socat -,ignoreeof UNIX-CONNECT:{socket_path} ")),
+            Shell::Auto(_) |
+            Shell::Bash(_) |
+            Shell::Zsh(_) |
+            Shell::Sh(_) |
+            Shell::Ash(_) |
+            Shell::Dash(_) |
+            Shell::Fish(_) => ChannelCode::from_post(format!("| socat -,ignoreeof UNIX-CONNECT:{socket_path} ")),
         }
     }
 }
@@ -98,9 +114,12 @@ impl Shell {
 
     pub fn build(&self, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
         match self  {
-            Shell::Bash => self.build_bash(channel, prompts, remote_cmd),
+            // Shell::Bash => self.build_bash(channel, prompts, remote_cmd),
+            Shell::Bash(workdir) => self.build_bashposix(workdir, channel, prompts, remote_cmd),
             Shell::Zsh(workdir) => self.build_zsh(workdir, channel, prompts, remote_cmd),
             Shell::Sh(workdir) => self.build_sh(workdir, channel, prompts, remote_cmd),
+            Shell::Ash(workdir) => self.build_ash(workdir, channel, prompts, remote_cmd),
+            Shell::Dash(workdir) => self.build_dash(workdir, channel, prompts, remote_cmd),
             Shell::Auto(workdir) => self.build_auto(workdir, channel, prompts, remote_cmd),
             Shell::Fish(workdir) => self.build_fish(workdir, channel, prompts, remote_cmd)
     }
@@ -110,7 +129,7 @@ impl Shell {
         let channel_code = channel.build(self)?;
 
         let res = match self {
-            Shell::Auto(_) | Shell::Bash | Shell::Zsh(_) | Shell::Sh(_) => {
+            Shell::Auto(_) | Shell::Bash(_) | Shell::Zsh(_) | Shell::Sh(_) | Shell::Ash(_) | Shell::Dash(_) => {
                 format!(
                     r#"{funcname}() {{
                     {pre}
@@ -155,7 +174,7 @@ impl Shell {
         let prompt_functions = self.build_bashlike_functions("pcmd_dispatch", prompts);
         let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
 
-        let bash_expose = bash::expose("pcmd_dispatch", prompts, remte_cmd);
+        let bash_expose = bashposix::expose(workdir, &prompt_functions, &dispatcher_func, remte_cmd);
         let zsh_expose = zsh::expose(workdir, &prompt_functions, &dispatcher_func, remte_cmd);
         let sh_expose  = sh::expose(workdir, &prompt_functions, &dispatcher_func, remte_cmd);
 
@@ -186,6 +205,20 @@ esac
         Ok(result)
     }
 
+    fn build_bashrc(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
+        let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
+        let prompt_functions = self.build_bashlike_functions("pcmd_dispatch", prompts);
+
+        Ok(bashrc::expose(workdir, &prompt_functions, &dispatcher_func, remote_cmd))
+    }
+
+    fn build_bashposix(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
+        let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
+        let prompt_functions = self.build_bashlike_functions("pcmd_dispatch", prompts);
+
+        Ok(bashposix::expose(workdir, &prompt_functions, &dispatcher_func, remote_cmd))
+    }
+
     fn build_zsh(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
         let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
         let prompt_functions = self.build_bashlike_functions("pcmd_dispatch", prompts);
@@ -200,8 +233,22 @@ esac
         Ok(sh::expose(workdir, &prompt_functions, &dispatcher_func, remote_cmd))
     }
 
+    fn build_ash(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
+        let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
+        let prompt_functions = ash::create_cmd_functions(prompts, "pcmd_dispatch");
+
+        Ok(ash::expose(workdir, &prompt_functions, &dispatcher_func, remote_cmd))
+    }
+
+    fn build_dash(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
+        let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
+        let prompt_functions = dash::create_cmd_functions(prompts, "pcmd_dispatch");
+
+        Ok(dash::expose(workdir, &prompt_functions, &dispatcher_func, remote_cmd))
+    }
+
     fn build_bashlike_functions(&self, dispatcher_name: &str, prompts: &[String]) -> String {
-        bash::create_cmd_functions(prompts, dispatcher_name)
+        bashrc::create_cmd_functions(prompts, dispatcher_name)
     }
 
     fn build_fish(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {

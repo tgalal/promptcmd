@@ -21,24 +21,31 @@ pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd:
     } else {
         "".to_string()
     };
+    let dispatcher_func = dispatcher_func.replace("'", "'\\''");
+    let functions = functions.replace("'", "'\\''");
     format!(r#"
 mkdir -p {workdir}
 chmod 700 {workdir}
-cat > {workdir}/{functions_file} << "EOF"
+
+printf '%s' '
 {dispatcher_func}
 {functions}
 function fish
     command fish -C "source {workdir}/{functions_file}"
 end
 
-if not test -f "{workdir}/trap"
-    touch {workdir}/trap
-    trap 'rm -rf {workdir}' EXIT
+function pcmd_exit
+    rm -rf {workdir}
+    rm {workdir}.sock > /dev/null
 end
 
-EOF
+if not test -f "{workdir}/trap"
+    touch {workdir}/trap
+    trap "rm -rf {workdir}; rm -rf {workdir}.sock" EXIT
+end
+' > {workdir}/{functions_file}
 
-exec fish -C "source {workdir}/{functions_file};{remote_cmd}"
+exec fish -l -C "source {workdir}/{functions_file};{remote_cmd}"
 "#,
     functions_file="funcs",
     )

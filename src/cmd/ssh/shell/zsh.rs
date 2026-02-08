@@ -6,18 +6,28 @@ pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd:
     } else {
         format!("zsh -c 'ZDOTDIR={workdir} zsh'")
     };
+    let dispatcher_func = dispatcher_func.replace("'", "'\\''");
+    let functions = functions.replace("'", "'\\''");
+
     format!(r#"
 mkdir -p {workdir}
 chmod 700 {workdir}
-cat > {workdir}/{functions_file} << "EOF"
+
+printf '%s' '
+
 {dispatcher_func}
 {functions}
+
+pcmd_exit() {{
+    rm -rf {workdir}
+    rm {workdir}.sock > /dev/null
+}}
+
 if [ ! -f "{workdir}/trap" ]; then
     touch {workdir}/trap
-    echo "setting trap"
-    trap 'rm -rf {workdir}' EXIT
+    trap "pcmd_exit" EXIT
 fi
-EOF
+' > {workdir}/{functions_file}
 
 echo "source {workdir}/{functions_file}" > {workdir}/.zshenv
 echo "[[ -e ~/.zshenv ]] &&  source ~/.zshenv" >> {workdir}/.zshenv

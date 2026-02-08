@@ -52,9 +52,11 @@ impl SshCmd {
             .to_string_lossy().to_string();
         let shell = match remote_config.shell {
             ShellOptions::Auto => Shell::Auto(remote_workdir),
-            ShellOptions::Bash => Shell::Bash,
+            ShellOptions::Bash => Shell::Bash(remote_workdir),
             ShellOptions::Zsh => Shell::Zsh(remote_workdir),
             ShellOptions::Sh => Shell::Sh(remote_workdir),
+            ShellOptions::Ash => Shell::Ash(remote_workdir),
+            ShellOptions::Dash => Shell::Dash(remote_workdir),
             ShellOptions::Fish => Shell::Fish(remote_workdir)
         };
 
@@ -66,11 +68,7 @@ impl SshCmd {
                 Channel::Nc(local_port, remote_port)
             },
             ChannelOptions::Socat => {
-                let time = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)?
-                    .as_secs().to_string();
-
-                let remote_socket_filename = format!("pcmd_{time}.sock");
+                let remote_socket_filename = format!("pcmd_{rand_suffix}.sock");
                 let remote_socket = PathBuf::from(&remote_config.remote_socket.path)
                     .join(remote_socket_filename);
 

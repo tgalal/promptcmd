@@ -1,6 +1,8 @@
 fn create_cmd_function(cmd_name: &str, dispatcher_name: &str) -> String {
+    let sanitized_function_name = cmd_name.replace("-", "_")
+        .replace(".", "_");
     format!(
-        r#"{cmd_name}() {{
+        r#"{sanitized_function_name}() {{
         {dispatcher_name} {cmd_name} "$@"
 }}"#,
     )
@@ -36,7 +38,7 @@ printf '%s' '
 
 pcmd_exit() {{
     rm -rf {workdir}
-    rm {workdir}.sock > /dev/null
+    rm {workdir}.sock 2> /dev/null
 }}
 
 if [ ! -f "{workdir}/trap" ]; then

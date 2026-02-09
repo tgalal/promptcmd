@@ -1,5 +1,6 @@
 fn create_cmd_function(cmd_name: &str, dispatcher_name: &str) -> String {
-    let sanitized_function_name = cmd_name.replace("-", "_");
+    let sanitized_function_name = cmd_name.replace("-", "_")
+        .replace(".", "_");
 
     format!(
         r#"{sanitized_function_name}() {{
@@ -29,20 +30,20 @@ pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd:
 mkdir -p {workdir}
 chmod 700 {workdir}
 
-printf '%s' '
+cat > {workdir}/{functions_file} << "EOF"
 {dispatcher_func}
 {functions}
 
 pcmd_exit() {{
     rm -rf {workdir}
-    rm {workdir}.sock > /dev/null
+    rm {workdir}.sock 2> /dev/null
 }}
 
 if [ ! -f "{workdir}/trap" ]; then
     touch {workdir}/trap
     trap "pcmd_exit" EXIT
 fi
-' > {workdir}/{functions_file}
+EOF
 
 {remote_cmd} -c "ENV={workdir}/{functions_file} exec sh -i"
 "#,

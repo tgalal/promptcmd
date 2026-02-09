@@ -27,7 +27,7 @@ pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd:
 mkdir -p {workdir}
 chmod 700 {workdir}
 
-printf '%s' '
+cat > {workdir}/{functions_file} << "EOF"
 {dispatcher_func}
 {functions}
 function fish
@@ -36,14 +36,14 @@ end
 
 function pcmd_exit
     rm -rf {workdir}
-    rm {workdir}.sock > /dev/null
+    rm {workdir}.sock 2> /dev/null
 end
 
 if not test -f "{workdir}/trap"
     touch {workdir}/trap
     trap "rm -rf {workdir}; rm -rf {workdir}.sock" EXIT
 end
-' > {workdir}/{functions_file}
+EOF
 
 exec fish -l -C "source {workdir}/{functions_file};{remote_cmd}"
 "#,

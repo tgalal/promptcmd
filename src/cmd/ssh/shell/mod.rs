@@ -134,10 +134,10 @@ impl Shell {
                     r#"{funcname}() {{
                     {pre}
                     {{
-                    printf '%s ' "$1"
+                    printf "%s " "$1"
                     shift
                     for arg in "$@"; do
-                        printf '"%s" ' "$arg"
+                        printf "\"%s\" " "$arg"
                     done
                     printf "\0"
                     if [ ! -t 0 ]; then
@@ -177,15 +177,19 @@ impl Shell {
         let bash_expose = bashposix::expose(workdir, &prompt_functions, &dispatcher_func, remte_cmd);
         let zsh_expose = zsh::expose(workdir, &prompt_functions, &dispatcher_func, remte_cmd);
         let sh_expose  = sh::expose(workdir, &prompt_functions, &dispatcher_func, remte_cmd);
+        let ash_expose  = ash::expose(workdir, &prompt_functions, &dispatcher_func, remte_cmd);
+        let dash_expose  = dash::expose(workdir, &prompt_functions, &dispatcher_func, remte_cmd);
+        let fish_expose  = fish::expose(workdir, &prompt_functions, &dispatcher_func, remte_cmd);
 
         Ok(format!(r#"
-{prompt_functions}
-{dispatcher_func}
 SHELL_NAME=$(basename "$SHELL")
 case "$SHELL_NAME" in
   bash) {bash_expose};;
   zsh) {zsh_expose} ;;
-  sh|dash|ash) {sh_expose} ;;
+  ash) {ash_expose} ;;
+  dash) {dash_expose} ;;
+  fish) {fish_expose} ;;
+  sh) {sh_expose} ;;
   *) echo "Unsupported shell: $SHELL_NAME"; bash ;;
 esac
 "#,
@@ -248,7 +252,7 @@ esac
     }
 
     fn build_bashlike_functions(&self, dispatcher_name: &str, prompts: &[String]) -> String {
-        bashrc::create_cmd_functions(prompts, dispatcher_name)
+        bashposix::create_cmd_functions(prompts, dispatcher_name)
     }
 
     fn build_fish(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {

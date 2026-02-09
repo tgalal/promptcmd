@@ -51,13 +51,13 @@ impl SshCmd {
             .join(format!("pcmd_{rand_suffix}"))
             .to_string_lossy().to_string();
         let shell = match remote_config.shell {
-            ShellOptions::Auto => Shell::Auto(remote_workdir),
-            ShellOptions::Bash => Shell::Bash(remote_workdir),
-            ShellOptions::Zsh => Shell::Zsh(remote_workdir),
-            ShellOptions::Sh => Shell::Sh(remote_workdir),
-            ShellOptions::Ash => Shell::Ash(remote_workdir),
-            ShellOptions::Dash => Shell::Dash(remote_workdir),
-            ShellOptions::Fish => Shell::Fish(remote_workdir)
+            ShellOptions::Auto => Shell::Auto(remote_workdir.clone()),
+            ShellOptions::Bash => Shell::Bash(remote_workdir.clone()),
+            ShellOptions::Zsh => Shell::Zsh(remote_workdir.clone()),
+            ShellOptions::Sh => Shell::Sh(remote_workdir.clone()),
+            ShellOptions::Ash => Shell::Ash(remote_workdir.clone()),
+            ShellOptions::Dash => Shell::Dash(remote_workdir.clone()),
+            ShellOptions::Fish => Shell::Fish(remote_workdir.clone())
         };
 
         let local_port = rng.random_range(remote_config.local_ports.start..=remote_config.local_ports.end);
@@ -86,6 +86,13 @@ impl SshCmd {
             Some(&parsed_ssh_args.server_args[1..].iter().map(|s| s.as_str()).collect::<Vec<_>>()[..])
         } else { None };
         let bootstrap_data = bootstrap::setup(executor, &prompts, shell, channel, remote_cmd)?;
+        let bootstrap_script = format!(r#"mkdir {remote_workdir}
+chmod 700 {remote_workdir}
+printf '%s' '
+{}
+' > {remote_workdir}/entrypoint.sh
+exec sh {remote_workdir}/entrypoint.sh"#,
+            bootstrap_data.script);
 
         tokio::spawn(async move {
             bootstrap_data.lchannel.run().await.context("Channel Error")?;
@@ -117,12 +124,12 @@ impl SshCmd {
             .chain(connection_sharing_args.iter())
             .chain(parsed_ssh_args.ssh_args.iter())
             .chain(std::iter::once(&parsed_ssh_args.server_args[0]))
-            .chain(std::iter::once(&bootstrap_data.script))
+            .chain(std::iter::once(&bootstrap_script))
             .map(|s| s.as_str())
             .collect();
 
             // println!("ssh {}", full_args.join(" "));
-            // println!("{}", &bootstrap_data.script);
+            // println!("{}", &bootstrap_script);
 
             Command::new("ssh")
                 .args(full_args)

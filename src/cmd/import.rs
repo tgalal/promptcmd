@@ -7,7 +7,7 @@ use crate::dotprompt::DotPrompt;
 use clap::{Parser};
 use anyhow::{bail, Context, Result};
 use clap_stdin::FileOrStdin;
-use log::{debug, info};
+use log::{debug, info, warn};
 
 
 #[derive(Parser)]
@@ -80,6 +80,10 @@ impl ImportCmd {
         if let Some(path) = storage.exists(&promptname) {
             if force {
                 println!("Overwriting existing file at {path}");
+                if installer.is_installed(&promptname).is_some() &&
+                    let Err(err) = installer.uninstall(&promptname) {
+                        warn!("Error disabling existng prompt {promptname}: {err}. Resuming anyway.");
+                }
             } else {
                 bail!("{path} already exists, use -f/--force to overwrite");
             }

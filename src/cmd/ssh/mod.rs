@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc, time::{SystemTime, UNIX_EPOCH}};
+use std::{path::PathBuf, sync::Arc};
 
 use clap::{Parser};
 use anyhow::{Context, Result};
@@ -30,8 +30,7 @@ impl SshCmd {
         parsed_ssh_args: ParsedSshArgs
     )-> Result<()> {
 
-        let controlpath = session_info.controlpath;
-        let usock_path = PathBuf::from(&controlpath)
+        let usock_path = PathBuf::from(&session_info.controlpath)
             .parent()
             .context("Error getting control path's parent dir")?
             .join("pcmd.sock");
@@ -64,6 +63,9 @@ impl SshCmd {
         let remote_port = rng.random_range(remote_config.remote_ports.start..=remote_config.remote_ports.end);
 
         let channel = match remote_config.channel {
+            ChannelOptions::Auto  => {
+                Channel::Nc(local_port, remote_port)
+            },
             ChannelOptions::Nc => {
                 Channel::Nc(local_port, remote_port)
             },
@@ -77,8 +79,8 @@ impl SshCmd {
             ChannelOptions::BashTcp => {
                 Channel::BashTcp(local_port, remote_port)
             },
-            _ => {
-                Channel::Nc(local_port, remote_port)
+            ChannelOptions::Fifo  => {
+                Channel::Fifo(remote_workdir.clone())
             }
         };
 
@@ -88,6 +90,8 @@ impl SshCmd {
         let bootstrap_data = bootstrap::setup(executor, &prompts, shell, channel, remote_cmd)?;
         let bootstrap_script = format!(r#"mkdir {remote_workdir}
 chmod 700 {remote_workdir}
+mkfifo {remote_workdir}/send
+mkfifo {remote_workdir}/recv
 printf '%s' '
 {}
 ' > {remote_workdir}/entrypoint.sh
@@ -99,12 +103,11 @@ exec sh {remote_workdir}/entrypoint.sh"#,
             Ok::<(), anyhow::Error>(())
         });
 
-
         let connection_sharing_args = [
             "-o".to_string(),
             "ControlMaster=yes".to_string(),
             "-o".to_string(),
-            format!("ControlPath={}", &controlpath),
+            format!("ControlPath={}", &session_info.controlpath),
             "-o".to_string(),
             "ControlPersist=no".to_string(),
         ];
@@ -115,9 +118,9 @@ exec sh {remote_workdir}/entrypoint.sh"#,
 
         let ssh_cmd_handle = tokio::spawn(async move {
 
-        let initial_args = [String::from("-t"), String::from("-R")];
+        let initial_args = [String::from("-t")];
         let forwards: Vec<String> = bootstrap_data.forwards.iter()
-                    .map(|f| format!("{}:{}", f.remote, f.local)).collect();
+                    .map(|f| format!("-R {}:{}", f.remote, f.local)).collect();
 
         let full_args: Vec<&str> = initial_args.iter()
             .chain(forwards.iter())

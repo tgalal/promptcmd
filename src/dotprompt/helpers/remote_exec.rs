@@ -24,6 +24,8 @@ impl RemoteExecHelper {
             Command::new("ssh")
             .arg("-S")
             .arg(&session_info.controlpath)
+            .arg("-p")
+            .arg(session_info.port.to_string())
             .arg(&session_info.destination.hostname)
             .arg(&cmd)
             .args(&args)
@@ -52,7 +54,7 @@ impl RemoteExecHelper {
             .await
             .map_err(|err| RenderError::from(RenderErrorReason::Other(err.to_string())))?;
 
-        println!("Socket: {}", session.control_socket().to_string_lossy());
+        //println!("Socket: {}", session.control_socket().to_string_lossy());
         let mut child = session.command(&cmd)
             .args(&args)
             .stdout(Stdio::piped())

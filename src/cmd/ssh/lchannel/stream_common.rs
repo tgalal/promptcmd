@@ -11,6 +11,11 @@ use crate::executor::{ExecutionOutput, PromptInputs};
 use crate::{cmd::run, executor::Executor};
 use super::ChannelError;
 
+pub enum HandleResult {
+    Continue,
+    Exit
+}
+
 async fn read_command<S: AsyncReadExt + Unpin>(stream: &mut S) -> Result<String, ChannelError> {
     let mut buffer = Vec::new();
     loop {
@@ -24,7 +29,7 @@ async fn read_command<S: AsyncReadExt + Unpin>(stream: &mut S) -> Result<String,
 
         buffer.push(byte);
     }
-    let command_line = String::from_utf8(buffer)?;
+    let command_line = String::from_utf8(buffer)?.trim().to_string();
     debug!("Got command: {command_line}");
     Ok(command_line)
 }
@@ -47,11 +52,20 @@ async fn read_stdin<S: AsyncReadExt + Unpin>(stream: &mut S) -> Result<String, C
     Ok(stdin)
 }
 
-pub async fn handle_stream<S: AsyncReadExt + AsyncWriteExt + Unpin>(executor: Arc<Executor>, mut stream: S) -> Result<(), ChannelError> {
+pub async fn handle_stream<READ, WRITE>(executor: Arc<Executor>, mut in_stream: READ, mut out_stream: WRITE) -> Result<HandleResult, ChannelError>
+    where
+    READ: AsyncReadExt + Unpin,
+    WRITE: AsyncWriteExt + Unpin
+
+{
     debug!("Handling incoming connection");
 
-    let command_full = read_command(&mut stream).await?;
-    let stdin = read_stdin(&mut stream).await?;
+    let command_full = read_command(&mut in_stream).await?;
+    debug!("Got Command: {command_full}");
+    if command_full == "__exit__"  {
+        return Ok(HandleResult::Exit)
+    }
+    let stdin = read_stdin(&mut in_stream).await?;
 
     let (promptname, command_args_string) = command_full.split_once(" ")
         .unwrap_or((command_full.as_str(), ""));
@@ -117,16 +131,16 @@ pub async fn handle_stream<S: AsyncReadExt + AsyncWriteExt + Unpin>(executor: Ar
                         let data = data_str.as_bytes();
 
                         ends_with_newline = data_str.ends_with("\n");
-                        if let Err(err) = stream.write_all(data).await {
+                        if let Err(err) = out_stream.write_all(data).await {
                             warn!("{err}");
                             break;
                         }
-                        if let Err(err) = stream.flush().await {
+                        if let Err(err) = out_stream.flush().await {
                             warn!("{err}");
                             break;
                         }
                     }
-                    if !ends_with_newline  && let Err(err) = stream.write_all("\n".as_bytes()).await {
+                    if !ends_with_newline  && let Err(err) = out_stream.write_all("\n".as_bytes()).await {
                         warn!("{err}");
                     }
                 }
@@ -138,48 +152,48 @@ pub async fn handle_stream<S: AsyncReadExt + AsyncWriteExt + Unpin>(executor: Ar
                         let data = data_str.as_bytes();
 
                         ends_with_newline = data_str.ends_with("\n");
-                        if let Err(err) = stream.write_all(data).await {
+                        if let Err(err) = out_stream.write_all(data).await {
                             warn!("{err}");
                             break;
                         }
-                        if let Err(err) = stream.flush().await {
+                        if let Err(err) = out_stream.flush().await {
                             warn!("{err}");
                             break;
                         }
                     }
-                    if !ends_with_newline  && let Err(err) = stream.write_all("\n".as_bytes()).await {
+                    if !ends_with_newline  && let Err(err) = out_stream.write_all("\n".as_bytes()).await {
                         warn!("{err}");
                     }
                 }
                 ExecutionOutput::ImmediateOutput(output) => {
-                    stream.write_all(output.as_bytes()).await.unwrap();
+                    out_stream.write_all(output.as_bytes()).await.unwrap();
                     if !output.ends_with("\n") {
-                        stream.write_all("\n".as_bytes()).await.unwrap();
+                        out_stream.write_all("\n".as_bytes()).await.unwrap();
                     }
-                    stream.flush().await.unwrap();
+                    out_stream.flush().await.unwrap();
                 }
                 ExecutionOutput::DryRun => {
                     // println!("[dry run, no llm response]");
-                    stream.write_all(b"[dry run, no llm response]").await.unwrap();
-                    stream.flush().await.unwrap();
+                    out_stream.write_all(b"[dry run, no llm response]").await.unwrap();
+                    out_stream.flush().await.unwrap();
                 }
                 ExecutionOutput::Cached(output) => {
-                    stream.write_all(output.as_bytes()).await.unwrap();
+                    out_stream.write_all(output.as_bytes()).await.unwrap();
                     if !output.ends_with("\n") {
-                        stream.write_all("\n".as_bytes()).await.unwrap();
+                        out_stream.write_all("\n".as_bytes()).await.unwrap();
                     }
-                    stream.flush().await.unwrap();
+                    out_stream.flush().await.unwrap();
                 }
                 ExecutionOutput::RenderOnly(output) => {
-                    stream.write_all(output.as_bytes()).await.unwrap();
-                    stream.flush().await.unwrap();
+                    out_stream.write_all(output.as_bytes()).await.unwrap();
+                    out_stream.flush().await.unwrap();
                 }
             };
         }
         Err(err) => {
-            stream.write_all(err.to_string().as_bytes()).await.unwrap();
+            out_stream.write_all(err.to_string().as_bytes()).await.unwrap();
         }
     }
-    Ok(())
+    Ok(HandleResult::Continue)
 
 }

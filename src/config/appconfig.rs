@@ -71,7 +71,8 @@ pub enum ChannelOptions {
     Auto,
     Nc,
     Socat,
-    BashTcp
+    BashTcp,
+    Fifo
 }
 
 #[derive(Debug, Deserialize)]

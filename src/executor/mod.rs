@@ -97,7 +97,8 @@ pub enum ExecContext {
 #[derive(Clone, Debug)]
 pub struct MultiplexedSession {
     pub controlpath: String,
-    pub destination: SshDestination
+    pub destination: SshDestination,
+    pub port: u32
 }
 
 #[derive(Clone)]

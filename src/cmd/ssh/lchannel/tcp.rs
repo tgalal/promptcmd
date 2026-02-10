@@ -23,9 +23,10 @@ impl LChannel for  TcpChannel {
         loop {
             let (tcpstream, _) =listener.accept().await?;
             let executor = self.executor.clone();
+            let (reader, writer) = tcpstream.into_split();
 
             tokio::spawn(async {
-                stream_common::handle_stream(executor, tcpstream).await
+                stream_common::handle_stream(executor, reader, writer).await
             });
         }
     }

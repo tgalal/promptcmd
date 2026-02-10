@@ -204,7 +204,8 @@ async fn main() -> Result<()> {
 
             let session_info = MultiplexedSession {
                 controlpath,
-                destination
+                destination,
+                port: parsed_sshg_args.port()
             };
 
             let executor = Executor {

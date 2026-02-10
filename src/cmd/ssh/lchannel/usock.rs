@@ -24,10 +24,11 @@ impl LChannel for USocketChannel {
 
         loop {
             let (stream, _) = listener.accept().await?;
+            let (reader, writer) = stream.into_split();
             let executor = self.executor.clone();
 
             tokio::spawn(async {
-                stream_common::handle_stream(executor, stream).await
+                stream_common::handle_stream(executor, reader, writer).await
             });
         }
     }

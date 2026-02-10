@@ -189,11 +189,12 @@ async fn main() -> Result<()> {
     let (ssh_handle, executor) = if let Some(remote) = remote {
         let remote_host = remote.clone();
         let controlpath = controlpath::control_path(process::id()).context("Could not determine control path")?;
-        let destination = utils::get_destination(&remote);
+        let destination = utils::get_destination(remote);
 
         let session_info = MultiplexedSession {
             controlpath: controlpath.clone(),
-            destination
+            destination,
+            port: 22 //TODO fetch from args
         };
 
         let connection_sharing_args = vec![

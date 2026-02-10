@@ -32,6 +32,8 @@ pub enum Channel {
     Socat(String, String),
     // local_port, remote_port
     BashTcp(u32, u32),
+    // workdir
+    Fifo(String)
 
 }
 
@@ -55,6 +57,7 @@ impl Channel {
             Channel::Nc(_, remote_port) => Ok(self.build_nc(*remote_port, shell)),
             Channel::Socat(_, remote_socket) => Ok(self.build_socat(remote_socket, shell)),
             Channel::BashTcp(_, remote_port) => self.build_bashtcp(*remote_port, shell),
+            Channel::Fifo(workdir) => self.build_fifo(workdir.as_str())
         }
     }
 
@@ -68,6 +71,15 @@ impl Channel {
             Shell::Dash(_) |
             Shell::Fish(_) => ChannelCode::from_post(format!("| nc localhost {port}")),
         }
+    }
+
+    fn build_fifo(&self, workdir: &str) -> Result<ChannelCode, ShellError> {
+        let code = format!("| cat >> {workdir}/send && cat {workdir}/recv");
+
+        Ok(ChannelCode {
+            pre: None,
+            post: code
+        })
     }
 
     fn build_bashtcp(&self, port: u32, shell: &Shell) -> Result<ChannelCode, ShellError> {

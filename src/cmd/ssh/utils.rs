@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::process::Command;
 use std::sync::OnceLock;
+use tokio::time::{sleep};
 use std::time::Duration;
 use openssh::Stdio;
 use thiserror::Error;
@@ -37,6 +38,36 @@ pub fn wait_for_master_ready(control_path: &str, host: &str, timeout: Duration) 
         }
 
         thread::sleep(Duration::from_millis(200));
+    }
+
+    Err("Timeout: master connection failed to establish".to_string())
+}
+
+pub async fn async_wait_for_master_ready(
+    control_path: &str,
+    host: &str,
+    port: u32,
+    timeout: Duration) -> Result<(), String> {
+    let start = std::time::Instant::now();
+
+    let args = ["-p", &port.to_string(), "-O", "check", "-o", &format!("ControlPath={}", control_path), host];
+    // println!("{}", args.join(" "));
+
+
+    while start.elapsed() < timeout {
+        let status = Command::new("ssh")
+            .args(args)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+
+        if let Ok(status) = status {
+            if status.success() {
+                return Ok(());
+            }
+        }
+
+        sleep(Duration::from_millis(200)).await;
     }
 
     Err("Timeout: master connection failed to establish".to_string())
@@ -195,6 +226,16 @@ pub struct ParsedSshArgs {
     pub ssh_args: Vec<String>,
     pub server_args: Vec<String>,
     pub passthrough: bool,
+}
+
+impl ParsedSshArgs {
+    pub fn port(&self) -> u32 {
+        self.ssh_args.iter()
+        .position(|arg| arg == "-p")
+        .and_then(|i| self.ssh_args.get(i + 1))
+        .and_then(|s| s.parse::<u32>().ok())
+        .unwrap_or(22)
+    }
 }
 
 /// Parse SSH command line arguments

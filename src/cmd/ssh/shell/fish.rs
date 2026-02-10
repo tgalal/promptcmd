@@ -35,6 +35,7 @@ function fish
 end
 
 function pcmd_exit
+    pcmd_dispatch __exit__
     rm -rf {workdir}
     rm {workdir}.sock 2> /dev/null
 end

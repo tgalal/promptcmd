@@ -30,7 +30,7 @@ async fn read_command<S: AsyncReadExt + Unpin>(stream: &mut S) -> Result<String,
         buffer.push(byte);
     }
     let command_line = String::from_utf8(buffer)?.trim().to_string();
-    debug!("Got command: {command_line}");
+
     Ok(command_line)
 }
 

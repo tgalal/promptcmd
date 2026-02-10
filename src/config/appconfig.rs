@@ -51,6 +51,15 @@ impl AppConfig {
     }
 }
 
+#[derive(Debug, Deserialize, Default, PartialEq, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum BashMethod {
+    #[default]
+    Posix,
+    Rc,
+    Exports
+}
+
 #[derive(Debug, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ShellOptions {
@@ -79,6 +88,8 @@ pub enum ChannelOptions {
 pub struct Remote {
     pub host: Option<String>,
     pub user: Option<String>,
+    #[serde(default)]
+    pub bash_method: BashMethod,
     #[serde(default)]
     pub shell: ShellOptions,
     #[serde(default)]
@@ -133,6 +144,7 @@ impl Default for Remote {
         Self {
             host: None,
             user: None,
+            bash_method: BashMethod::default(),
             shell: ShellOptions::Auto,
             channel: ChannelOptions::Auto,
             remote_socket: RemoteSocket::default(),

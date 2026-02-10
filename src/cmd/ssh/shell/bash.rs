@@ -17,7 +17,12 @@ pub fn create_cmd_functions(cmd_names: &[String], dispatcher_name: &str) -> Stri
 }
 
 
-pub fn expose(dispatcher_name: &str, commands: &[String], remote_cmd: Option<&[&str]>) -> String {
+pub fn expose(workdir: &str,
+    functions: &str,
+    commands:&[String],
+    dispatcher_name: &str,
+    dispatcher_func: &str,
+    remote_cmd: Option<&[&str]>) -> String {
     let remote_cmd = if let Some(remote_cmd) = remote_cmd {
         remote_cmd.join(" ")
     } else {
@@ -30,10 +35,37 @@ pub fn expose(dispatcher_name: &str, commands: &[String], remote_cmd: Option<&[&
 
     exports.push('\n');
     exports.push_str(format!("export -f {dispatcher_name} 2>/dev/null || true").as_str());
+    exports.push_str(format!("export -f pcmd_exit 2>/dev/null || true").as_str());
 
     format!(r#"
+
+
+mkdir -p {workdir}
+chmod 700 {workdir}
+
+cat > {workdir}/{functions_file} << "EOF"
+
+{dispatcher_func}
+{functions}
 {exports}
+
+pcmd_exit() {{
+    pcmd_dispatch __exit__
+    rm -rf {workdir}
+    rm {workdir}.sock 2> /dev/null
+}}
+
+if [ ! -f "{workdir}/trap" ]; then
+    touch {workdir}/trap
+    trap "pcmd_exit" EXIT
+    if [ -f ~/.bash_profile ]; then . ~/.bash_profile; fi
+else
+    if [ -f ~/.bashrc ]; then . ~/.bashrc; fi
+fi
 {remote_cmd}
-"#,
+EOF
+
+bash {workdir}/{functions_file}
+"#, functions_file="func"
     )
 }

@@ -9,14 +9,20 @@ pub mod bashposix;
 
 use thiserror::Error;
 
+use crate::config::appconfig::BashMethod;
+
 #[derive(Error, Debug)]
 pub enum ShellError {
     #[error("{0}")]
     UnsupportedMode(String)
 }
 
+#[derive(Debug)]
 pub enum Shell {
-    Bash(String),
+    Bash(BashMethod, String),
+    BashPosix(String),
+    BashRc(String),
+    BashExportedFunctions(String),
     Zsh(String),
     Sh(String),
     Ash(String),
@@ -25,6 +31,7 @@ pub enum Shell {
     Auto(String)
 }
 
+#[derive(Debug)]
 pub enum Channel {
     // local_port, remote_port
     Nc(u32, u32),
@@ -64,7 +71,8 @@ impl Channel {
     fn build_nc(&self, port: u32, shell: &Shell) -> ChannelCode {
         match shell {
             Shell::Auto(_) |
-            Shell::Bash(_) |
+            Shell::Bash(_, _) |
+            Shell::BashPosix(_) | Shell::BashRc(_) | Shell::BashExportedFunctions(_) |
             Shell::Zsh(_) |
             Shell::Sh(_) |
             Shell::Ash(_) |
@@ -84,7 +92,8 @@ impl Channel {
 
     fn build_bashtcp(&self, port: u32, shell: &Shell) -> Result<ChannelCode, ShellError> {
         match shell {
-            Shell::Bash(_) => {
+            Shell::Bash(_, _) |
+            Shell::BashPosix(_) | Shell::BashRc(_) | Shell::BashExportedFunctions(_) => {
                 Ok(ChannelCode {
                     pre: Some(format!("exec 3<>/dev/tcp/localhost/{port}")),
                     post: r#">&3
@@ -92,7 +101,6 @@ cat <&3
 exec 3<&-
 exec 3>&-"#.to_string()
                 })
-
             },
             Shell::Zsh(_) => {
                 Err(ShellError::UnsupportedMode( "Cannot use bashtcp mode with zsh".to_string()))
@@ -112,7 +120,8 @@ exec 3>&-"#.to_string()
     fn build_socat(&self, socket_path: &str, shell: &Shell) -> ChannelCode {
         match shell {
             Shell::Auto(_) |
-            Shell::Bash(_) |
+            Shell::Bash(_, _) |
+            Shell::BashPosix(_) | Shell::BashRc(_) | Shell::BashExportedFunctions(_) |
             Shell::Zsh(_) |
             Shell::Sh(_) |
             Shell::Ash(_) |
@@ -126,22 +135,31 @@ impl Shell {
 
     pub fn build(&self, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
         match self  {
-            // Shell::Bash => self.build_bash(channel, prompts, remote_cmd),
-            Shell::Bash(workdir) => self.build_bashposix(workdir, channel, prompts, remote_cmd),
+            Shell::Bash(BashMethod::Posix, workdir) | Shell::BashPosix(workdir) =>
+                self.build_bashposix(workdir, channel, prompts, remote_cmd),
+            Shell::Bash(BashMethod::Rc, workdir) | Shell::BashRc(workdir) => self.build_bashrc(workdir, channel, prompts, remote_cmd),
+            Shell::Bash(BashMethod::Exports, workdir) | Shell::BashExportedFunctions(workdir) =>
+                self.build_bash_exported_functions(workdir, channel, prompts, remote_cmd),
             Shell::Zsh(workdir) => self.build_zsh(workdir, channel, prompts, remote_cmd),
             Shell::Sh(workdir) => self.build_sh(workdir, channel, prompts, remote_cmd),
             Shell::Ash(workdir) => self.build_ash(workdir, channel, prompts, remote_cmd),
             Shell::Dash(workdir) => self.build_dash(workdir, channel, prompts, remote_cmd),
             Shell::Auto(workdir) => self.build_auto(workdir, channel, prompts, remote_cmd),
             Shell::Fish(workdir) => self.build_fish(workdir, channel, prompts, remote_cmd)
-    }
+        }
     }
 
     fn build_dispatcher_func(&self, funcname: &str,  channel: &Channel) -> Result<String, ShellError> {
         let channel_code = channel.build(self)?;
 
         let res = match self {
-            Shell::Auto(_) | Shell::Bash(_) | Shell::Zsh(_) | Shell::Sh(_) | Shell::Ash(_) | Shell::Dash(_) => {
+            Shell::Auto(_) |
+            Shell::Bash(_, _) |
+            Shell::BashPosix(_) | Shell::BashRc(_) | Shell::BashExportedFunctions(_) |
+            Shell::Zsh(_) |
+            Shell::Sh(_) |
+            Shell::Ash(_) |
+            Shell::Dash(_) => {
                 format!(
                     r#"{funcname}() {{
                     {pre}
@@ -208,17 +226,18 @@ esac
         ))
     }
 
-    fn build_bash(&self, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
-        let mut result = self.build_dispatcher_func("pcmd_dispatch", channel)?;
+    fn build_bash_exported_functions(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {
+
+        let dispatcher_func = self.build_dispatcher_func("pcmd_dispatch", channel)?;
         let prompt_functions = self.build_bashlike_functions("pcmd_dispatch", prompts);
-        let expose_string = bash::expose("pcmd_dispatch", prompts, remote_cmd);
-
-        result.push('\n');
-        result.push_str(&prompt_functions);
-        result.push('\n');
-        result.push_str(&expose_string);
-
-        Ok(result)
+        Ok(bash::expose(
+            workdir,
+            &prompt_functions,
+            prompts,
+            "pcmd_dispatch",
+            dispatcher_func.as_str(),
+            remote_cmd
+        ))
     }
 
     fn build_bashrc(&self, workdir: &str, channel: &Channel, prompts: &[String], remote_cmd: Option<&[&str]>) -> Result<String, ShellError> {

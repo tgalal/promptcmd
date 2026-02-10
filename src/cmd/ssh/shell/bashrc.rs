@@ -16,7 +16,6 @@ pub fn create_cmd_functions(cmd_names: &[String], dispatcher_name: &str) -> Stri
         .join("\n")
 }
 
-
 pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd: Option<&[&str]>) -> String {
     let remote_cmd = if let Some(remote_cmd) = remote_cmd {
         // let remote_cmd_joined = remote_cmd.join(" ");
@@ -31,7 +30,7 @@ pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd:
 mkdir -p {workdir}
 chmod 700 {workdir}
 
-printf '%s' '
+cat > {workdir}/{functions_file} << "EOF"
 
 {dispatcher_func}
 {functions}
@@ -46,9 +45,10 @@ if [ ! -f "{workdir}/trap" ]; then
     touch {workdir}/trap
     trap "pcmd_exit" EXIT
 fi
+
 [[ -e ~/.bashrc ]] && source ~/.bashrc
 alias bash="bash --rcfile {workdir}/.bashrc"
-' > {workdir}/{functions_file}
+EOF
 
 {remote_cmd}
 "#,

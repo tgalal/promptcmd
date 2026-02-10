@@ -49,15 +49,18 @@ impl SshCmd {
         let remote_workdir = PathBuf::from(REMOTE_WORKDIR)
             .join(format!("pcmd_{rand_suffix}"))
             .to_string_lossy().to_string();
+
         let shell = match remote_config.shell {
             ShellOptions::Auto => Shell::Auto(remote_workdir.clone()),
-            ShellOptions::Bash => Shell::Bash(remote_workdir.clone()),
+            ShellOptions::Bash => Shell::Bash(remote_config.bash_method.clone(), remote_workdir.clone()),
             ShellOptions::Zsh => Shell::Zsh(remote_workdir.clone()),
             ShellOptions::Sh => Shell::Sh(remote_workdir.clone()),
             ShellOptions::Ash => Shell::Ash(remote_workdir.clone()),
             ShellOptions::Dash => Shell::Dash(remote_workdir.clone()),
             ShellOptions::Fish => Shell::Fish(remote_workdir.clone())
         };
+
+        debug!("Using shell: {:#?}", shell);
 
         let local_port = rng.random_range(remote_config.local_ports.start..=remote_config.local_ports.end);
         let remote_port = rng.random_range(remote_config.remote_ports.start..=remote_config.remote_ports.end);
@@ -83,6 +86,8 @@ impl SshCmd {
                 Channel::Fifo(remote_workdir.clone())
             }
         };
+
+        debug!("Using channel: {:#?}", channel);
 
         let remote_cmd = if parsed_ssh_args.server_args.len() > 1 {
             Some(&parsed_ssh_args.server_args[1..].iter().map(|s| s.as_str()).collect::<Vec<_>>()[..])
@@ -132,7 +137,7 @@ exec sh {remote_workdir}/entrypoint.sh"#,
             .collect();
 
             // println!("ssh {}", full_args.join(" "));
-            // println!("{}", &bootstrap_script);
+            debug!("{}", &bootstrap_script);
 
             Command::new("ssh")
                 .args(full_args)

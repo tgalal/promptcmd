@@ -103,16 +103,28 @@ exec 3>&-"#.to_string()
                 })
             },
             Shell::Zsh(_) => {
-                Err(ShellError::UnsupportedMode( "Cannot use bashtcp mode with zsh".to_string()))
+                Ok(ChannelCode {
+                    pre: None,
+                    post: format!("| bash -c 'exec 3<>/dev/tcp/localhost/{port}; cat >&3; cat <&3; exec 3>&-'")
+                })
             },
             Shell::Sh(_) | Shell::Ash(_) | Shell::Dash(_) => {
-                Err(ShellError::UnsupportedMode( "Cannot use bashtcp mode with sh".to_string()))
+                Ok(ChannelCode {
+                    pre: None,
+                    post: format!("| bash -c 'exec 3<>/dev/tcp/localhost/{port}; cat >&3; cat <&3; exec 3>&-'")
+                })
             },
             Shell::Fish(_) => {
-                Err(ShellError::UnsupportedMode( "Cannot use bashtcp mode with fish shell".to_string()))
+                Ok(ChannelCode {
+                    pre: None,
+                    post: format!("| bash -c 'exec 3<>/dev/tcp/localhost/{port}; cat >&3; cat <&3; exec 3>&-'")
+                })
             },
             Shell::Auto(_) => {
-                Err(ShellError::UnsupportedMode( "Cannot use bashtcp mode in auto mode".to_string()))
+                Ok(ChannelCode {
+                    pre: None,
+                    post: format!("| bash -c 'exec 3<>/dev/tcp/localhost/{port}; cat >&3; cat <&3; exec 3>&-'")
+                })
             }
         }
     }

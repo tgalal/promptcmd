@@ -33,13 +33,10 @@ pub fn expose(workdir: &str,
         .collect::<Vec<_>>()
         .join("\n");
 
-    exports.push('\n');
-    exports.push_str(format!("export -f {dispatcher_name} 2>/dev/null || true").as_str());
-    exports.push_str(format!("export -f pcmd_exit 2>/dev/null || true").as_str());
+    exports.push_str(format!("\nexport -f {dispatcher_name} 2>/dev/null || true").as_str());
+    exports.push_str("\nexport -f pcmd_exit 2>/dev/null || true");
 
     format!(r#"
-
-
 mkdir -p {workdir}
 chmod 700 {workdir}
 
@@ -47,7 +44,6 @@ cat > {workdir}/{functions_file} << "EOF"
 
 {dispatcher_func}
 {functions}
-{exports}
 
 pcmd_exit() {{
     pcmd_dispatch __exit__
@@ -55,15 +51,24 @@ pcmd_exit() {{
     rm {workdir}.sock 2> /dev/null
 }}
 
+{exports}
+
 if [ ! -f "{workdir}/trap" ]; then
     touch {workdir}/trap
     trap "pcmd_exit" EXIT
-    if [ -f ~/.bash_profile ]; then . ~/.bash_profile; fi
-else
-    if [ -f ~/.bashrc ]; then . ~/.bashrc; fi
 fi
-{remote_cmd}
+
+cat /etc/motd 2>/dev/null
+[[ -e ~/.bashrc ]] && source ~/.bashrc
+
+# {remote_cmd}
+
+# execute in subshell
+# when done, the EXIT trap will be invoked
+(exec bash -l)
 EOF
+
+# bash -l -c "exec bash --rcfile {workdir}/{functions_file}"
 
 bash {workdir}/{functions_file}
 "#, functions_file="func"

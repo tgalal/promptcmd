@@ -21,7 +21,7 @@ pub fn expose(workdir: &str, functions: &str, dispatcher_func: &str, remote_cmd:
     let remote_cmd = if let Some(remote_cmd) = remote_cmd {
         format!("sh -c \"{}\"", remote_cmd.join(" "))
     } else {
-        "exec sh -i -l".to_string()
+        "exec sh -l".to_string()
     };
     let dispatcher_func = dispatcher_func.replace("'", "'\\''");
     let functions = functions.replace("'", "'\\''");
@@ -44,6 +44,13 @@ if [ ! -f "{workdir}/trap" ]; then
     touch {workdir}/trap
     trap "pcmd_exit" EXIT
 fi
+
+# cat /etc/motd 2>/dev/null
+
+if [ -f "$HOME/.shrc" ]; then
+    . $HOME/.shrc
+fi
+
 EOF
 
 {remote_cmd} -c "ENV={workdir}/{functions_file} exec sh -i"

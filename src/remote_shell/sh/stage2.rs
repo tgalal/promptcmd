@@ -43,17 +43,6 @@ dispatch $@
     "#)
 }
 
-// generates and writes stage3 (during remote runtime)
-// detects and decides user shell (associated script gets written into stage3)
-// detects and decides channel (creates a sh-based-dispatch file)
-// detects execution (functions vs symlink of workdir is executable)
-// writes stage3/ends if symlinks
-// important: stage3 remains Sh scripts
-// stage3 runs in the login shell context as it defines functions?
-// no it just needs to write them to a file, they get picked up by
-// the final login shell (except for bash/nowrite mode, but then this is a diff stage1 to begin
-// with)
-//
 impl<'a> Stage2 for ShRemoteShell<'a> {
     fn stage2(&self, dispatcher_name: &str, prompt_names: &[String],
         channel: &Channel, shell: &Shell, bash_method: &BashMethod)-> String {

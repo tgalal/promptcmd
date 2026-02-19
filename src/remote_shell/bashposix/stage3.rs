@@ -9,10 +9,16 @@ impl<'a> Stage3 for BashPosixRemoteShell<'a> {
             .join("\n")
     }
 
-    fn stage3(&self, functions_file: &str, _: &[String]) -> String {
+    fn stage3(&self, functions_file: &str, _: &[String], remote_cmd: Option<&str>) -> String {
 
         let workdir = &self.workdir;
-        format!(r#"
+        let env = "bashenv";
+        let bin = &self.bin;
+
+        if let Some(remote_cmd) = remote_cmd {
+            format!(r#"exec {bin} -c ". {functions_file} && {remote_cmd}""#)
+        } else {
+            format!(r#"
 cat > {workdir}/{env} << "EOF_STAGE3"
 
 source {functions_file}
@@ -24,9 +30,9 @@ EOF_STAGE3
 
 if [ -f ~/.bash_profile ]; then . ~/.bash_profile; fi
 ENV={workdir}/{env} exec {bin} --posix -l
-"#,
-        env="bashenv",
-        bin=self.bin
-        )
+    "#,
+            )
+        }
+
     }
 }

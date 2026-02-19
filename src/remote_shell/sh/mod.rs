@@ -19,13 +19,14 @@ impl<'a> ShRemoteShell<'a > {
         prompt_names: &[String],
         channel: &Channel,
         shell: &Shell,
-        bash_method: &BashMethod
+        bash_method: &BashMethod,
+        remote_cmd: Option<&str>
     ) -> String {
         let sh = Self {
             sh_bin: sh_bin.to_string(),
             workdir
         };
-        let stage2 = sh.stage2(dispatcher_name, prompt_names, channel, shell, bash_method);
+        let stage2 = sh.stage2(dispatcher_name, prompt_names, channel, shell, bash_method, remote_cmd);
         sh.stage1(&stage2)
     }
 
@@ -37,18 +38,19 @@ impl<'a> ShRemoteShell<'a > {
         functions_file: &str,
         dispatcher_name: &str,
         prompts_names: &[String],
-        bash_method: &BashMethod
+        bash_method: &BashMethod,
+        remote_cmd: Option<&str>
     ) -> String {
 
         let fish = FishRemoteShell::new(self.workdir);
 
-        let ash = ShRemoteShell::new_ash(self.workdir).stage3(functions_file, prompts_names);
-        let zsh= ZshRemoteShell::new(self.workdir).stage3(functions_file, prompts_names);
-        let dash = ShRemoteShell::new_dash(self.workdir).stage3(functions_file, prompts_names);
+        let ash = ShRemoteShell::new_ash(self.workdir).stage3(functions_file, prompts_names, remote_cmd);
+        let zsh= ZshRemoteShell::new(self.workdir).stage3(functions_file, prompts_names, remote_cmd);
+        let dash = ShRemoteShell::new_dash(self.workdir).stage3(functions_file, prompts_names, remote_cmd);
         let bash = match bash_method {
-            BashMethod::Posix => BashPosixRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names),
-            BashMethod::Rc => BashRcRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names),
-            BashMethod::Exports => BashExportsRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names),
+            BashMethod::Posix => BashPosixRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names, remote_cmd),
+            BashMethod::Rc => BashRcRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names, remote_cmd),
+            BashMethod::Exports => BashExportsRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names, remote_cmd),
         };
 
         let fish_functions = fish.create_prompt_functions(dispatcher_name, prompts_names);
@@ -108,8 +110,8 @@ EOF_STAGE2
 ;;
 esac
 "#,
-        fish_stage3=self.escape(&fish.stage3(functions_file, prompts_names)),
-        sh_stage3=self.escape(&self.stage3(functions_file, prompts_names)),
+        fish_stage3=self.escape(&fish.stage3(functions_file, prompts_names, remote_cmd)),
+        sh_stage3=self.escape(&self.stage3(functions_file, prompts_names, remote_cmd)),
         fish_functions=self.escape(&fish_functions),
         posix_functions=self.escape(&posix_functions)
         )

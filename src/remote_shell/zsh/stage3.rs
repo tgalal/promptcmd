@@ -8,12 +8,14 @@ impl<'a> Stage3 for ZshRemoteShell<'a> {
             .collect::<Vec<_>>()
             .join("\n")
     }
-    fn stage3(&self, functions_file: &str, _prompt_names: &[String]) -> String {
+    fn stage3(&self, functions_file: &str, _prompt_names: &[String], remote_cmd: Option<&str>) -> String {
 
         let workdir = &self.workdir;
-        // let functions = self.create_prompt_functions(prompts_names, dispatcher_name);
-
-        format!(r#"
+        let zsh_env = ".zshenv";
+        if let Some(remote_cmd) = remote_cmd {
+            format!(r#"exec zsh -c ". {functions_file} && {remote_cmd}""#)
+        } else {
+            format!(r#"
 cat > {workdir}/{zsh_env} << "EOF_STAGE3"
 
 source {functions_file}
@@ -25,8 +27,8 @@ EOF_STAGE3
 echo "source ~/.zshrc 2> /dev/null" > {workdir}/.zshrc
 
 ZDOTDIR={workdir} exec zsh -l
-"#,
-        zsh_env=".zshenv",
-        )
+"#
+            )
+        }
     }
 }

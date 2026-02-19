@@ -9,11 +9,16 @@ impl<'a> Stage3 for ShRemoteShell<'a> {
             .join("\n")
     }
 
-    fn stage3(&self, functions_file: &str, _prompt_names: &[String]) -> String {
+    fn stage3(&self, functions_file: &str, _prompt_names: &[String], remote_cmd: Option<&str>) -> String {
 
         let workdir = &self.workdir;
+        let sh_env = "sh_env";
+        let sh_bin = &self.sh_bin;
 
-        format!(r#"
+        if let Some(remote_cmd) = remote_cmd {
+            format!(r#"exec {sh_bin} -c ". {functions_file} && {remote_cmd}""#)
+        } else {
+            format!(r#"
 cat > {workdir}/{sh_env} << "EOF_STAGE3"
 
 . {functions_file}
@@ -25,9 +30,9 @@ fi
 EOF_STAGE3
 
 {sh_bin} -l -c "ENV={workdir}/{sh_env} exec {sh_bin} -i"
-"#,
-        sh_bin=self.sh_bin,
-        sh_env="sh_env",
-        )
+"#
+            )
+        }
+
     }
 }

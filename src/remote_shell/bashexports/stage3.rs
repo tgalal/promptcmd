@@ -9,15 +9,20 @@ impl<'a> Stage3 for BashExportsRemoteShell<'a> {
             .join("\n")
     }
 
-    fn stage3(&self, functions_file: &str, prompt_names: &[String]) -> String {
+    fn stage3(&self, functions_file: &str, prompt_names: &[String], remote_cmd: Option<&str>) -> String {
+        let bin = &self.bin;
+        let env = "bashenv";
 
-    let exports = prompt_names.iter()
-        .map(|p| format!("export -f {fn_name} 2>/dev/null || true", fn_name=self.sanitize_function_name(p)))
-        .collect::<Vec<_>>()
-        .join("\n");
+        if let Some(remote_cmd) = remote_cmd {
+            format!(r#"exec {bin} -c ". {functions_file} && {remote_cmd}""#)
+        } else {
+            let exports = prompt_names.iter()
+                .map(|p| format!("export -f {fn_name} 2>/dev/null || true", fn_name=self.sanitize_function_name(p)))
+                .collect::<Vec<_>>()
+                .join("\n");
 
-        let workdir = &self.workdir;
-        format!(r#"
+            let workdir = &self.workdir;
+            format!(r#"
 cat > {workdir}/{env} << "EOF_STAGE3"
 source {functions_file}
 
@@ -28,9 +33,8 @@ source {functions_file}
 EOF_STAGE3
 
 exec {bin} -c "source {workdir}/{env}; exec {bin} -l"
-"#,
-        env="bashenv",
-        bin=self.bin
-        )
+    "#,
+            )
+        }
     }
 }

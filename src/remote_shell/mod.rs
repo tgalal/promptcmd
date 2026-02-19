@@ -30,7 +30,7 @@ pub enum Shell {
 pub enum Channel {
     // local_port, remote_port
     Nc(u32, u32),
-    // local_socket, remtoe_socket
+    // local_socket, remote_socket
     Socat(String, String),
     // local_port, remote_port
     BashTcp(u32, u32),
@@ -43,12 +43,13 @@ pub enum Channel {
 pub trait Stage1 {
     fn stage1(&self, stage2: &str) -> String;
 }
+
 pub trait Stage2 {
     fn stage2(&self, dispatcher_name: &str, promptnames: &[String],
-        channel: &Channel, shell: &Shell, bash_method: &BashMethod)-> String;
+        channel: &Channel, shell: &Shell, bash_method: &BashMethod, remote_cmd: Option<&str>)-> String;
 }
 
 pub trait Stage3 {
-    fn stage3(&self, functions_file: &str, prompts_names: &[String]) -> String;
+    fn stage3(&self, functions_file: &str, prompts_names: &[String], remote_cmd: Option<&str>) -> String;
     fn create_prompt_functions(&self, dispatcher_name: &str, prompts_names: &[String]) -> String;
 }

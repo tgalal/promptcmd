@@ -45,7 +45,7 @@ dispatch $@
 
 impl<'a> Stage2 for ShRemoteShell<'a> {
     fn stage2(&self, dispatcher_name: &str, prompt_names: &[String],
-        channel: &Channel, shell: &Shell, bash_method: &BashMethod)-> String {
+        channel: &Channel, shell: &Shell, bash_method: &BashMethod, remote_cmd: Option<&str>)-> String {
         let workdir = &self.workdir;
         let dispatcher_path = format!("{workdir}/{dispatcher_name}.sh");
         let functions_file = format!("{workdir}/functions");
@@ -61,7 +61,7 @@ impl<'a> Stage2 for ShRemoteShell<'a> {
         };
 
         let stage3_block = if !matches!(shell, Shell::Auto(_)) {
-            let stage3 = shell.stage3(&functions_file, prompt_names);
+            let stage3 = shell.stage3(&functions_file, prompt_names, remote_cmd);
             let functions = shell.create_prompt_functions(&dispatcher_invocation, prompt_names);
             format!(r#"
 cat > {functions_file} << EOF_STAGE2
@@ -73,7 +73,7 @@ cat > {workdir}/stage3.sh << EOF_STAGE2
 EOF_STAGE2
             "#, functions=self.escape(&functions), stage3=self.escape(&stage3))
         } else {
-            self.create_autoshell(&functions_file, &dispatcher_invocation, prompt_names, bash_method)
+            self.create_autoshell(&functions_file, &dispatcher_invocation, prompt_names, bash_method, remote_cmd)
         };
 
         format!(r#"

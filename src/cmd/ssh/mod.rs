@@ -91,10 +91,11 @@ impl SshCmd {
         debug!("Using channel: {:#?}", channel);
 
         let remote_cmd = if parsed_ssh_args.server_args.len() > 1 {
-            Some(&parsed_ssh_args.server_args[1..].iter().map(|s| s.as_str()).collect::<Vec<_>>()[..])
+            Some(parsed_ssh_args.server_args[1..].join(" "))
         } else { None };
+
         let bootstrap_data = bootstrap::setup(executor, &channel)?;
-        let bootstrap_script = ShRemoteShell::bootstrap("sh", remote_workdir.as_str(), "dispatch", &prompts, &channel, &shell, &remote_config.bash_method);
+        let bootstrap_script = ShRemoteShell::bootstrap("sh", remote_workdir.as_str(), "dispatch", &prompts, &channel, &shell, &remote_config.bash_method, remote_cmd.as_deref());
 
         tokio::spawn(async move {
             bootstrap_data.lchannel.run().await.context("Channel Error")?;
@@ -115,7 +116,12 @@ impl SshCmd {
 
         let ssh_cmd_handle = tokio::spawn(async move {
 
-        let initial_args = [String::from("-t")];
+        let initial_args = if remote_cmd.is_none() {
+            vec![String::from("-t")]
+        } else {
+            vec![String::from("-n")]
+        };
+
         let forwards: Vec<String> = bootstrap_data.forwards.iter()
                     .map(|f| format!("-R {}:{}", f.remote, f.local)).collect();
 

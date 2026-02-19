@@ -8,12 +8,14 @@ impl<'a> Stage3 for FishRemoteShell<'a> {
             .collect::<Vec<_>>()
             .join("\n")
     }
-    fn stage3(&self, functions_file: &str, _prompt_names: &[String]) -> String {
+    fn stage3(&self, functions_file: &str, _prompt_names: &[String], remote_cmd: Option<&str>) -> String {
 
         let workdir = &self.workdir;
-        // let functions = self.create_prompt_functions(prompts_names, dispatcher_name);
-
-        format!(r#"
+        let fish_env = "fish_env";
+        if let Some(remote_cmd) = remote_cmd {
+            format!(r#"exec fish -C "source {functions_file};{remote_cmd}""#)
+        } else {
+            format!(r#"
 cat > {workdir}/{fish_env} << "EOF_STAGE3"
 
 source {functions_file}
@@ -26,7 +28,8 @@ EOF_STAGE3
 
 exec fish -l -C "source {workdir}/{fish_env}"
 "#,
-        fish_env="fish_env",
-        )
+            )
+        }
+
     }
 }

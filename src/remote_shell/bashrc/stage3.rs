@@ -9,10 +9,16 @@ impl<'a> Stage3 for BashRcRemoteShell<'a> {
             .join("\n")
     }
 
-    fn stage3(&self, functions_file: &str, _prompt_names: &[String]) -> String {
+    fn stage3(&self, functions_file: &str, _prompt_names: &[String], remote_cmd: Option<&str>) -> String {
 
         let workdir = &self.workdir;
-        format!(r#"
+        let bin = &self.bin;
+        let rcfile = "bashrc";
+
+        if let Some(remote_cmd) = remote_cmd {
+            format!(r#"exec {bin} -c ". {functions_file} && {remote_cmd}""#)
+        } else {
+            format!(r#"
 cat > {workdir}/{rcfile} << "EOF_STAGE3"
 
 source {functions_file}
@@ -24,8 +30,8 @@ EOF_STAGE3
 
 exec {bin} --rcfile {workdir}/{rcfile} -i
 "#,
-        rcfile="bashrc",
-        bin=self.bin
-        )
+            )
+        }
+
     }
 }

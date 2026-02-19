@@ -3,13 +3,14 @@ use std::{path::PathBuf, sync::Arc};
 use clap::{Parser};
 use anyhow::{Context, Result};
 use tokio::process::Command;
-use crate::{cmd::ssh::{shell::{Channel, Shell}, utils::ParsedSshArgs}, config::appconfig::{AppConfig, ChannelOptions, Remote, ShellOptions}, executor::{Executor, MultiplexedSession}};
+use crate::{cmd::ssh::utils::ParsedSshArgs, config::appconfig::{AppConfig, ChannelOptions,
+    Remote, ShellOptions}, executor::{Executor, MultiplexedSession},
+    remote_shell::{sh::ShRemoteShell, Channel, Shell}};
 pub mod controlpath;
 pub mod utils;
 use rand::Rng;
 use log::debug;
 
-pub mod shell;
 pub mod lchannel;
 pub mod bootstrap;
 
@@ -92,16 +93,8 @@ impl SshCmd {
         let remote_cmd = if parsed_ssh_args.server_args.len() > 1 {
             Some(&parsed_ssh_args.server_args[1..].iter().map(|s| s.as_str()).collect::<Vec<_>>()[..])
         } else { None };
-        let bootstrap_data = bootstrap::setup(executor, &prompts, shell, channel, remote_cmd)?;
-        let bootstrap_script = format!(r#"mkdir {remote_workdir}
-chmod 700 {remote_workdir}
-mkfifo {remote_workdir}/send
-mkfifo {remote_workdir}/recv
-printf '%s' '
-{}
-' > {remote_workdir}/entrypoint.sh
-exec sh {remote_workdir}/entrypoint.sh"#,
-            bootstrap_data.script);
+        let bootstrap_data = bootstrap::setup(executor, &channel)?;
+        let bootstrap_script = ShRemoteShell::bootstrap("sh", remote_workdir.as_str(), "dispatch", &prompts, &channel, &shell, &remote_config.bash_method);
 
         tokio::spawn(async move {
             bootstrap_data.lchannel.run().await.context("Channel Error")?;
@@ -119,7 +112,6 @@ exec sh {remote_workdir}/entrypoint.sh"#,
 
         debug!("SSH Args: {:?}", &parsed_ssh_args.ssh_args);
         debug!("Server Args: {:?}", &parsed_ssh_args.server_args);
-
 
         let ssh_cmd_handle = tokio::spawn(async move {
 

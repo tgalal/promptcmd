@@ -6,5 +6,6 @@ pub mod installer;
 pub mod stats;
 pub mod lb;
 pub mod executor;
+pub mod remote_shell;
 
 pub const ENV_CONFIG: &str = "PROMPTCMD_CONFIG";

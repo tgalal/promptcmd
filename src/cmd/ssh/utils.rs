@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::process::Command;
 use std::sync::OnceLock;
+use tokio::sync::oneshot::Receiver;
 use tokio::time::{sleep};
 use std::time::Duration;
 use openssh::Stdio;
@@ -60,22 +61,36 @@ pub fn wait_for_master_ready(
     Err("Timeout: master connection failed to establish".to_string())
 }
 
+pub enum WaitForMasterResult {
+    Established,
+    Aborted,
+    Timeout
+}
+
 pub async fn async_wait_for_master_ready(
     control_path: &str,
     host: &str,
     port: u32,
-    timeout: Duration) -> Result<(), String> {
+    timeout: Duration,
+    mut abort_rx: Receiver<()>
+) -> Result<WaitForMasterResult, String> {
     let start = std::time::Instant::now();
 
     while start.elapsed() < timeout {
         if check_master_ready(control_path, host, port)? {
-            return Ok(())
+            return Ok(WaitForMasterResult::Established)
         }
 
-        sleep(Duration::from_millis(200)).await;
+        tokio::select! {
+            _ = sleep(Duration::from_millis(200)) => {
+            }
+            _ = &mut abort_rx => {
+                return Ok(WaitForMasterResult::Aborted)
+            }
+        }
     }
 
-    Err("Timeout: master connection failed to establish".to_string())
+    Ok(WaitForMasterResult::Timeout)
 }
 
 

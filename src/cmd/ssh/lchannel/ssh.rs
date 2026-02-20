@@ -26,11 +26,13 @@ impl LChannel for SshChannel {
 
         // println!("Waiting 30 seconds for master connection to succeed");
         // println!("{:#?}", self.session);
+        let (_, conmon_rx) = tokio::sync::oneshot::channel::<()>();
         cmd::ssh::utils::async_wait_for_master_ready(
             &self.session.controlpath,
             &self.session.destination.hostname,
             self.session.port,
-            Duration::from_secs(30)
+            Duration::from_secs(30),
+            conmon_rx
         ).await.map_err(|_|
                 ChannelError::TimeoutError
         )?;

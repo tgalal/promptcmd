@@ -1,4 +1,5 @@
 use clap::{value_parser, Arg, ArgGroup, Command};
+use promptcmd::cmd::ssh::utils::WaitForMasterResult;
 use promptcmd::cmd::ssh::{controlpath, utils};
 use promptcmd::config::resolver::{ResolvedGlobalProperties, ResolvedPropertySource};
 use promptcmd::config::{self, appconfig_locator};
@@ -193,6 +194,7 @@ async fn main() -> Result<()> {
     let remote_port = *matches.get_one::<u32>("remote_port").unwrap_or(&22);
 
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let (conmon_tx, conmon_rx) = tokio::sync::oneshot::channel::<()>();
     let (ssh_handle, executor) = if let Some(remote_dest) = remote_dest {
         let controlpath = controlpath::control_path(process::id()).context("Could not determine control path")?;
         let destination = utils::get_destination(remote_dest);
@@ -213,7 +215,6 @@ async fn main() -> Result<()> {
             "ControlPersist=no".to_string(),
         ];
 
-
         debug!("Setting up master connection to {}", &remote_dest);
         let remote_dest_copy = remote_dest.clone();
         let ssh_cmd_handle = tokio::spawn(async move {
@@ -229,6 +230,7 @@ async fn main() -> Result<()> {
             tokio::select! {
                 _ = child.wait() => {
                     debug!("SSH session terminated normally");
+                    let _ = conmon_tx.send(());
                 }
                  _ = rx => {
                     debug!("Terminating master SSH session due to shutdown signal");
@@ -239,13 +241,23 @@ async fn main() -> Result<()> {
         });
 
         debug!("Waiting 30 seconds for master connection to succeed");
-        cmd::ssh::utils::wait_for_master_ready(
+        let wait_conn_result = cmd::ssh::utils::async_wait_for_master_ready(
             &controlpath,
             remote_dest,
             remote_port,
-            Duration::from_secs(30)).map_err(|err|
+            Duration::from_secs(120),
+          conmon_rx
+        ).await.map_err(|err|
             anyhow!(err)
         )?;
+
+        if let WaitForMasterResult::Timeout = wait_conn_result {
+            bail!("Timeout waiting for control master");
+        } else if let WaitForMasterResult::Aborted = wait_conn_result {
+            debug!("Connection was aborted");
+            return Ok(())
+        }
+
         debug!("Master connection succeeded, proceeding.");
 
         (Some(ssh_cmd_handle),

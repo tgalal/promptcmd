@@ -1414,6 +1414,7 @@ dependencies = [
  "prettytable",
  "rand 0.9.2",
  "regex",
+ "rev_lines",
  "rstest",
  "rusqlite",
  "serde",
@@ -1665,6 +1666,15 @@ dependencies = [
  "wasm-streams",
  "web-sys",
  "webpki-roots",
+]
+
+[[package]]
+name = "rev_lines"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed62916ac7a5ccbf13fa5e1d303029ff015600fee841756dfc134a1ac62bf05f"
+dependencies = [
+ "thiserror 1.0.69",
 ]
 
 [[package]]

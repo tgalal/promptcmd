@@ -1,6 +1,6 @@
 use handlebars::*;
 
-use std::{io::Read, process::Command};
+use crate::dotprompt::helpers::handle_local_cmd;
 pub struct ExecHelper;
 
 impl HelperDef for ExecHelper {
@@ -27,25 +27,6 @@ impl HelperDef for ExecHelper {
             }
         }).collect::<Result<Vec<_>, _>>()?;
 
-        let (mut reader, writer) = std::io::pipe()?;
-
-        let child =  {
-            Command::new(&cmd)
-            .args(&args)
-            .stdout(writer.try_clone()?)
-            .stderr(writer)
-            .output()?
-        };
-
-        let mut output = String::new();
-        reader.read_to_string(&mut output)?;
-
-        if child.status.success() {
-            out.write(&output)?;
-            Ok(())
-        } else {
-            let error_message = format!("Error executing command: {}, output was: {}", &cmd, &output);
-            Err(RenderError::from(RenderErrorReason::Other(error_message)))
-        }
+        handle_local_cmd(&cmd, &args, out)
     }
 }

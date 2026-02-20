@@ -182,9 +182,28 @@ impl Executor {
                 context: cxt.clone()
             })
         };
-        // let remote_exec_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::RemoteExecHelper {
-        //     destination: "pmx".to_string()
-        // });
+
+        let cat_helper: Box<dyn HelperDef + Send + Sync> = match &self.exec_context {
+            ExecContext::Local => Box::new(helpers::CatHelper),
+            ExecContext::Remote(cxt) =>  Box::new(helpers::RemoteCatHelper {
+                context: cxt.clone()
+            })
+        };
+
+        let tail_helper: Box<dyn HelperDef + Send + Sync> = match &self.exec_context {
+            ExecContext::Local => Box::new(helpers::TailHelper),
+            ExecContext::Remote(cxt) =>  Box::new(helpers::RemoteTailHelper {
+                context: cxt.clone()
+            })
+        };
+
+        let head_helper: Box<dyn HelperDef + Send + Sync> = match &self.exec_context {
+            ExecContext::Local => Box::new(helpers::HeadHelper),
+            ExecContext::Remote(cxt) =>  Box::new(helpers::RemoteHeadHelper {
+                context: cxt.clone()
+            })
+        };
+
         let concat_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ConcatHelper);
         let stdin_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::StdinHelper {
             inp: Mutex::new(BufReader::new(std::io::stdin())),
@@ -201,12 +220,14 @@ impl Executor {
 
         let helpers_map: HashMap<&str, Box<dyn HelperDef + Send + Sync>> = HashMap::from([
             ("exec", exec_helper),
-            // ("exec", remote_exec_helper),
             ("prompt", prompt_helper),
             ("concat", concat_helper),
             ("stdin", stdin_helper),
             ("STDIN", stdin_helper2),
             ("ask", ask_helper),
+            ("cat", cat_helper),
+            ("tail", tail_helper),
+            ("head", head_helper),
         ]);
 
         let rendered_dotprompt: String = dotprompt.render(inputs, helpers_map)?;

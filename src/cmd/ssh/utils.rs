@@ -20,23 +20,40 @@ type SshOptions = HashMap<String, String>;
 /// Cached SSH options discovered from the system's SSH binary
 static SSH_OPTIONS: OnceLock<SshOptions> = OnceLock::new();
 
+fn check_master_ready(
+    control_path: &str,
+    host: &str,
+    port: u32,
+    ) -> Result<bool, String> {
 
-pub fn wait_for_master_ready(control_path: &str, host: &str, timeout: Duration) -> Result<(), String> {
+    let args = ["-p", &port.to_string(), "-O", "check", "-o", &format!("ControlPath={}", control_path), host];
+
+    let status = Command::new("ssh")
+        .args(args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+
+    if let Ok(status) = status {
+        if status.success() {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+pub fn wait_for_master_ready(
+    control_path: &str,
+    host: &str,
+    port: u32,
+    timeout: Duration) -> Result<(), String> {
     let start = std::time::Instant::now();
 
     while start.elapsed() < timeout {
-        let status = Command::new("ssh")
-            .args(["-O", "check", "-o", &format!("ControlPath={}", control_path), host])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
-
-        if let Ok(status) = status {
-            if status.success() {
-                return Ok(());
-            }
+        if check_master_ready(control_path, host, port)? {
+            return Ok(())
         }
-
         thread::sleep(Duration::from_millis(200));
     }
 
@@ -50,21 +67,9 @@ pub async fn async_wait_for_master_ready(
     timeout: Duration) -> Result<(), String> {
     let start = std::time::Instant::now();
 
-    let args = ["-p", &port.to_string(), "-O", "check", "-o", &format!("ControlPath={}", control_path), host];
-    // println!("{}", args.join(" "));
-
-
     while start.elapsed() < timeout {
-        let status = Command::new("ssh")
-            .args(args)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
-
-        if let Ok(status) = status {
-            if status.success() {
-                return Ok(());
-            }
+        if check_master_ready(control_path, host, port)? {
+            return Ok(())
         }
 
         sleep(Duration::from_millis(200)).await;

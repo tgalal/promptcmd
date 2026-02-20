@@ -138,12 +138,18 @@ async fn main() -> Result<()> {
             .short('h')
             .action(clap::ArgAction::Help)
             .help("Print help")
+        );
+    command = command.next_help_heading("Remote Options")
+        .arg(
+            Arg::new("remote_dest")
+            .long("remote-dest")
+            .help("Execute commands on a remote SSH destination")
         )
         .arg(
-            Arg::new("remote")
-            .hide(true)
-            .long("remote")
-            .help("Execute commands on a remote host")
+            Arg::new("remote_port")
+            .long("remote-port")
+            .value_parser(value_parser!(u32))
+            .help("Port to use with remote destination")
         );
     command = command.next_help_heading("Optional Configuration Overrides")
         .arg(Arg::new("model")
@@ -183,18 +189,19 @@ async fn main() -> Result<()> {
         stats: statsstore
     };
 
-    let remote = matches.get_one::<String>("remote");
+    let remote_dest = matches.get_one::<String>("remote_dest");
+    let remote_port = *matches.get_one::<u32>("remote_port").unwrap_or(&22);
 
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-    let (ssh_handle, executor) = if let Some(remote) = remote {
-        let remote_host = remote.clone();
+    let (ssh_handle, executor) = if let Some(remote_dest) = remote_dest {
         let controlpath = controlpath::control_path(process::id()).context("Could not determine control path")?;
-        let destination = utils::get_destination(remote);
+        let destination = utils::get_destination(remote_dest);
+        debug!("Destination: {:#?}", destination);
 
         let session_info = MultiplexedSession {
             controlpath: controlpath.clone(),
             destination,
-            port: 22 //TODO fetch from args
+            port: remote_port
         };
 
         let connection_sharing_args = vec![
@@ -206,13 +213,17 @@ async fn main() -> Result<()> {
             "ControlPersist=no".to_string(),
         ];
 
-        debug!("Setting up master connection to {}", &remote);
+
+        debug!("Setting up master connection to {}", &remote_dest);
+        let remote_dest_copy = remote_dest.clone();
         let ssh_cmd_handle = tokio::spawn(async move {
             let mut child = tokio::process::Command::new("ssh")
                 .arg("-t")
                 .arg("-N")
+                .arg("-p")
+                .arg(remote_port.to_string())
                 .args(connection_sharing_args)
-                .arg(&remote_host)
+                .arg(remote_dest_copy)
                 .spawn().context("Error in ssh proc")?;
 
             tokio::select! {
@@ -226,10 +237,12 @@ async fn main() -> Result<()> {
             }
             Ok::<Child, anyhow::Error>(child)
         });
+
         debug!("Waiting 30 seconds for master connection to succeed");
         cmd::ssh::utils::wait_for_master_ready(
             &controlpath,
-            remote,
+            remote_dest,
+            remote_port,
             Duration::from_secs(30)).map_err(|err|
             anyhow!(err)
         )?;

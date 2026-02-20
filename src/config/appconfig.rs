@@ -21,12 +21,12 @@ pub struct AppConfig {
     #[serde(default)]
     pub groups: HashMap<String, GroupConfig>,
     #[serde(default)]
-    pub remote: Vec<Remote>,
+    pub ssh: Vec<Ssh>,
 }
 
 impl AppConfig {
-    pub fn find_remote_best_match(&self, host: &str, user: Option<&str>) -> Option<&Remote> {
-        self.remote
+    pub fn find_ssh_best_match(&self, host: &str, user: Option<&str>) -> Option<&Ssh> {
+        self.ssh
             .iter()
             .filter_map(|remote| {
                 let remote_user = remote.user.as_ref().map(|s| s.as_str());
@@ -85,7 +85,7 @@ pub enum ChannelOptions {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Remote {
+pub struct Ssh {
     pub host: Option<String>,
     pub user: Option<String>,
     #[serde(default)]
@@ -139,7 +139,7 @@ impl Default for RemoteSocket {
         }
     }
 }
-impl Default for Remote {
+impl Default for Ssh {
     fn default() -> Self {
         Self {
             host: None,
@@ -360,7 +360,7 @@ providers = [
     #[rstest]
     #[case(
         r#"
-[[remote]]
+[[ssh]]
 host = "host1"
 shell = "sh"
 user = "user1"
@@ -369,7 +369,7 @@ user = "user1"
 
     #[case(
         r#"
-[[remote]]
+[[ssh]]
 host = "host1"
 shell = "sh"
 user = "user1"
@@ -378,7 +378,7 @@ user = "user1"
 
     #[case(
         r#"
-[[remote]]
+[[ssh]]
 host = "host1"
 shell = "sh"
 user = "user1"
@@ -387,11 +387,11 @@ user = "user1"
 
     #[case(
         r#"
-[[remote]]
+[[ssh]]
 host = "host1"
 shell = "bash"
 
-[[remote]]
+[[ssh]]
 host = "host1"
 user = "user1"
 shell = "zsh"
@@ -400,11 +400,11 @@ shell = "zsh"
 
     #[case(
         r#"
-[[remote]]
+[[ssh]]
 host = "host1"
 shell = "bash"
 
-[[remote]]
+[[ssh]]
 host = "host1"
 user = "user1"
 shell = "zsh"
@@ -413,11 +413,11 @@ shell = "zsh"
 
     #[case(
         r#"
-[[remote]]
+[[ssh]]
 host = "host1"
 shell = "bash"
 
-[[remote]]
+[[ssh]]
 host = "host1"
 user = "user1"
 shell = "zsh"
@@ -426,11 +426,11 @@ shell = "zsh"
 
     #[case(
         r#"
-[[remote]]
+[[ssh]]
 host = "host1"
 shell = "bash"
 
-[[remote]]
+[[ssh]]
 host = "host1"
 user = "user1"
 shell = "zsh"
@@ -438,23 +438,23 @@ shell = "zsh"
 "#, "", Some("user1"), None)]
     #[case(
         r#"
-[[remote]]
+[[ssh]]
 host = "host1"
 shell = "bash"
 
-[[remote]]
+[[ssh]]
 host = "host1"
 user = "user1"
 shell = "zsh"
 
 "#, "", Some(""), None)]
-    fn test_remote(#[case] toml_content: &str,
+    fn test_ssh(#[case] toml_content: &str,
         #[case] host: &str,
         #[case] user: Option<&str>,
         #[case] shellopt: Option<ShellOptions>) {
         let config = AppConfig::try_from(toml_content).unwrap();
 
-        let rconf = config.find_remote_best_match(host, user);
+        let rconf = config.find_ssh_best_match(host, user);
 
         if let Some(shellopt) = shellopt {
             assert_eq!(shellopt, rconf.unwrap().shell);

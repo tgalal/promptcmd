@@ -4,7 +4,7 @@ use clap::{Parser};
 use anyhow::{Context, Result};
 use tokio::process::Command;
 use crate::{cmd::ssh::utils::ParsedSshArgs, config::appconfig::{AppConfig, ChannelOptions,
-    Remote, ShellOptions}, executor::{Executor, MultiplexedSession},
+    Ssh, ShellOptions}, executor::{Executor, MultiplexedSession},
     remote_shell::{sh::ShRemoteShell, Channel, Shell}};
 pub mod controlpath;
 pub mod utils;
@@ -38,8 +38,8 @@ impl SshCmd {
 
         let usock_path_str = usock_path.to_string_lossy().to_string();
 
-        let remote_default = Remote::default();
-        let remote_config = appconfig.find_remote_best_match(
+        let remote_default = Ssh::default();
+        let remote_config = appconfig.find_ssh_best_match(
             &session_info.destination.hostname_for_match,
             session_info.destination.username.as_deref())
             .unwrap_or(&remote_default);

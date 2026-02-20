@@ -6,8 +6,10 @@ use tokio::time::{sleep};
 use crate::cmd;
 use crate::cmd::ssh::lchannel::stream_common::HandleResult;
 use crate::cmd::ssh::lchannel::LChannel;
+use crate::cmd::ssh::utils::WaitForMasterResult;
 use crate::executor::Executor;
 use crate::executor::MultiplexedSession;
+use log::debug;
 use super::stream_common;
 use super::ChannelError;
 use async_trait::async_trait;
@@ -26,17 +28,28 @@ impl LChannel for SshChannel {
 
         // println!("Waiting 30 seconds for master connection to succeed");
         // println!("{:#?}", self.session);
-        let (_, conmon_rx) = tokio::sync::oneshot::channel::<()>();
-        cmd::ssh::utils::async_wait_for_master_ready(
+        let conn_state = cmd::ssh::utils::async_wait_for_master_ready(
             &self.session.controlpath,
             &self.session.destination.hostname,
             self.session.port,
-            Duration::from_secs(30),
-            conmon_rx
-        ).await.map_err(|_|
-                ChannelError::TimeoutError
+            Duration::from_secs(120),
+            None
+        ).await.map_err(|e|
+                ChannelError::Other(e.to_string())
         )?;
-        // println!("Master connection succeeded, proceeding.");
+        match conn_state {
+            WaitForMasterResult::Established => {
+                debug!("Master connection succeeded, proceeding.");
+            },
+            WaitForMasterResult::Aborted => {
+                debug!("Aborted Connection");
+                return Ok(())
+            },
+            WaitForMasterResult::Timeout => {
+                debug!("Timeout waiting for master connection");
+                return Err(ChannelError::TimeoutError)
+            }
+        }
 
         // wait additional 500ms for bootstrap script to execute
         sleep(Duration::from_millis(2000)).await;

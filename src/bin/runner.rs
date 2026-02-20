@@ -246,7 +246,7 @@ async fn main() -> Result<()> {
             remote_dest,
             remote_port,
             Duration::from_secs(120),
-          conmon_rx
+            Some(conmon_rx)
         ).await.map_err(|err|
             anyhow!(err)
         )?;

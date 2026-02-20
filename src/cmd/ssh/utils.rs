@@ -72,7 +72,7 @@ pub async fn async_wait_for_master_ready(
     host: &str,
     port: u32,
     timeout: Duration,
-    mut abort_rx: Receiver<()>
+    mut abort_rx: Option<Receiver<()>>
 ) -> Result<WaitForMasterResult, String> {
     let start = std::time::Instant::now();
 
@@ -81,12 +81,16 @@ pub async fn async_wait_for_master_ready(
             return Ok(WaitForMasterResult::Established)
         }
 
-        tokio::select! {
-            _ = sleep(Duration::from_millis(200)) => {
+        if let Some(ref mut abort_rx) = abort_rx {
+            tokio::select! {
+                _ = sleep(Duration::from_millis(200)) => {
+                }
+                _ = abort_rx => {
+                    return Ok(WaitForMasterResult::Aborted)
+                }
             }
-            _ = &mut abort_rx => {
-                return Ok(WaitForMasterResult::Aborted)
-            }
+        } else {
+            sleep(Duration::from_millis(200)).await;
         }
     }
 

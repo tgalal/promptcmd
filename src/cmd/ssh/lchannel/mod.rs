@@ -15,6 +15,8 @@ pub enum ChannelError {
     EncodingError(#[from] FromUtf8Error),
     #[error("Timeout waiting for channel")]
     TimeoutError,
+    #[error("Channel Error: {0}")]
+    Other(String)
 }
 
 #[async_trait]

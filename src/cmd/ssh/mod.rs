@@ -129,6 +129,8 @@ impl SshCmd {
             format!("ControlPath={}", &session_info.controlpath),
             "-o".to_string(),
             "ControlPersist=no".to_string(),
+            "-o".to_string(),
+            "ExitOnForwardFailure=yes".to_string()
         ];
 
         debug!("SSH Args: {:?}", &parsed_ssh_args.ssh_args);

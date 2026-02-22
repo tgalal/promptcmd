@@ -10,6 +10,7 @@ pub mod controlpath;
 pub mod utils;
 use rand::Rng;
 use log::debug;
+use log::error;
 
 pub mod lchannel;
 pub mod bootstrap;
@@ -101,7 +102,10 @@ impl SshCmd {
         let bootstrap_script = ShRemoteShell::bootstrap("sh", remote_workdir.as_str(), "dispatch", &prompts, &channel, &shell, &remote_config.bash_method, remote_cmd.as_deref());
 
         tokio::spawn(async move {
-            bootstrap_data.lchannel.run().await.context("Channel Error")?;
+            let res = bootstrap_data.lchannel.run().await;
+            if let Err(err) = res {
+                error!("Channel error: {err}");
+            }
             Ok::<(), anyhow::Error>(())
         });
 

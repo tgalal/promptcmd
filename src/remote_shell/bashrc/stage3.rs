@@ -19,6 +19,7 @@ impl<'a> Stage3 for BashRcRemoteShell<'a> {
             format!(r#"exec {bin} -c ". {functions_file} && {remote_cmd}""#)
         } else {
             format!(r#"
+OLD_UMASK=$(umask); umask 077
 cat > {workdir}/{rcfile} << "EOF_STAGE3"
 
 source {functions_file}
@@ -28,6 +29,7 @@ alias bash="{bin} --rcfile {workdir}/{rcfile}"
 
 EOF_STAGE3
 
+umask $OLD_UMASK
 exec {bin} --rcfile {workdir}/{rcfile} -i
 "#,
             )

@@ -23,6 +23,7 @@ impl<'a> Stage3 for BashExportsRemoteShell<'a> {
 
             let workdir = &self.workdir;
             format!(r#"
+OLD_UMASK=$(umask); umask 077
 cat > {workdir}/{env} << "EOF_STAGE3"
 source {functions_file}
 
@@ -32,6 +33,7 @@ source {functions_file}
 
 EOF_STAGE3
 
+umask $OLD_UMASK
 exec {bin} -c "source {workdir}/{env}; exec {bin} -l"
     "#,
             )

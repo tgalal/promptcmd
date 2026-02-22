@@ -23,8 +23,8 @@ rendezvousfile="{workdir}/rendezvous"
 sendfile="{workdir}/${{identifier}}_send"
 recvfile="{workdir}/${{identifier}}_recv"
 
-mkfifo "$rendezvousfile" 2> /dev/null
-mkfifo "$sendfile" "$recvfile"
+[ -p "$rendezvousfile" ] || mkfifo -m 600 "$rendezvousfile";
+mkfifo -m 600 "$sendfile" "$recvfile"
 trap "rm -f $sendfile $recvfile" EXIT
 
 if [ "$1" = "__exit__" ]; then
@@ -77,7 +77,10 @@ impl<'a> Stage2 for ShRemoteShell<'a> {
 
         let dispatcher_init_code = match channel {
             Channel::FifoSingle(workdir) => {
-                format!("mkfifo {workdir}/send; mkfifo {workdir}/recv")
+                format!(r#"
+[ -p {workdir}/send ] || mkfifo -m 600 {workdir}/send;
+[ -p {workdir}/recv ] || mkfifo -m 600 {workdir}/recv;
+"#)
             },
             _ => {
                 "".to_string()
@@ -101,6 +104,7 @@ EOF_STAGE2
         };
 
         format!(r#"
+OLD_UMASK=$(umask); umask 077
 cat > {dispatcher_path} << EOF_STAGE2
 {dispatcher_code}
 EOF_STAGE2
@@ -119,6 +123,9 @@ if [ ! -f "{workdir}/trap" ]; then
 fi
 
 {dispatcher_init_code}
+
+umask $OLD_UMASK
+
 (exec {sh_bin} {workdir}/stage3.sh)
         "#,
             sh_bin=self.sh_bin,

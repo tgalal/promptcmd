@@ -55,10 +55,13 @@ impl LChannel for SshChannel {
 
         let session_info = &self.session;
 
-        let remote_command = format!(r#"mkdir -p {workdir};
-mkfifo {send_path};
-mkfifo {recv_path};
-cat {send_path}; cat >> {recv_path}"#,
+        let remote_command = format!(r#"
+sh -c "mkdir -p {workdir};
+[ -p {workdir}/send ] || mkfifo -m 600 {workdir}/send;
+[ -p {workdir}/recv ] || mkfifo -m 600 {workdir}/recv;
+cat {send_path}; cat >> {recv_path}
+"
+"#,
             send_path = self.send_path, recv_path = self.recv_path);
 
         loop {

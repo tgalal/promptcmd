@@ -19,6 +19,7 @@ impl<'a> Stage3 for ShRemoteShell<'a> {
             format!(r#"exec {sh_bin} -c ". {functions_file} && {remote_cmd}""#)
         } else {
             format!(r#"
+OLD_UMASK=$(umask); umask 077
 cat > {workdir}/{sh_env} << "EOF_STAGE3"
 
 . {functions_file}
@@ -28,6 +29,7 @@ if [ -f "$HOME/.shrc" ]; then
 fi
 
 EOF_STAGE3
+umask $OLD_UMASK
 
 {sh_bin} -l -c "ENV={workdir}/{sh_env} exec {sh_bin} -i"
 "#

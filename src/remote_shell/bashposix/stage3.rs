@@ -19,6 +19,7 @@ impl<'a> Stage3 for BashPosixRemoteShell<'a> {
             format!(r#"exec {bin} -c ". {functions_file} && {remote_cmd}""#)
         } else {
             format!(r#"
+OLD_UMASK=$(umask); umask 077
 cat > {workdir}/{env} << "EOF_STAGE3"
 
 source {functions_file}
@@ -29,6 +30,8 @@ alias bash="{bin} --posix"
 EOF_STAGE3
 
 if [ -f ~/.bash_profile ]; then . ~/.bash_profile; fi
+
+umask $OLD_UMASK
 ENV={workdir}/{env} exec {bin} --posix -l
     "#,
             )

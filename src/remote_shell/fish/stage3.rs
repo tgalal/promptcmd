@@ -16,6 +16,7 @@ impl<'a> Stage3 for FishRemoteShell<'a> {
             format!(r#"exec fish -C "source {functions_file};{remote_cmd}""#)
         } else {
             format!(r#"
+OLD_UMASK=$(umask); umask 077
 cat > {workdir}/{fish_env} << "EOF_STAGE3"
 
 source {functions_file}
@@ -26,6 +27,7 @@ end
 
 EOF_STAGE3
 
+umask $OLD_UMASK
 exec fish -l -C "source {workdir}/{fish_env}"
 "#,
             )

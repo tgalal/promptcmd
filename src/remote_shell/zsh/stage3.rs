@@ -16,6 +16,7 @@ impl<'a> Stage3 for ZshRemoteShell<'a> {
             format!(r#"exec zsh -c ". {functions_file} && {remote_cmd}""#)
         } else {
             format!(r#"
+OLD_UMASK=$(umask); umask 077
 cat > {workdir}/{zsh_env} << "EOF_STAGE3"
 
 source {functions_file}
@@ -25,7 +26,7 @@ source {functions_file}
 EOF_STAGE3
 
 echo "source ~/.zshrc 2> /dev/null" > {workdir}/.zshrc
-
+umask $OLD_UMASK
 ZDOTDIR={workdir} exec zsh -l
 "#
             )

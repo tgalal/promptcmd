@@ -55,8 +55,6 @@ impl SshFifoListener {
             let recv_path = format!("{}/{identifier}_recv", self.workdir);
 
             let remote_command = format!(r#"
-mkfifo {send_path};
-mkfifo {recv_path};
 cat {send_path};
 cat >> {recv_path};
 "#);
@@ -107,11 +105,9 @@ cat >> {recv_path};
         let workdir = PathBuf::from(rendezvouz).parent().map(|p| p.to_string_lossy().to_string()).unwrap();
         debug!("Remote work dir is: {workdir}");
 
-        // let remote_command = format!(r#"mkdir -p {workdir}; mkfifo {rendezvous_path}; cat <> {rendezvous_path};"#,
-        //     rendezvous_path=rendezvouz);
         let remote_command = format!(r#"sh -c "
-mkdir -p {workdir};
-mkfifo {rendezvous_path};
+mkdir -m 700 -p {workdir};
+[ -p {rendezvous_path} ] || mkfifo -m 600 {rendezvous_path};
 while true; do
     line=\$(cat {rendezvous_path})
     case \"\$line\" in
@@ -122,18 +118,6 @@ done
 "
 "#,
             rendezvous_path=rendezvouz);
-//         let remote_command = format!(r#"
-// mkdir -p {workdir};
-// mkfifo {rendezvous_path};
-// while true; do
-//     line=$(cat {rendezvous_path})
-//     case "$line" in
-//         __exit__) break ;;
-//         *)    printf '%s\n' "$line" ;;
-//     esac
-// done
-// "#,
-//             rendezvous_path=rendezvouz);
 
         debug!("Remote cmd: {remote_command}");
         let mut child =  {

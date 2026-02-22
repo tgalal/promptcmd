@@ -45,8 +45,11 @@ impl SshCmd {
             session_info.destination.username.as_deref())
             .unwrap_or(&remote_default);
 
-        let mut rng = rand::rng();
-        let rand_suffix = rng.random_range(u32::MIN..u32::MAX).to_string();
+        // A hard to guess workdir helps prevent collision with an existing workdir with the same
+        // name, which may have been maliciously created by another user.
+        let mut rand_suffix_bytes = [0u8; 16];
+        rand::rng().fill_bytes(&mut rand_suffix_bytes);
+        let rand_suffix = hex::encode(rand_suffix_bytes);
 
         let remote_workdir = PathBuf::from(REMOTE_WORKDIR)
             .join(format!("pcmd_{rand_suffix}"))
@@ -63,6 +66,7 @@ impl SshCmd {
         };
 
         debug!("Using shell: {:#?}", shell);
+        let mut rng = rand::rng();
 
         let local_port = rng.random_range(remote_config.local_ports.start..=remote_config.local_ports.end);
         let remote_port = rng.random_range(remote_config.remote_ports.start..=remote_config.remote_ports.end);
@@ -101,6 +105,7 @@ impl SshCmd {
         let mut pwd_bytes = [0u8; 16];
         rand::rng().fill_bytes(&mut pwd_bytes);
         let session_pwd = hex::encode(pwd_bytes);
+
         let bootstrap_data = bootstrap::setup(executor, &channel, &session_pwd)?;
         let bootstrap_script = ShRemoteShell::bootstrap("sh",
             remote_workdir.as_str(), "dispatch", &prompts,

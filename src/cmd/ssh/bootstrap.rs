@@ -62,6 +62,16 @@ pub fn setup(
         (Channel::Fifo(workdir), ExecContext::Remote(RemoteExecContext::MultiplexedSession(session))) => {
             Ok(BootstrapData {
                 forwards: vec![],
+                lchannel: Box::new(lchannel::multissh::MultiSshChannel {
+                    session: session.clone(),
+                    executor,
+                    rendezvous_path: format!("{workdir}/rendezvous"),
+                })
+            })
+        },
+        (Channel::FifoSingle(workdir), ExecContext::Remote(RemoteExecContext::MultiplexedSession(session))) => {
+            Ok(BootstrapData {
+                forwards: vec![],
                 lchannel: Box::new(lchannel::ssh::SshChannel {
                     session: session.clone(),
                     executor,

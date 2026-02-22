@@ -85,7 +85,10 @@ impl SshCmd {
             },
             ChannelOptions::Fifo  => {
                 Channel::Fifo(remote_workdir.clone())
-            }
+            },
+            ChannelOptions::FifoSingle  => {
+                Channel::FifoSingle(remote_workdir.clone())
+            },
         };
 
         debug!("Using channel: {:#?}", channel);

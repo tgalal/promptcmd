@@ -13,8 +13,32 @@ fn create_dispatcher(channel: &Channel) -> String {
         Channel::BashTcp(_, remote_port) => {
             format!("prep_args $@ | bash -c \"exec 3<>/dev/tcp/localhost/{remote_port}; cat >&3; cat <&3; exec 3>&-\"")
         },
-        Channel::Fifo(workdir) => {
+        Channel::FifoSingle(workdir) => {
             format!("prep_args $@ | cat >> {workdir}/send && cat {workdir}/recv")
+        },
+        Channel::Fifo(workdir) => {
+            format!(r#"
+identifier=$$
+rendezvousfile="{workdir}/rendezvous"
+sendfile="{workdir}/${{identifier}}_send"
+recvfile="{workdir}/${{identifier}}_recv"
+
+mkfifo "$rendezvousfile" 2> /dev/null
+mkfifo "$sendfile" "$recvfile"
+trap "rm -f $sendfile $recvfile" EXIT
+
+if [ "$1" = "__exit__" ]; then
+    printf "__exit__\n" >> "$rendezvousfile"
+    exit
+fi
+
+# Register with server
+printf "CONN %s\n" "$identifier" >> "$rendezvousfile"
+
+# Send and wait for response
+prep_args $@ | cat >> "$sendfile" && cat "$recvfile"
+
+"#)
         }
     };
 
@@ -52,7 +76,7 @@ impl<'a> Stage2 for ShRemoteShell<'a> {
         let dispatcher_invocation = format!("sh {dispatcher_path}");
 
         let dispatcher_init_code = match channel {
-            Channel::Fifo(workdir) => {
+            Channel::FifoSingle(workdir) => {
                 format!("mkfifo {workdir}/send; mkfifo {workdir}/recv")
             },
             _ => {

@@ -36,6 +36,8 @@ pub enum Channel {
     BashTcp(u32, u32),
     // workdir
     Fifo(String),
+    // workdir
+    FifoSingle(String),
     // remote_port, remote_file
     // Auto(u32, String)
 }

@@ -6,6 +6,7 @@ mod stream_common;
 pub mod tcp;
 pub mod usock;
 pub mod ssh;
+pub mod multissh;
 
 #[derive(Error, Debug)]
 pub enum ChannelError {

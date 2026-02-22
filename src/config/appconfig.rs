@@ -81,7 +81,8 @@ pub enum ChannelOptions {
     Nc,
     Socat,
     BashTcp,
-    Fifo
+    Fifo,
+    FifoSingle,
 }
 
 #[derive(Debug, Deserialize)]

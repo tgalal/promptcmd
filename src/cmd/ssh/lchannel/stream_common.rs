@@ -34,6 +34,26 @@ async fn read_command<S: AsyncReadExt + Unpin>(stream: &mut S) -> Result<String,
     Ok(command_line)
 }
 
+async fn authenticate<S: AsyncReadExt + Unpin>(stream: &mut S, session_pwd: &str) -> Result<bool, ChannelError> {
+    let mut buffer = Vec::new();
+    loop {
+        let byte = stream
+            .read_u8()
+            .await?;
+
+        // 1= \n
+        if byte == 10 {
+            break;
+        }
+
+        buffer.push(byte);
+    }
+    let password = String::from_utf8(buffer)?.trim().to_string();
+
+    debug!("Expected Pwd: {session_pwd}, Got: {password}, Auth: {}", password == session_pwd);
+    Ok(password == session_pwd)
+}
+
 async fn read_stdin<S: AsyncReadExt + Unpin>(stream: &mut S) -> Result<String, ChannelError> {
     let mut buffer = Vec::new();
     loop {
@@ -52,13 +72,18 @@ async fn read_stdin<S: AsyncReadExt + Unpin>(stream: &mut S) -> Result<String, C
     Ok(stdin)
 }
 
-pub async fn handle_stream<READ, WRITE>(executor: Arc<Executor>, mut in_stream: READ, mut out_stream: WRITE) -> Result<HandleResult, ChannelError>
+pub async fn handle_stream<READ, WRITE>(executor: Arc<Executor>, mut in_stream: READ,
+    mut out_stream: WRITE, session_pwd: &str) -> Result<HandleResult, ChannelError>
     where
     READ: AsyncReadExt + Unpin,
     WRITE: AsyncWriteExt + Unpin
 
 {
     debug!("Handling incoming connection");
+
+    if !authenticate(&mut in_stream, session_pwd).await? {
+        return Err(ChannelError::AuthError);
+    }
 
     let command_full = read_command(&mut in_stream).await?;
     debug!("Got Command: {command_full}");

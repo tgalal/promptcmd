@@ -48,7 +48,8 @@ pub trait Stage1 {
 
 pub trait Stage2 {
     fn stage2(&self, dispatcher_name: &str, promptnames: &[String],
-        channel: &Channel, shell: &Shell, bash_method: &BashMethod, remote_cmd: Option<&str>)-> String;
+        channel: &Channel, shell: &Shell, bash_method: &BashMethod,
+        remote_cmd: Option<&str>, session_pwd: &str)-> String;
 }
 
 pub trait Stage3 {

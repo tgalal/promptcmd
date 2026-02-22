@@ -19,7 +19,8 @@ pub struct SshChannel {
     pub executor: Arc<Executor>,
     pub session: MultiplexedSession,
     pub send_path: String,
-    pub recv_path: String
+    pub recv_path: String,
+    pub session_pwd: String
 }
 
 #[async_trait]
@@ -89,7 +90,8 @@ cat {send_path}; cat >> {recv_path}
             let handle_result = stream_common::handle_stream(
                 self.executor.clone(),
                 stdout,
-                stdin
+                stdin,
+                &self.session_pwd
             ).await?;
 
             match handle_result {

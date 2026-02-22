@@ -11,6 +11,7 @@ use super::ChannelError;
 pub struct USocketChannel {
     pub executor: Arc<Executor>,
     pub path: PathBuf,
+    pub session_pwd: String
 }
 
 #[async_trait]
@@ -27,8 +28,9 @@ impl LChannel for USocketChannel {
             let (reader, writer) = stream.into_split();
             let executor = self.executor.clone();
 
-            tokio::spawn(async {
-                stream_common::handle_stream(executor, reader, writer).await
+            let session_pwd = self.session_pwd.clone();
+            tokio::spawn(async move {
+                stream_common::handle_stream(executor, reader, writer, &session_pwd).await
             });
         }
     }

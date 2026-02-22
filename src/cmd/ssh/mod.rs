@@ -1,4 +1,5 @@
 use std::{path::PathBuf, sync::Arc};
+use rand::RngCore;
 
 use clap::{Parser};
 use anyhow::{Context, Result};
@@ -97,8 +98,13 @@ impl SshCmd {
             Some(parsed_ssh_args.server_args[1..].join(" "))
         } else { None };
 
-        let bootstrap_data = bootstrap::setup(executor, &channel)?;
-        let bootstrap_script = ShRemoteShell::bootstrap("sh", remote_workdir.as_str(), "dispatch", &prompts, &channel, &shell, &remote_config.bash_method, remote_cmd.as_deref());
+        let mut pwd_bytes = [0u8; 16];
+        rand::rng().fill_bytes(&mut pwd_bytes);
+        let session_pwd = hex::encode(pwd_bytes);
+        let bootstrap_data = bootstrap::setup(executor, &channel, &session_pwd)?;
+        let bootstrap_script = ShRemoteShell::bootstrap("sh",
+            remote_workdir.as_str(), "dispatch", &prompts,
+            &channel, &shell, &remote_config.bash_method, remote_cmd.as_deref(), &session_pwd);
 
         tokio::spawn(async move {
             let res = bootstrap_data.lchannel.run().await;

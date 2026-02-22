@@ -20,13 +20,15 @@ impl<'a> ShRemoteShell<'a > {
         channel: &Channel,
         shell: &Shell,
         bash_method: &BashMethod,
-        remote_cmd: Option<&str>
+        remote_cmd: Option<&str>,
+        session_pwd: &str,
     ) -> String {
         let sh = Self {
             sh_bin: sh_bin.to_string(),
             workdir
         };
-        let stage2 = sh.stage2(dispatcher_name, prompt_names, channel, shell, bash_method, remote_cmd);
+        let stage2 = sh.stage2(dispatcher_name, prompt_names, channel, shell,
+            bash_method, remote_cmd, session_pwd);
         sh.stage1(&stage2)
     }
 

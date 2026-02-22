@@ -10,7 +10,8 @@ use async_trait::async_trait;
 
 pub struct TcpChannel {
     pub executor: Arc<Executor>,
-    pub port: u32
+    pub port: u32,
+    pub session_pwd: String
 }
 
 #[async_trait]
@@ -25,8 +26,10 @@ impl LChannel for  TcpChannel {
             let executor = self.executor.clone();
             let (reader, writer) = tcpstream.into_split();
 
-            tokio::spawn(async {
-                stream_common::handle_stream(executor, reader, writer).await
+            let session_pwd = self.session_pwd.clone();
+
+            tokio::spawn(async move {
+                stream_common::handle_stream(executor, reader, writer, &session_pwd).await
             });
         }
     }

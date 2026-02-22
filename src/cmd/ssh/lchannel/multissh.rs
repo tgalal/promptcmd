@@ -25,6 +25,7 @@ pub struct MultiSshChannel {
     pub executor: Arc<Executor>,
     pub session: MultiplexedSession,
     pub rendezvous_path: String,
+    pub session_pwd: String
 }
 
 struct SshFifoListener {
@@ -205,8 +206,9 @@ impl LChannel for MultiSshChannel {
                     let (reader, writer) = (stream.stdout, stream.stdin);
 
                     let shutdown_tx = shutdown_tx.clone();
+                    let session_pwd = self.session_pwd.clone();
                     tokio::spawn(async move {
-                        let res = stream_common::handle_stream(executor, reader, writer).await;
+                        let res = stream_common::handle_stream(executor, reader, writer, &session_pwd).await;
 
                         match res {
                             Ok(HandleResult::Continue) => {},

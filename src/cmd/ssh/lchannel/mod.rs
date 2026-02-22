@@ -19,7 +19,9 @@ pub enum ChannelError {
     #[error("Channel Error: {0}")]
     Other(String),
     #[error("EOF")]
-    EOF
+    EOF,
+    #[error("Authentication Error")]
+    AuthError
 }
 
 #[async_trait]

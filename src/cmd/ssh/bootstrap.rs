@@ -29,6 +29,7 @@ pub enum BootstrapError {
 pub fn setup(
     executor: Arc<Executor>,
     channel: &Channel,
+    session_pwd: &str
 ) -> Result<BootstrapData, BootstrapError> {
     match (channel,  &executor.exec_context) {
         (Channel::Nc(local_port, remote_port), _)  => {
@@ -37,7 +38,8 @@ pub fn setup(
                 forwards: vec![ForwardingConfiguration {remote: remote_port.to_string(), local: format!("localhost:{local_port}")}],
                 lchannel: Box::new(lchannel::tcp::TcpChannel {
                     executor,
-                    port: *local_port
+                    port: *local_port,
+                    session_pwd: session_pwd.to_string()
                 })
             })
         },
@@ -46,7 +48,8 @@ pub fn setup(
                 forwards: vec![ForwardingConfiguration {remote: remote_socket.to_string(), local: local_socket.to_string()}],
                 lchannel: Box::new(lchannel::usock::USocketChannel {
                     executor,
-                    path: PathBuf::from(local_socket)
+                    path: PathBuf::from(local_socket),
+                    session_pwd: session_pwd.to_string()
                 })
             })
         },
@@ -55,7 +58,8 @@ pub fn setup(
                 forwards: vec![ForwardingConfiguration {remote: remote_port.to_string(), local: format!("localhost:{local_port}")}],
                 lchannel: Box::new(lchannel::tcp::TcpChannel {
                     executor,
-                    port: *local_port
+                    port: *local_port,
+                    session_pwd: session_pwd.to_string()
                 })
             })
         },
@@ -66,6 +70,7 @@ pub fn setup(
                     session: session.clone(),
                     executor,
                     rendezvous_path: format!("{workdir}/rendezvous"),
+                    session_pwd: session_pwd.to_string()
                 })
             })
         },
@@ -77,6 +82,7 @@ pub fn setup(
                     executor,
                     send_path: format!("{workdir}/send"),
                     recv_path: format!("{workdir}/recv"),
+                    session_pwd: session_pwd.to_string()
                 })
             })
         },

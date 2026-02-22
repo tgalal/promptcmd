@@ -2,7 +2,7 @@ use crate::{config::appconfig::BashMethod, remote_shell::{sh::ShRemoteShell, Sta
     Channel}};
 
 
-fn create_dispatcher(channel: &Channel) -> String {
+fn create_dispatcher(channel: &Channel, session_pwd: &str) -> String {
     let dispatcher_body = match channel {
         Channel::Nc(_, remote_port) => {
             format!("prep_args $@ | nc localhost {remote_port}")
@@ -46,6 +46,7 @@ prep_args $@ | cat >> "$sendfile" && cat "$recvfile"
 
 prep_args() {{
     {{
+    printf "%s\n" '{session_pwd}'
     printf "%s " "$1"
     shift
     for arg in "$@"; do
@@ -69,7 +70,9 @@ dispatch $@
 
 impl<'a> Stage2 for ShRemoteShell<'a> {
     fn stage2(&self, dispatcher_name: &str, prompt_names: &[String],
-        channel: &Channel, shell: &Shell, bash_method: &BashMethod, remote_cmd: Option<&str>)-> String {
+        channel: &Channel, shell: &Shell, bash_method: &BashMethod,
+        remote_cmd: Option<&str>,
+        session_pwd: &str)-> String {
         let workdir = &self.workdir;
         let dispatcher_path = format!("{workdir}/{dispatcher_name}.sh");
         let functions_file = format!("{workdir}/functions");
@@ -129,7 +132,7 @@ umask $OLD_UMASK
 (exec {sh_bin} {workdir}/stage3.sh)
         "#,
             sh_bin=self.sh_bin,
-            dispatcher_code=self.escape(&create_dispatcher(channel)))
+            dispatcher_code=self.escape(&create_dispatcher(channel, session_pwd)))
     }
 }
 

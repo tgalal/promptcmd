@@ -1,7 +1,7 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::process::Command;
-use tokio::time::{sleep};
 
 use crate::cmd;
 use crate::cmd::ssh::lchannel::stream_common::HandleResult;
@@ -26,8 +26,6 @@ pub struct SshChannel {
 impl LChannel for SshChannel {
     async fn run(&self) -> Result<(), ChannelError> {
 
-        // println!("Waiting 30 seconds for master connection to succeed");
-        // println!("{:#?}", self.session);
         let conn_state = cmd::ssh::utils::async_wait_for_master_ready(
             &self.session.controlpath,
             &self.session.destination.hostname,
@@ -37,6 +35,7 @@ impl LChannel for SshChannel {
         ).await.map_err(|e|
                 ChannelError::Other(e.to_string())
         )?;
+
         match conn_state {
             WaitForMasterResult::Established => {
                 debug!("Master connection succeeded, proceeding.");
@@ -51,18 +50,19 @@ impl LChannel for SshChannel {
             }
         }
 
-        // wait additional 500ms for bootstrap script to execute
-        sleep(Duration::from_millis(2000)).await;
+        let workdir = PathBuf::from(&self.send_path).parent().map(|p| p.to_string_lossy().to_string()).unwrap();
+        debug!("Remote work dir is: {workdir}");
 
         let session_info = &self.session;
-        //let remote_command = format!("rm {recv_path} {send_path} 2> /dev/null; mkfifo {recv_path}; mkfifo {send_path} && cat {send_path}; cat >> {recv_path}",
-        //    send_path = self.send_path, recv_path = self.recv_path);
-        let remote_command = format!("cat {send_path}; cat >> {recv_path}",
+
+        let remote_command = format!(r#"mkdir -p {workdir};
+mkfifo {send_path};
+mkfifo {recv_path};
+cat {send_path}; cat >> {recv_path}"#,
             send_path = self.send_path, recv_path = self.recv_path);
 
-        // println!("{remote_command}");
-
         loop {
+            debug!("Remote cmd: {remote_command}");
             let mut child =  {
                 Command::new("ssh")
                 .arg("-S")
@@ -99,27 +99,6 @@ impl LChannel for SshChannel {
             }
         }
 
-        // println!("Terminating the process");
-
         Ok(())
-
-        //let stdout_task = tokio::spawn(async move {
-        //    let reader = BufReader::new(stdout);
-        //    let mut lines = reader.lines();
-
-        //    while let Ok(Some(line)) = lines.next_line().await {
-        //        println!("OUTPUT: {}", line);
-        //    }
-        //});
-
-
-        // loop {
-        //     let (tcpstream, _) =listener.accept().await?;
-        //     let executor = self.executor.clone();
-
-        //     tokio::spawn(async {
-        //         stream_common::handle_stream(executor, tcpstream).await
-        //     });
-        // }
     }
 }

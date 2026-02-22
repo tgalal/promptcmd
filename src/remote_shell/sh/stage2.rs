@@ -5,16 +5,16 @@ use crate::{config::appconfig::BashMethod, remote_shell::{sh::ShRemoteShell, Sta
 fn create_dispatcher(channel: &Channel, session_pwd: &str) -> String {
     let dispatcher_body = match channel {
         Channel::Nc(_, remote_port) => {
-            format!("prep_args $@ | nc localhost {remote_port}")
+            format!("prep_args \"$@\" | nc localhost {remote_port}")
         },
         Channel::Socat(_, remote_sockfile) => {
-            format!("prep_args $@ | socat -,ignoreeof UNIX-CONNECT:{remote_sockfile}")
+            format!("prep_args \"$@\" | socat -,ignoreeof UNIX-CONNECT:{remote_sockfile}")
         },
         Channel::BashTcp(_, remote_port) => {
-            format!("prep_args $@ | bash -c \"exec 3<>/dev/tcp/localhost/{remote_port}; cat >&3; cat <&3; exec 3>&-\"")
+            format!("prep_args \"$\"@ | bash -c \"exec 3<>/dev/tcp/localhost/{remote_port}; cat >&3; cat <&3; exec 3>&-\"")
         },
         Channel::FifoSingle(workdir) => {
-            format!("prep_args $@ | cat >> {workdir}/send && cat {workdir}/recv")
+            format!("prep_args \"$@\" | cat >> {workdir}/send && cat {workdir}/recv")
         },
         Channel::Fifo(workdir) => {
             format!(r#"
@@ -36,7 +36,7 @@ fi
 printf "CONN %s\n" "$identifier" >> "$rendezvousfile"
 
 # Send and wait for response
-prep_args $@ | cat >> "$sendfile" && cat "$recvfile"
+prep_args \"$@\" | cat >> "$sendfile" && cat "$recvfile"
 
 "#)
         }
@@ -64,7 +64,7 @@ dispatch() {{
     {dispatcher_body}
 }}
 
-dispatch $@
+dispatch "$@"
     "#)
 }
 

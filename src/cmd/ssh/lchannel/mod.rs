@@ -17,7 +17,9 @@ pub enum ChannelError {
     #[error("Timeout waiting for channel")]
     TimeoutError,
     #[error("Channel Error: {0}")]
-    Other(String)
+    Other(String),
+    #[error("EOF")]
+    EOF
 }
 
 #[async_trait]

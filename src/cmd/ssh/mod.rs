@@ -3,8 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use clap::{Parser};
 use anyhow::{Context, Result};
 use tokio::process::Command;
-use crate::{cmd::ssh::utils::ParsedSshArgs, config::appconfig::{AppConfig, ChannelOptions,
-    Ssh, ShellOptions}, executor::{Executor, MultiplexedSession},
+use crate::{cmd::ssh::{lchannel::ChannelError, utils::ParsedSshArgs}, config::appconfig::{AppConfig, ChannelOptions, ShellOptions, Ssh}, executor::{Executor, MultiplexedSession},
     remote_shell::{sh::ShRemoteShell, Channel, Shell}};
 pub mod controlpath;
 pub mod utils;
@@ -103,8 +102,11 @@ impl SshCmd {
 
         tokio::spawn(async move {
             let res = bootstrap_data.lchannel.run().await;
-            if let Err(err) = res {
-                error!("Channel error: {err}");
+            match res {
+                Ok(()) | Err(ChannelError::EOF)  => {},
+                Err(err) => {
+                    error!("Channel error: {err}");
+                }
             }
             Ok::<(), anyhow::Error>(())
         });

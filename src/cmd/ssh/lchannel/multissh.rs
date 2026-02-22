@@ -90,7 +90,11 @@ cat >> {recv_path};
             })
         }
 
-        Err(ChannelError::Other(format!("Unexpected message: {buf}")))
+        if buf.is_empty() {
+            Err(ChannelError::EOF)
+        } else {
+            Err(ChannelError::Other(format!("Unexpected message: {buf}")))
+        }
     }
 
     pub async fn close(mut self) {

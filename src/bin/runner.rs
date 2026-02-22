@@ -1,10 +1,10 @@
-use clap::{value_parser, Arg, ArgGroup, Command};
+use clap::{Arg, Command};
 use promptcmd::cmd::ssh::utils::WaitForMasterResult;
 use promptcmd::cmd::ssh::{controlpath, utils};
 use promptcmd::config::resolver::{ResolvedGlobalProperties, ResolvedPropertySource};
 use promptcmd::config::{self, appconfig_locator};
 use promptcmd::config::appconfig::{AppConfig, GlobalProviderProperties};
-use promptcmd::cmd::{self, run};
+use promptcmd::cmd::{self, command_add_configuration_options, command_add_general_options, command_add_remote_options, run};
 use promptcmd::dotprompt::renderers::argmatches::DotPromptArgMatches;
 use promptcmd::dotprompt::DotPrompt;
 use promptcmd::executor::{ExecContext, ExecutionOutput, Executor, MultiplexedSession, PromptInputs, RemoteExecContext};
@@ -118,71 +118,9 @@ async fn main() -> Result<()> {
     command = command.disable_help_flag(true);
     command = command.next_help_heading("Prompt inputs");
     command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;
-    command = command.next_help_heading("General Options");
-    command = command.arg(
-        Arg::new("dry")
-            .long("dry")
-            .help("Dry run")
-            .action(clap::ArgAction::SetTrue)
-            .required(false)
-        )
-        .arg(Arg::new("render")
-            .long("render")
-            .short('r')
-            .help("Render only mode")
-            .action(clap::ArgAction::SetTrue)
-            .required(false)
-        )
-        .arg(
-            Arg::new("help")
-            .long("help")
-            .short('h')
-            .action(clap::ArgAction::Help)
-            .help("Print help")
-        );
-    command = command.next_help_heading("Remote Options")
-        .arg(
-            Arg::new("remote_dest")
-            .long("remote-dest")
-            .help("Execute commands on a remote SSH destination")
-        )
-        .arg(
-            Arg::new("remote_port")
-            .long("remote-port")
-            .value_parser(value_parser!(u32))
-            .help("Port to use with remote destination")
-        );
-    command = command.next_help_heading("Optional Configuration Overrides")
-        .arg(Arg::new("model")
-            .long("config-model")
-            .short('m')
-        )
-        .arg(Arg::new("stream")
-            .long("config-stream")
-            .action(clap::ArgAction::SetTrue)
-        )
-        .arg(Arg::new("nostream")
-            .long("config-no-stream")
-            .action(clap::ArgAction::SetTrue)
-        )
-        .group(ArgGroup::new("streamgroup").args(["stream", "nostream"]))
-        .arg(Arg::new("cache_ttl")
-            .long("config-cache-ttl")
-            .value_parser(value_parser!(u32))
-        )
-        .arg(Arg::new("temperature")
-            .long("config-temperature")
-            .alias("config-temp")
-            .value_parser(value_parser!(f32))
-        )
-        .arg(Arg::new("max_tokens")
-            .long("config-max-tokens")
-            .value_parser(value_parser!(u32))
-        )
-        .arg(Arg::new("system")
-            .long("config-system")
-        )
-        ;
+    command = command_add_general_options(command);
+    command = command_add_remote_options(command);
+    command = command_add_configuration_options(command);
 
     let matches = command.get_matches();
 

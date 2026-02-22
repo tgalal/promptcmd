@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
-use clap::Arg;
 use clap::{Command as ClapCommand};
 use log::debug;
 use log::warn;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use crate::cmd::{command_add_configuration_options, command_add_general_options};
+use crate::config::appconfig::GlobalProviderProperties;
+use crate::config::resolver::ResolvedGlobalProperties;
+use crate::config::resolver::ResolvedPropertySource;
 use crate::dotprompt::renderers::argmatches::DotPromptArgMatches;
 use crate::executor::{ExecutionOutput, PromptInputs};
 use crate::{cmd::run, executor::Executor};
@@ -101,28 +104,14 @@ pub async fn handle_stream<READ, WRITE>(executor: Arc<Executor>, mut in_stream: 
     let dotprompt = executor.load_dotprompt(promptname).unwrap();
 
     let mut command: ClapCommand = ClapCommand::new(promptname.to_string());
-    // command = command.disable_help_flag(true);
-    //
-    command = command.arg(Arg::new("dry")
-            .long("dry")
-            .help("Dry run")
-            .action(clap::ArgAction::SetTrue)
-            .required(false)
-        )
-        .arg(Arg::new("render")
-            .long("render")
-            .short('r')
-            .help("Render only mode")
-            .action(clap::ArgAction::SetTrue)
-            .required(false)
-        );
+
+    command = command.disable_help_flag(true);
     command = command.next_help_heading("Prompt inputs");
     command = run::generate_arguments_from_dotprompt(command, &dotprompt).unwrap();
-    command = command.next_help_heading("Optional Configuration Overrides")
-        .arg(Arg::new("model")
-            .long("config-model")
-            .short('m')
-        );
+
+    command = command_add_general_options(command);
+    command = command_add_configuration_options(command);
+
     let args = shlex::split(command_full.as_str()).expect("Failed to parse command line");
     let matches = command.try_get_matches_from(args);
 
@@ -132,6 +121,28 @@ pub async fn handle_stream<READ, WRITE>(executor: Arc<Executor>, mut in_stream: 
 
             let dry = *matches.get_one::<bool>("dry").unwrap_or(&false);
             let render = *matches.get_one::<bool>("render").unwrap_or(&false);
+
+
+            let stream = if let Some(true) = matches.get_one::<bool>("stream") {
+                Some(true)
+            } else if let Some(true) = matches.get_one::<bool>("nostream") {
+                Some(false)
+            } else {
+                None
+            };
+
+            let resolved_cmd_properties = ResolvedGlobalProperties::from((
+                &GlobalProviderProperties {
+                    temperature: matches.get_one::<f32>("temperature").copied(),
+                    max_tokens: matches.get_one::<u32>("max_tokens").copied(),
+                    model: None,
+                    system: matches.get_one::<String>("system").map(|s| s.to_string()),
+                    cache_ttl: matches.get_one::<u32>("cache_ttl").copied(),
+                    stream
+                },
+                ResolvedPropertySource::Inputs
+            ));
+
             let requested_model = matches.get_one::<String>("model").map(|s| s.to_string());
 
             let argmatches = DotPromptArgMatches {
@@ -142,7 +153,7 @@ pub async fn handle_stream<READ, WRITE>(executor: Arc<Executor>, mut in_stream: 
             let inputs: PromptInputs = argmatches.try_into().unwrap();
 
             let result = executor.clone().execute_dotprompt(&dotprompt,
-                None, requested_model,
+                Some(resolved_cmd_properties), requested_model,
                 inputs, Some(stdin), dry, render).await.unwrap();
 
 

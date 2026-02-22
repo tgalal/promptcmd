@@ -57,7 +57,7 @@ impl PromptHelper {
             ExecutionOutput::Cached(output) => {
                 out.write(&output)?;
             },
-            ExecutionOutput::DryRun => {},
+            ExecutionOutput::DryRun(_) => {},
             ExecutionOutput::RenderOnly(output) => {
                 out.write(&output)?;
             }

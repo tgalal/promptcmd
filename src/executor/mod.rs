@@ -38,7 +38,7 @@ pub enum ExecutionOutput {
     StreamingOutput(Box<StreamingExecutionOutput>),
     StructuredStreamingOutput(Box<StructuredStreamingExecutionOutput>),
     ImmediateOutput(String),
-    DryRun,
+    DryRun(String),
     RenderOnly(String),
     Cached(String)
 }
@@ -287,22 +287,25 @@ impl Executor {
         }
 
         if dry {
-            println!("Dry run mode");
-            println!("=============");
+            let mut output = format!(r#"Dry run mode
+=============
+>>> Resolved Config
+{resolved_config}
 
-            println!(">>> Resolved Config");
-            println!("{}\n", &resolved_config);
+"#);
+
 
             if let Some((_, choice)) = group_choice {
-                println!(">>> LB Choice");
-                println!("{}\n", choice);
+                output.push_str(&format!(">>> LB Choice\n{choice}\n"));
             }
 
-            println!(">>> Rendered Prompt:");
-            print!("{}", &rendered_dotprompt);
-            println!("<<< End Rendered Prompt");
+            output.push_str(&format!(r#">>> Rendered Prompt:
+{rendered_dotprompt}
+<<< End Rendered Prompt
 
-            return Ok(ExecutionOutput::DryRun)
+[dry run, no llm response]"#));
+
+            return Ok(ExecutionOutput::DryRun(output));
         }
 
         let cache_key = Executor::cache_key(

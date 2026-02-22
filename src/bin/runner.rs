@@ -297,8 +297,8 @@ async fn main() -> Result<()> {
                 println!();
             }
         }
-        ExecutionOutput::DryRun => {
-            println!("[dry run, no llm response]");
+        ExecutionOutput::DryRun(output) => {
+            println!("{output}");
         }
         ExecutionOutput::Cached(output) => {
             print!("{}", &output);

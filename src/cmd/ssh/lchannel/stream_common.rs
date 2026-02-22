@@ -208,9 +208,10 @@ pub async fn handle_stream<READ, WRITE>(executor: Arc<Executor>, mut in_stream: 
                     }
                     out_stream.flush().await.unwrap();
                 }
-                ExecutionOutput::DryRun => {
-                    // println!("[dry run, no llm response]");
-                    out_stream.write_all(b"[dry run, no llm response]").await.unwrap();
+                ExecutionOutput::DryRun(output) => {
+                    out_stream.write_all(output.as_bytes()).await.unwrap();
+                    // newline
+                    out_stream.write_u8(10).await.unwrap();
                     out_stream.flush().await.unwrap();
                 }
                 ExecutionOutput::Cached(output) => {

@@ -1,3 +1,6 @@
+  // The following code is a translation of
+  // https://github.com/kovidgoyal/kitty/blob/master/kittens/ssh/main.go#L122
+  // in particular how the runtime dir is obtained for use in control socket path.
   use dirs;
   use std::env;
   use std::fs;
@@ -206,6 +209,10 @@
       let rd = runtime_dir()?;
       let rd_str = rd.to_string_lossy().into_owned();
 
+      // Bloody OpenSSH generates a 40 char hash and in creating the socket appends a 27 char temp
+      // suffix to it. Socket max path length is approx ~104 chars. And on idiotic Apple the path
+      // length to the runtime dir (technically the cache dir since Apple has no runtime dir and
+      // thinks it's a great idea to delete files in /tmp) is ~48 chars.
       let rd_to_use = if rd_str.len() > 35 {
           let uid = unsafe { libc::geteuid() };
           let idiotic_design = format!("/tmp/kssh-rdir-{}", uid);

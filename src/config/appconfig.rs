@@ -54,8 +54,8 @@ impl AppConfig {
 #[derive(Debug, Deserialize, Default, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum BashMethod {
-    #[default]
     Posix,
+    #[default]
     Rc,
     Exports
 }

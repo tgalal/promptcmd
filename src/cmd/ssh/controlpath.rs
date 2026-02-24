@@ -48,7 +48,7 @@
 
   /// Get cache directory using dirs crate where possible
   fn cache_dir() -> io::Result<PathBuf> {
-      if cfg!(target_os = "macos")
+      #[cfg(target_os = "macos")]
       {
           // dirs::cache_dir() returns ~/Library/Caches, we add "promptcmd"
           if let Some(cache) = dirs::cache_dir() {
@@ -59,7 +59,7 @@
           // Fallback if dirs fails
           let path = expanduser("~/Library/Caches/promptcmd");
           fs::create_dir_all(&path)?;
-          return Ok(path);
+          Ok(path)
       }
 
       #[cfg(not(target_os = "macos"))]

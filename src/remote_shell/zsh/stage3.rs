@@ -21,11 +21,11 @@ cat > {workdir}/{zsh_env} << "EOF_STAGE3"
 
 source {functions_file}
 
-[[ -e ~/.zshenv ]] &&  source ~/.zshenv
+[[ -e $HOME/.zshenv ]] &&  source $HOME/.zshenv
 
 EOF_STAGE3
 
-echo "source ~/.zshrc 2> /dev/null" > {workdir}/.zshrc
+echo "source $HOME/.zshrc 2> /dev/null" > {workdir}/.zshrc
 umask $OLD_UMASK
 ZDOTDIR={workdir} exec zsh -l
 "#

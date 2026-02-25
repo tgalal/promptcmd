@@ -29,7 +29,7 @@ source {functions_file}
 
 {exports}
 
-[[ -e ~/.bashrc ]] && source ~/.bashrc
+[[ -e $HOME/.bashrc ]] && source $HOME/.bashrc
 
 EOF_STAGE3
 

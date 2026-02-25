@@ -24,7 +24,7 @@ cat > {workdir}/{rcfile} << "EOF_STAGE3"
 
 source {functions_file}
 
-[[ -e ~/.bashrc ]] && source ~/.bashrc
+[[ -e $HOME/.bashrc ]] && source $HOME/.bashrc
 alias bash="{bin} --rcfile {workdir}/{rcfile}"
 
 EOF_STAGE3

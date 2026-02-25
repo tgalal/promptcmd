@@ -138,33 +138,36 @@ impl SshCmd {
         debug!("Server Args: {:?}", &parsed_ssh_args.server_args);
 
         let ssh_cmd_handle = tokio::spawn(async move {
+            let initial_args = if remote_cmd.is_none() {
+                if !parsed_ssh_args.ssh_args.contains(&"-t".to_string()) {
+                    vec![String::from("-t")]
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![String::from("-n")]
+            };
 
-        let initial_args = if remote_cmd.is_none() {
-            vec![String::from("-t")]
-        } else {
-            vec![String::from("-n")]
-        };
+            let forwards: Vec<String> = bootstrap_data.forwards.iter()
+                        .map(|f| format!("-R {}:{}", f.remote, f.local)).collect();
 
-        let forwards: Vec<String> = bootstrap_data.forwards.iter()
-                    .map(|f| format!("-R {}:{}", f.remote, f.local)).collect();
+            let full_args: Vec<&str> = initial_args.iter()
+                .chain(forwards.iter())
+                .chain(connection_sharing_args.iter())
+                .chain(parsed_ssh_args.ssh_args.iter())
+                .chain(std::iter::once(&parsed_ssh_args.server_args[0]))
+                .chain(std::iter::once(&bootstrap_script))
+                .map(|s| s.as_str())
+                .collect();
 
-        let full_args: Vec<&str> = initial_args.iter()
-            .chain(forwards.iter())
-            .chain(connection_sharing_args.iter())
-            .chain(parsed_ssh_args.ssh_args.iter())
-            .chain(std::iter::once(&parsed_ssh_args.server_args[0]))
-            .chain(std::iter::once(&bootstrap_script))
-            .map(|s| s.as_str())
-            .collect();
+                debug!("ssh {} [bootstrap_script redacted]", full_args[..full_args.len() - 1].join(" "));
+                // debug!("{}", &bootstrap_script);
 
-            // println!("ssh {}", full_args.join(" "));
-            debug!("{}", &bootstrap_script);
-
-            Command::new("ssh")
-                .args(full_args)
-                .spawn().context("Error spawning ssh")?
-                .wait().await.context("Error in ssh proc")?;
-            Ok::<(), anyhow::Error>(())
+                Command::new("ssh")
+                    .args(full_args)
+                    .spawn().context("Error spawning ssh")?
+                    .wait().await.context("Error in ssh proc")?;
+                Ok::<(), anyhow::Error>(())
         });
 
         ssh_cmd_handle.await??;

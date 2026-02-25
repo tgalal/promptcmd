@@ -32,13 +32,6 @@ impl SshCmd {
         parsed_ssh_args: ParsedSshArgs
     )-> Result<()> {
 
-        let usock_path = PathBuf::from(&session_info.controlpath)
-            .parent()
-            .context("Error getting control path's parent dir")?
-            .join("pcmd.sock");
-
-        let usock_path_str = usock_path.to_string_lossy().to_string();
-
         let remote_default = Ssh::default();
         let remote_config = appconfig.find_ssh_best_match(
             &session_info.destination.hostname_for_match,
@@ -54,6 +47,13 @@ impl SshCmd {
         let remote_workdir = PathBuf::from(REMOTE_WORKDIR)
             .join(format!("pcmd_{rand_suffix}"))
             .to_string_lossy().to_string();
+
+        let usock_path = PathBuf::from(&session_info.controlpath)
+            .parent()
+            .context("Error getting control path's parent dir")?
+            .join(format!("pcmd_{rand_suffix}.sock"));
+
+        let usock_path_str = usock_path.to_string_lossy().to_string();
 
         let shell = match remote_config.shell {
             ShellOptions::Auto => Shell::Auto(remote_workdir.clone()),

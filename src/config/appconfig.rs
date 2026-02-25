@@ -125,7 +125,7 @@ fn default_port_start() -> u32 { 49152 }
 fn default_port_end() -> u32 { 65535 }
 fn default_socket_path() -> String { "/tmp/".to_string() }
 fn default_socket_random() -> bool { true }
-fn default_motd() -> bool { true }
+fn default_motd() -> bool { false }
 
 impl Default for PortSettings {
    fn default() -> Self {

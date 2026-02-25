@@ -1,0 +1,94 @@
+{
+  "pre": [],
+  "post": [],
+  "servers": [
+    {
+      "desc": "Testing with bash as default shell",
+      "dest": "user-bash@localhost",
+      "port": 2222,
+      "password": "000000",
+      "shells": [
+        { "name": "auto", "prompt": "[bash] $", "nested": "bash", "bash_method": "exports", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "bash", "prompt": "[bash] $", "nested": "bash", "bash_method": "exports", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "auto", "prompt": "[bash] $", "nested": "bash", "bash_method": "posix", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "bash", "prompt": "[bash] $", "nested": "bash", "bash_method": "posix", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "auto", "prompt": "[bash] $", "nested": "bash", "bash_method": "rc", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "bash", "prompt": "[bash] $", "nested": "bash", "bash_method": "rc", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "sh", "nested": "sh", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "zsh", "nested": "zsh", "prompt": "[zsh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "ash", "nested": "ash", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "dash", "nested": "dash", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] }
+      ]
+    },
+    {
+      "desc": "Testing with sh as default shell",
+      "dest": "user-sh@localhost",
+      "port": 2222,
+      "password": "000000",
+      "shells": [
+        { "name": "auto", "nested": "sh", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "bash", "nested": "bash", "prompt": "[bash] $", "channels": ["auto", "nc", "socat", "bashtcp", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "sh", "nested": "sh", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "zsh", "nested": "zsh", "prompt": "[zsh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "ash", "nested": "ash", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "dash", "nested": "dash", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] }
+      ]
+    },
+    {
+      "desc": "Testing with zsh as default shell",
+      "dest": "user-zsh@localhost",
+      "port": 2222,
+      "password": "000000",
+      "shells": [
+        { "name": "auto", "nested": "zsh", "prompt": "[zsh] $", "channels": ["auto", "bashtcp", "nc", "socat", "fifosingle", "fifo"] },
+        { "name": "bash", "nested": "bash", "prompt": "[bash] $", "channels": ["auto", "nc", "socat", "bashtcp", "fifosingle", "fifo"] },
+        { "name": "sh", "nested": "sh", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "zsh", "nested": "zsh", "prompt": "[zsh] $", "channels": ["auto", "bashtcp", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "ash", "nested": "ash", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "dash", "nested": "dash", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] }
+      ]
+    },
+    {
+      "desc": "Testing with ash as default shell",
+      "dest": "user-ash@localhost",
+      "port": 2222,
+      "password": "000000",
+      "shells": [
+        { "name": "auto", "nested": "ash", "prompt": "[ash] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "bash", "nested": "bash", "prompt": "[bash] $", "channels": ["auto", "nc", "socat", "bashtcp", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "sh", "nested": "sh", "prompt": "[ash] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "zsh", "nested": "zsh", "prompt": "[zsh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "ash", "nested": "ash", "prompt": "[ash] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "dash", "nested": "dash", "prompt": "[ash] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] }
+      ]
+    },
+    {
+      "desc": "Testing with dash as default shell",
+      "dest": "user-dash@localhost",
+      "port": 2222,
+      "password": "000000",
+      "shells": [
+        { "name": "auto", "nested": "dash", "prompt": "[dash] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "bash", "nested": "bash", "prompt": "[bash] $", "channels": ["auto", "nc", "socat", "bashtcp", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "sh", "nested": "sh", "prompt": "[dash] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "zsh", "nested": "zsh", "prompt": "[zsh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "ash", "nested": "ash", "prompt": "[dash] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "dash", "nested": "dash", "prompt": "[dash] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] }
+      ]
+    },
+    {
+      "desc": "Testing with fish as default shell",
+      "dest": "user-fish@localhost",
+      "port": 2222,
+      "password": "000000",
+      "shells": [
+        { "name": "fish", "nested": "fish", "prompt": "[fish] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "bash", "nested": "bash", "prompt": "[bash] $", "channels": ["auto", "nc", "socat", "bashtcp", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "sh", "nested": "sh", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "zsh", "nested": "zsh", "prompt": "[zsh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "ash", "nested": "ash", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
+        { "name": "dash", "nested": "dash", "prompt": "[sh] $", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] }
+      ]
+    }
+  ]
+}

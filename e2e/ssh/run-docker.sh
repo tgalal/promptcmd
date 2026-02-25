@@ -21,14 +21,20 @@ teardown() {
   if [[ -n $active_container ]]; then
     log "Container $active_container" "stopping"
     docker stop ${active_container}
+    docker stop "pcmd-jumpserver"
+  docker network rm pcmd-test-network
     active_container=""
   fi
 }
 
 setup() {
   local container=$1
+  local port=$2
+  docker network create pcmd-test-network
   log "Container $container" "starting"
-  docker run --rm -d -p 2222:22 --name "$container" "$container"
+  docker run --rm -d  --network pcmd-test-network -p 2223:22 --name "pcmd-jumpserver" promptcmd-tests-debian-bookworm-slim
+  docker run --rm -d  --network pcmd-test-network -p $port:22 --name "$container" "$container"
+
   active_container=$container
 
   if [ "$tests_mode" -eq "0" ]; then
@@ -44,10 +50,9 @@ run_for_container() {
   local shell=$3
   local bash_method=$4
   local channel=$5
-  setup "$container"
+  setup "$container" 2222
   ./runspec.sh "$spec" $shell $bash_method $channel
   teardown
-
 }
 
 all() {
@@ -60,7 +65,7 @@ all() {
 container=$1
 
 if [ $container = "setup" ]; then
-  setup "$2"
+  setup "$2" 2222
   exit
 fi
 

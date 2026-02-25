@@ -38,6 +38,36 @@ run_tcl_test() {
   (cd ./tcl && ./${testname}.tcl "$@" > /dev/null)
 }
 
+jump_server() {
+  local dest1=$1
+  local port1=$2
+  local pw1=$3
+  local dest2=$4
+  local port2=$5
+  local pw2=$6
+  local shell=$7
+  local bash_method=$8
+  local channel=$9
+  local cliprompt=${10}
+
+  ./_promptcmd.sh create_config "$shell" "$bash_method" "$channel"
+
+  $PROMPTCTL import -fep dummy - > /dev/null << EOF
+---
+input:
+  schema:
+    input1: string
+    input2: string
+---
+Input1: {{input1}} Input2: {{input2}} Data1: {{exec "cat" "/tmp/testfile1"}} Data2: {{cat "/tmp/testfile2"}}
+EOF
+  run_tcl_test "jump_server" "$SSH_IDENTITY" \
+    $dest1 $port1 $pw1 $dest2 $port2 $pw2 $cliprompt \
+    "Input1: one two three Input2: four five six Data1: testfile1content Data2: testfile2content" \
+    "dummy" \
+    --input1 'one two three' --input2 'four five six' --render
+}
+
 basic_tests() {
   # usage: dummy ssh_dest pw shell channel cliprompt
   local ssh_dest=$1

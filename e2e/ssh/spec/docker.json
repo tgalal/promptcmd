@@ -7,6 +7,10 @@
       "dest": "user-bash@localhost",
       "port": 2222,
       "password": "000000",
+      "desc": "Testing with bash as default shell",
+      "jdest": "user-bash@pcmd-jumpserver",
+      "jport": 22,
+      "jpassword": "000000",
       "shells": [
         { "name": "auto", "prompt": "__BASH_PROMPT__", "nested": "bash", "bash_method": "exports", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },
         { "name": "bash", "prompt": "__BASH_PROMPT__", "nested": "bash", "bash_method": "exports", "channels": ["auto", "nc", "socat", "fifosingle", "fifo", "bashtcp"] },

@@ -36,6 +36,9 @@ _server() {
   ssh_dest=$(echo "$server" | jq -r '.dest')
   ssh_port=$(echo "$server" | jq -r '.port')
   ssh_password=$(echo "$server" | jq -r '.password')
+  jdest=$(echo "$server" | jq -r '.jdest')
+  jport=$(echo "$server" | jq -r '.jport')
+  jpassword=$(echo "$server" | jq -r '.jpassword')
 
   log "Test Server ${ssh_dest}" ""
 
@@ -65,10 +68,14 @@ _server() {
           echo "Skipping channel: $channel"
           continue
         fi
+        # if [ $jdest != "null" ]; then
+        #   logn "Test" "name: jump_dest, jdest: ${jdest}:${jport}"
+        # ./dispatcher.sh jump_server "$ssh_dest" "$ssh_port" "$ssh_password" "$jdest" "$jport" "$jpassword" "$shell_name" $bash_method $channel "${shell_prompt}"
+        # fi
         logn "Test" "name: dummy, shell: ${shell_name}, bash_method: ${bash_method} channel: $channel "
-        # ./dispatcher.sh dummy $ssh_dest $ssh_port "$ssh_password" "$shell_name" "$bash_method" "$channel" "${shell_prompt}"
         ./dispatcher.sh basic_tests $ssh_dest $ssh_port "$ssh_password" "$shell_name" "$nested" "$bash_method" "$channel" "${shell_prompt}"
         log " [ok]"
+
       done
   done
 }

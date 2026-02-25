@@ -100,7 +100,9 @@ pub struct Ssh {
     #[serde(default)]
     pub remote_ports: PortSettings,
     #[serde(default)]
-    pub local_ports: PortSettings
+    pub local_ports: PortSettings,
+    #[serde(default = "default_motd")]
+    pub motd: bool
 }
 
 #[derive(Debug, Deserialize)]
@@ -123,6 +125,7 @@ fn default_port_start() -> u32 { 49152 }
 fn default_port_end() -> u32 { 65535 }
 fn default_socket_path() -> String { "/tmp/".to_string() }
 fn default_socket_random() -> bool { true }
+fn default_motd() -> bool { true }
 
 impl Default for PortSettings {
    fn default() -> Self {
@@ -151,6 +154,7 @@ impl Default for Ssh {
             remote_socket: RemoteSocket::default(),
             remote_ports: PortSettings::default(),
             local_ports: PortSettings::default(),
+            motd: true
         }
     }
 }

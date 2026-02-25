@@ -1,5 +1,4 @@
-use crate::{config::appconfig::BashMethod, remote_shell::{sh::ShRemoteShell, Stage2, Stage3, Shell,
-    Channel}};
+use crate::{config::appconfig::BashMethod, remote_shell::{sh::{motd::MOTD, ShRemoteShell}, Channel, Shell, Stage2, Stage3}};
 
 
 fn create_dispatcher(channel: &Channel, session_pwd: &str) -> String {
@@ -71,12 +70,16 @@ dispatch "$@"
 impl<'a> Stage2 for ShRemoteShell<'a> {
     fn stage2(&self, dispatcher_name: &str, prompt_names: &[String],
         channel: &Channel, shell: &Shell, bash_method: &BashMethod,
-        remote_cmd: Option<&str>,
-        session_pwd: &str)-> String {
+        remote_cmd: Option<&str>, session_pwd: &str, motd: bool)-> String {
         let workdir = &self.workdir;
         let dispatcher_path = format!("{workdir}/{dispatcher_name}.sh");
         let functions_file = format!("{workdir}/functions");
         let dispatcher_invocation = format!("sh {dispatcher_path}");
+        let motd_script = if motd {
+            MOTD
+        } else {
+            ""
+        };
 
         let dispatcher_init_code = match channel {
             Channel::FifoSingle(workdir) => {
@@ -108,6 +111,7 @@ EOF_STAGE2
 
         format!(r#"
 OLD_UMASK=$(umask); umask 077
+
 cat > {dispatcher_path} << EOF_STAGE2
 {dispatcher_code}
 EOF_STAGE2
@@ -128,6 +132,8 @@ fi
 {dispatcher_init_code}
 
 umask $OLD_UMASK
+
+{motd_script}
 
 (exec {sh_bin} {workdir}/stage3.sh)
         "#,

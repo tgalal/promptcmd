@@ -5,6 +5,7 @@ use crate::{config::appconfig::BashMethod, remote_shell::{bashexports::BashExpor
 pub mod stage1;
 pub mod stage2;
 pub mod stage3;
+pub mod motd;
 
 pub struct ShRemoteShell<'a> {
     sh_bin: String,
@@ -22,13 +23,14 @@ impl<'a> ShRemoteShell<'a > {
         bash_method: &BashMethod,
         remote_cmd: Option<&str>,
         session_pwd: &str,
+        motd: bool
     ) -> String {
         let sh = Self {
             sh_bin: sh_bin.to_string(),
             workdir
         };
         let stage2 = sh.stage2(dispatcher_name, prompt_names, channel, shell,
-            bash_method, remote_cmd, session_pwd);
+            bash_method, remote_cmd, session_pwd, motd);
         sh.stage1(&stage2)
     }
 

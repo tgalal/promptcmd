@@ -109,7 +109,8 @@ impl SshCmd {
         let bootstrap_data = bootstrap::setup(executor, &channel, &session_pwd)?;
         let bootstrap_script = ShRemoteShell::bootstrap("sh",
             remote_workdir.as_str(), "dispatch", &prompts,
-            &channel, &shell, &remote_config.bash_method, remote_cmd.as_deref(), &session_pwd);
+            &channel, &shell, &remote_config.bash_method, remote_cmd.as_deref(), &session_pwd,
+            remote_config.motd);
 
         tokio::spawn(async move {
             let res = bootstrap_data.lchannel.run().await;

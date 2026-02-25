@@ -55,8 +55,8 @@ impl AppConfig {
 #[serde(rename_all = "lowercase")]
 pub enum BashMethod {
     Posix,
-    #[default]
     Rc,
+    #[default]
     Exports
 }
 

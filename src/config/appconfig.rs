@@ -76,11 +76,11 @@ pub enum ShellOptions {
 #[derive(Debug, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ChannelOptions {
-    #[default]
     Auto,
     Nc,
     Socat,
     BashTcp,
+    #[default]
     Fifo,
     FifoSingle,
 }

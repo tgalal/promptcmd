@@ -46,7 +46,7 @@ spawn promptctl ssh -i $ssh_id -p $ssh_port -o UserKnownHostsFile=/dev/null -o S
 ssh_enter_pw "$ssh_pw"
 expect "$expected"
 
-### --remote
-spawn $promptname {*}$promptargs --remote-dest $ssh_dest --remote-port $ssh_port
+### --ssh
+spawn $promptname {*}$promptargs --ssh-dest $ssh_dest --ssh-port $ssh_port
 ssh_enter_pw "$ssh_pw"
 expect "$expected"

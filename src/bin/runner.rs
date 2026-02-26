@@ -4,7 +4,7 @@ use promptcmd::cmd::ssh::{controlpath, utils};
 use promptcmd::config::resolver::{ResolvedGlobalProperties, ResolvedPropertySource};
 use promptcmd::config::{self, appconfig_locator};
 use promptcmd::config::appconfig::{AppConfig, GlobalProviderProperties};
-use promptcmd::cmd::{self, command_add_configuration_options, command_add_general_options, command_add_remote_options, run};
+use promptcmd::cmd::{self, command_add_configuration_options, command_add_general_options, command_add_ssh_options, run};
 use promptcmd::dotprompt::renderers::argmatches::DotPromptArgMatches;
 use promptcmd::dotprompt::DotPrompt;
 use promptcmd::executor::{ExecContext, ExecutionOutput, Executor, MultiplexedSession, PromptInputs, RemoteExecContext};
@@ -119,7 +119,7 @@ async fn main() -> Result<()> {
     command = command.next_help_heading("Prompt inputs");
     command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;
     command = command_add_general_options(command);
-    command = command_add_remote_options(command);
+    command = command_add_ssh_options(command);
     command = command_add_configuration_options(command);
 
     let matches = command.get_matches();
@@ -128,8 +128,8 @@ async fn main() -> Result<()> {
         stats: statsstore
     };
 
-    let remote_dest = matches.get_one::<String>("remote_dest");
-    let remote_port = *matches.get_one::<u32>("remote_port").unwrap_or(&22);
+    let remote_dest = matches.get_one::<String>("ssh_dest");
+    let remote_port = *matches.get_one::<u32>("ssh_port").unwrap_or(&22);
 
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     let (conmon_tx, conmon_rx) = tokio::sync::oneshot::channel::<()>();

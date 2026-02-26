@@ -56,18 +56,18 @@ impl TextEditor for BasicTextEditor {
     }
 }
 
-pub fn command_add_remote_options(mut command: Command) -> Command {
+pub fn command_add_ssh_options(mut command: Command) -> Command {
     command = command.next_help_heading("Remote Options")
         .arg(
-            Arg::new("remote_dest")
-            .long("remote-dest")
+            Arg::new("ssh_dest")
+            .long("ssh-dest")
             .help("Execute commands on a remote SSH destination")
         )
         .arg(
-            Arg::new("remote_port")
-            .long("remote-port")
+            Arg::new("ssh_port")
+            .long("ssh-port")
             .value_parser(value_parser!(u32))
-            .help("Port to use with remote destination")
+            .help("Port to use with the SSH destination")
         );
     command
 }

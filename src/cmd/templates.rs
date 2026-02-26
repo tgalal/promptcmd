@@ -204,4 +204,31 @@ r#"############### promptcmd ################
 #   { name = "google",    weight = 5 },
 #   { name = "anthropic", weight = 1 },
 # ]
+
+##########################################################################
+### Configuration for SSH Remote Execution
+##########################################################################
+# Global, for all ssh hosts
+# [[ssh]]
+# # Display Message of the Day if not disabled by remote user
+# motd = true
+#
+# # Communication Channel between remote and local
+# # Other values: nc, socat, bashtcp
+# channel = "fifo"
+#
+# # Remote shell. Set to auto for auto detection.
+# # Other values: bash, zsh, sh, ash, dash, fish
+# shell = "auto"
+
+## You may define multiple times, for different hosts
+# [[ssh]]
+# host = "proxmox.lan"
+# shell = "bash"
+
+## Or for a specific user on the host
+# [[ssh]]
+# host = "proxmox.lan"
+# user = "root"
+# shell = "zsh"
 "#;

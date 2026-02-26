@@ -1,0 +1,30 @@
+{
+  "pre": [],
+  "post": [],
+  "servers": [
+    {
+      "desc": "Testing with bash as default shell",
+      "dest": "user-bash@localhost",
+      "port": 2222,
+      "password": "000000",
+      "shells": [
+        { "name": "auto", "prompt": "__BASH_PROMPT__", "nested": "bash", "channels": ["fifo", "fifosingle", "auto", "nc", "socat"] },
+        { "name": "bash", "prompt": "__BASH_PROMPT__", "nested": "bash", "channels": ["auto", "nc", "socat", "fifo", "fifosingle"] },
+        { "name": "sh", "nested": "sh", "prompt": "__SH_PROMPT__", "channels": ["auto", "nc", "socat", "fifo", "fifosingle"] },
+        { "name": "zsh", "nested": "zsh", "prompt": "__ZSH_PROMPT__", "channels": ["auto", "nc", "socat", "fifo", "fifosingle"] }
+      ]
+    },
+    {
+      "desc": "Testing with sh as default shell",
+      "dest": "user-sh@localhost",
+      "port": 2222,
+      "password": "000000",
+      "shells": [
+        { "name": "auto", "nested": "sh", "prompt": "__SH_PROMPT__", "channels": ["auto", "nc", "socat", "fifo", "fifosingle"] },
+        { "name": "bash", "nested": "bash", "prompt": "__BASH_PROMPT__", "channels": ["auto", "nc", "socat", "bashtcp", "fifo", "fifosingle"] },
+        { "name": "sh", "nested": "sh", "prompt": "__SH_PROMPT__", "channels": ["auto", "nc", "socat", "fifo", "fifosingle"] },
+        { "name": "zsh", "nested": "zsh", "prompt": "__SH_PROMPT__", "prompt": "__ZSH_PROMPT__", "channels": ["auto", "nc", "socat", "fifo", "fifosingle"] }
+      ]
+    }
+  ]
+}

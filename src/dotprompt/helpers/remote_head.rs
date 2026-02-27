@@ -1,7 +1,6 @@
-
 use handlebars::*;
 
-use crate::{dotprompt::helpers::{handle_destination, handle_multiplexed_session,
+use crate::{dotprompt::helpers::{handle_multiplexed_session,
     head::HeadHelperArguments}, executor::RemoteExecContext};
 
 pub struct RemoteHeadHelper {
@@ -25,7 +24,6 @@ impl RemoteHeadHelper {
         ];
 
         match &self.context {
-            RemoteExecContext::Destination(destination) => handle_destination(destination.as_str(), cmd, &args, out).await,
             RemoteExecContext::MultiplexedSession(session_info) => handle_multiplexed_session(
                 session_info, cmd, &args, out).await
         }

@@ -1,10 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 use tokio::sync::oneshot::Receiver;
 use tokio::time::{sleep};
 use std::time::Duration;
-use openssh::Stdio;
 use thiserror::Error;
 use std::thread;
 

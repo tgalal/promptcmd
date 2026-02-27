@@ -104,7 +104,6 @@ pub struct MultiplexedSession {
 #[derive(Clone)]
 pub enum RemoteExecContext {
     MultiplexedSession(MultiplexedSession),
-    Destination(String)
 }
 
 pub struct Executor {

@@ -86,9 +86,6 @@ pub fn setup(
                 })
             })
         },
-        (_, ExecContext::Remote(RemoteExecContext::Destination(_))) => {
-            Err(BootstrapError::UnsupportedExecContext("Destination".to_string()))
-        },
         (_, ExecContext::Local) => {
             Err(BootstrapError::UnsupportedExecContext("Local".to_string()))
         },

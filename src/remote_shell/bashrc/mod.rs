@@ -14,10 +14,8 @@ impl<'a> BashRcRemoteShell<'a> {
     }
 
     fn create_prompt_function(&self, prompt_name: &str, dispatcher_name: &str) -> String {
-        let sanitized_function_name = prompt_name.replace("-", "_")
-            .replace(".", "_");
         format!(r#"
-{sanitized_function_name}() {{
+{prompt_name}() {{
     {dispatcher_name} {prompt_name} "$@"
 }}"#,
         )

@@ -13,16 +13,9 @@ impl<'a> BashExportsRemoteShell<'a> {
         }
     }
 
-    fn sanitize_function_name(&self, fn_name: &str) -> String {
-        fn_name.replace(".", "_")
-               .replace("-", "_")
-    }
-
     fn create_prompt_function(&self, prompt_name: &str, dispatcher_name: &str) -> String {
-        let sanitized_function_name = self.sanitize_function_name(prompt_name);
-
         format!(r#"
-{sanitized_function_name}() {{
+{prompt_name}() {{
     {dispatcher_name} {prompt_name} "$@"
 }}"#,
         )

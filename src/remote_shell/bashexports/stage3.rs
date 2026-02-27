@@ -17,7 +17,7 @@ impl<'a> Stage3 for BashExportsRemoteShell<'a> {
             format!(r#"exec {bin} -c ". {functions_file} && {remote_cmd}""#)
         } else {
             let exports = prompt_names.iter()
-                .map(|p| format!("export -f {fn_name} 2>/dev/null || true", fn_name=self.sanitize_function_name(p)))
+                .map(|p| format!("export -f {fn_name} 2>/dev/null || true", fn_name=p))
                 .collect::<Vec<_>>()
                 .join("\n");
 

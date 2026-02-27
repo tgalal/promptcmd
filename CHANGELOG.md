@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## Version 1.1.0-beta (2026-02-27)
+
+### Added
+
+- Remote SSH Integration
+
+### Fixed
+
+- Path traversal in prompt names
+
 ## Version 1.0.7 (2026-01-29)
 
 ### Fixed

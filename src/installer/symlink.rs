@@ -98,9 +98,19 @@ impl DotPromptInstaller for SymlinkInstaller {
             if path.is_file() &&
                 let Ok(actual_target) = fs::read_link(&path) &&
                 actual_target == self.target &&
-                let Some(promptname) = path.file_stem() {
+                let Some(promptname) = path.file_name() {
+
+                    let promptname = promptname.to_string_lossy().to_string();
+
+                    #[cfg(target_os="windows")]
+                    let promptname: String = if let Some(exe_stripped) = promptname.strip_suffix(".exe") {
+                        exe_stripped.to_string()
+                    } else {
+                        promptname
+                    };
+
                     result.insert(
-                        promptname.to_string_lossy().into_owned(),
+                        promptname,
                         path.to_string_lossy().into_owned());
                 }
         }
@@ -365,6 +375,25 @@ mod tests {
         let result = installer.list();
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 0);
+
+        drop(temp_dir);
+    }
+
+    #[test]
+    fn test_special_name() {
+        let (temp_dir, target, install_dir) = setup_test_env();
+
+        let mut installer = SymlinkInstaller::new(target.clone(), install_dir.clone());
+
+        // Install multiple commands
+        installer.install("READFORME.md").unwrap();
+
+        let result = installer.list();
+        assert!(result.is_ok());
+
+        let list = result.unwrap();
+        assert_eq!(list.len(), 1);
+        assert!(list.contains_key("READFORME.md"));
 
         drop(temp_dir);
     }

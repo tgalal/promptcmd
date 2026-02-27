@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 1.1.0-beta2 (2026-02-27)
+
+### Changed
+
+- Remove unused openssh
+
 ## Version 1.1.0-beta (2026-02-27)
 
 ### Added

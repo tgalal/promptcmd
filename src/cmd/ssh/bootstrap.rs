@@ -89,5 +89,8 @@ pub fn setup(
         (_, ExecContext::Local) => {
             Err(BootstrapError::UnsupportedExecContext("Local".to_string()))
         },
+        (_ , ExecContext::Remote(RemoteExecContext::Other)) => {
+            todo!()
+        }
     }
 }

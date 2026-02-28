@@ -1,6 +1,6 @@
 use handlebars::*;
 
-use crate::{dotprompt::helpers::{cat::CatHelperArguments, handle_multiplexed_session}, executor::RemoteExecContext};
+use crate::{dotprompt::helpers, executor::RemoteExecContext};
 pub struct RemoteCatHelper {
     pub context: RemoteExecContext
 }
@@ -12,14 +12,15 @@ impl RemoteCatHelper {
             out: &mut dyn Output,
         ) -> HelperResult {
 
-        let helper_args = CatHelperArguments::try_from(h)?;
+        let helper_args = helpers::cat::CatHelperArguments::try_from(h)?;
 
-        let cmd = "cat";
         let args: Vec<String> = vec![helper_args.filename];
 
         match &self.context {
-            RemoteExecContext::MultiplexedSession(session_info) => handle_multiplexed_session(
-                session_info, cmd, &args, out).await
+            #[cfg(not(target_os="windows"))]
+            RemoteExecContext::MultiplexedSession(session_info) => helpers::handle_multiplexed_session(
+                session_info, "cat", &args, out).await,
+            RemoteExecContext::Other => todo!()
         }
     }
 }

@@ -9,7 +9,7 @@ use serde_json::Value;
 use thiserror::Error;
 use xxhash_rust::xxh3::xxh3_64;
 use crate::{
-    cmd::ssh::utils::SshDestination, config::{
+    config::{
         appconfig::{
             self, GlobalProviderProperties
         },
@@ -94,16 +94,19 @@ pub enum ExecContext {
     Remote(RemoteExecContext)
 }
 
+#[cfg(not(target_os="windows"))]
 #[derive(Clone, Debug)]
 pub struct MultiplexedSession {
     pub controlpath: String,
-    pub destination: SshDestination,
+    pub destination: crate::cmd::ssh::utils::SshDestination,
     pub port: u32
 }
 
 #[derive(Clone)]
 pub enum RemoteExecContext {
+    #[cfg(not(target_os="windows"))]
     MultiplexedSession(MultiplexedSession),
+    Other
 }
 
 pub struct Executor {

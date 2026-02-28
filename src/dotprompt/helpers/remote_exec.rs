@@ -1,6 +1,7 @@
 use handlebars::*;
 
-use crate::{dotprompt::helpers::{handle_multiplexed_session}, executor::RemoteExecContext};
+use crate::{dotprompt::helpers};
+use crate::{executor::RemoteExecContext};
 pub struct RemoteExecHelper {
     pub context: RemoteExecContext
 }
@@ -25,8 +26,10 @@ impl RemoteExecHelper {
         }).collect::<Result<Vec<_>, _>>()?;
 
         match &self.context {
-            RemoteExecContext::MultiplexedSession(session_info) => handle_multiplexed_session(
-                session_info, &cmd, &args, out).await
+            #[cfg(not(target_os="windows"))]
+            RemoteExecContext::MultiplexedSession(session_info) => helpers::handle_multiplexed_session(
+                session_info, &cmd, &args, out).await,
+            RemoteExecContext::Other => todo!()
         }
     }
 }

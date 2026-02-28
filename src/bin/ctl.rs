@@ -1,16 +1,14 @@
 use anyhow::{anyhow, bail, Result};
 use promptcmd::{cmd, ENV_CONFIG};
 use promptcmd::cmd::BasicTextEditor;
-use promptcmd::cmd::ssh::{controlpath, utils};
 use promptcmd::config::appconfig::AppConfig;
 use promptcmd::config::{self, appconfig_locator, RUNNER_BIN_NAME};
-use promptcmd::executor::{ExecContext, Executor, MultiplexedSession, RemoteExecContext};
+use promptcmd::executor::{self, Executor};
 use promptcmd::installer::DotPromptInstaller;
 use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::RusqliteStore;
 use std::env;
 use std::path::PathBuf;
-use std::{process};
 use std::sync::{Arc, OnceLock};
 use promptcmd::installer::symlink::SymlinkInstaller;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
@@ -27,6 +25,12 @@ struct Cli {
     command: Commands,
     #[arg(short, long, help="Use given configuration file path instead of default")]
     pub config: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct WinSshCmd {
+    #[arg(trailing_var_arg = true, allow_hyphen_values=true)]
+    pub ssh_args: Vec<String>,
 }
 
 #[derive(Subcommand)]
@@ -67,8 +71,12 @@ enum Commands {
     #[clap(about = "Render prompts without API calls")]
     Render(cmd::render::RenderCmd),
 
-    #[clap(about = "SSH")]
+    #[cfg(not(target_os = "windows"))]
+    #[clap(about = "SSH remote integration")]
     Ssh(cmd::ssh::SshCmd),
+    #[cfg(target_os = "windows")]
+    #[clap(about = "SSH remote integration")]
+    Ssh(WinSshCmd),
 }
 
 static PROMPTS_STORAGE: OnceLock<FileSystemPromptFilesStorage> = OnceLock::new();
@@ -164,7 +172,7 @@ async fn main() -> Result<()> {
                     appconfig,
                     statsstore,
                     prompts_storage,
-                    exec_context: ExecContext::Local
+                    exec_context: executor::ExecContext::Local
                 };
                 let executor_arc = Arc::new(executor);
                 cmd.exec(
@@ -194,15 +202,21 @@ async fn main() -> Result<()> {
                 &mut std::io::stdout(),
                 &editor
             ),
+        #[cfg(target_os = "windows")]
+        Commands::Ssh(_) => {
+            println!("SSH remote integration is currently not supported on windows");
+            Ok(())
+        }
+        #[cfg(not(target_os = "windows"))]
         Commands::Ssh(cmd) => {
             let lb = WeightedLoadBalancer {
                 stats: statsstore
             };
 
-            let (destination, parsed_sshg_args) = utils::parse_ssh_command(&cmd.ssh_args).context("Could not parse ssh command")?;
-            let controlpath = controlpath::control_path( process::id()).context("Could not determine control path")?;
+            let (destination, parsed_sshg_args) = cmd::ssh::utils::parse_ssh_command(&cmd.ssh_args).context("Could not parse ssh command")?;
+            let controlpath = cmd::ssh::controlpath::control_path( std::process::id()).context("Could not determine control path")?;
 
-            let session_info = MultiplexedSession {
+            let session_info = executor::MultiplexedSession {
                 controlpath,
                 destination,
                 port: parsed_sshg_args.port()
@@ -213,7 +227,8 @@ async fn main() -> Result<()> {
                 appconfig,
                 statsstore,
                 prompts_storage,
-                exec_context: ExecContext::Remote(RemoteExecContext::MultiplexedSession(session_info.clone()))
+                exec_context: executor::ExecContext::Remote(
+                    executor::RemoteExecContext::MultiplexedSession(session_info.clone()))
             };
 
             let installed = installer.list()?

@@ -1,7 +1,6 @@
 use handlebars::*;
 
-use crate::{dotprompt::helpers::{handle_multiplexed_session,
-    tail::TailHelperArguments}, executor::RemoteExecContext};
+use crate::{dotprompt::helpers, executor::RemoteExecContext};
 
 pub struct RemoteTailHelper {
     pub context: RemoteExecContext
@@ -13,9 +12,7 @@ impl RemoteTailHelper {
             out: &mut dyn Output,
         ) -> HelperResult {
 
-        let helper_args = TailHelperArguments::try_from(h)?;
-
-        let cmd = "tail";
+        let helper_args = helpers::tail::TailHelperArguments::try_from(h)?;
 
         let args: Vec<String> = vec![
             String::from("-n"),
@@ -24,8 +21,10 @@ impl RemoteTailHelper {
         ];
 
         match &self.context {
-            RemoteExecContext::MultiplexedSession(session_info) => handle_multiplexed_session(
-                session_info, cmd, &args, out).await
+            #[cfg(not(target_os="windows"))]
+            RemoteExecContext::MultiplexedSession(session_info) => helpers::handle_multiplexed_session(
+                session_info, "tail", &args, out).await,
+            RemoteExecContext::Other => todo!()
         }
     }
 }

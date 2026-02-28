@@ -1,23 +1,22 @@
-use clap::{Arg, Command};
-use promptcmd::cmd::ssh::utils::WaitForMasterResult;
-use promptcmd::cmd::ssh::{controlpath, utils};
+use clap::{Arg, ArgMatches, Command};
 use promptcmd::config::resolver::{ResolvedGlobalProperties, ResolvedPropertySource};
 use promptcmd::config::{self, appconfig_locator};
 use promptcmd::config::appconfig::{AppConfig, GlobalProviderProperties};
-use promptcmd::cmd::{self, command_add_configuration_options, command_add_general_options, command_add_ssh_options, run};
+use promptcmd::cmd::{self, run};
 use promptcmd::dotprompt::renderers::argmatches::DotPromptArgMatches;
 use promptcmd::dotprompt::DotPrompt;
-use promptcmd::executor::{ExecContext, ExecutionOutput, Executor, MultiplexedSession, PromptInputs, RemoteExecContext};
+use promptcmd::executor::{self, ExecContext, Executor, PromptInputs};
 use promptcmd::lb::WeightedLoadBalancer;
 use promptcmd::stats::rusqlite_store::{RusqliteStore};
+use promptcmd::stats::store::StatsStore;
 use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use promptcmd::storage::PromptFilesStorage;
 use promptcmd::ENV_CONFIG;
 use tokio::process::Child;
+use tokio::{sync::oneshot::Sender, task::JoinHandle};
 use std::sync::{Arc};
 use anyhow::{Context, Result, anyhow, bail};
-use std::{env, process};
-use std::time::Duration;
+use std::{self, env};
 use std::path::PathBuf;
 use std::fs;
 use log::debug;
@@ -27,6 +26,119 @@ use std::sync::OnceLock;
 static PROMPTS_STORAGE: OnceLock<FileSystemPromptFilesStorage> = OnceLock::new();
 static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();
 static STATS_STORE: OnceLock<RusqliteStore> = OnceLock::new();
+
+#[cfg(target_os="windows")]
+async fn create_executor(_: &ArgMatches,
+    lb: WeightedLoadBalancer,
+    appconfig: &'static AppConfig,
+    statsstore: &'static dyn StatsStore,
+    prompts_storage: &'static dyn PromptFilesStorage
+) -> Result<(Option<(JoinHandle<std::result::Result<Child, anyhow::Error>>, Sender<()>)>,  Executor)> {
+    Ok((None, Executor {
+        loadbalancer: lb,
+        appconfig,
+        statsstore,
+        prompts_storage,
+        exec_context: ExecContext::Local
+    }))
+}
+
+#[cfg(not(target_os="windows"))]
+async fn create_executor(matches: &ArgMatches,
+    lb: WeightedLoadBalancer,
+    appconfig: &'static AppConfig,
+    statsstore: &'static dyn StatsStore,
+    prompts_storage: &'static dyn PromptFilesStorage
+) -> Result<(Option<(JoinHandle<std::result::Result<Child, anyhow::Error>>, Sender<()>)>,  Executor)> {
+    let remote_dest = matches.get_one::<String>("ssh_dest");
+    let remote_port = *matches.get_one::<u32>("ssh_port").unwrap_or(&22);
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let (conmon_tx, conmon_rx) = tokio::sync::oneshot::channel::<()>();
+    if let Some(remote_dest) = remote_dest {
+        let controlpath = cmd::ssh::controlpath::control_path(std::process::id()).context("Could not determine control path")?;
+        let destination = cmd::ssh::utils::get_destination(remote_dest);
+        debug!("Destination: {:#?}", destination);
+
+        let session_info = executor::MultiplexedSession {
+            controlpath: controlpath.clone(),
+            destination,
+            port: remote_port
+        };
+
+        let connection_sharing_args = vec![
+            "-o".to_string(),
+            "ControlMaster=yes".to_string(),
+            "-o".to_string(),
+            format!("ControlPath={}", &controlpath),
+            "-o".to_string(),
+            "ControlPersist=no".to_string(),
+        ];
+
+        debug!("Setting up master connection to {}", &remote_dest);
+        let remote_dest_copy = remote_dest.clone();
+        let ssh_cmd_handle = tokio::spawn(async move {
+            let mut child = tokio::process::Command::new("ssh")
+                .arg("-t")
+                .arg("-N")
+                .arg("-p")
+                .arg(remote_port.to_string())
+                .args(connection_sharing_args)
+                .arg(remote_dest_copy)
+                .spawn().context("Error in ssh proc")?;
+
+            tokio::select! {
+                _ = child.wait() => {
+                    debug!("SSH session terminated normally");
+                    let _ = conmon_tx.send(());
+                }
+                 _ = rx => {
+                    debug!("Terminating master SSH session due to shutdown signal");
+                    let _ = child.kill().await;
+                }
+            }
+            Ok::<Child, anyhow::Error>(child)
+        });
+
+        debug!("Waiting 30 seconds for master connection to succeed");
+        let wait_conn_result = cmd::ssh::utils::async_wait_for_master_ready(
+            &controlpath,
+            remote_dest,
+            remote_port,
+            std::time::Duration::from_secs(120),
+            Some(conmon_rx)
+        ).await.map_err(|err|
+            anyhow!(err)
+        )?;
+
+        if let cmd::ssh::utils::WaitForMasterResult::Timeout = wait_conn_result {
+            bail!("Timeout waiting for control master");
+        } else if let cmd::ssh::utils::WaitForMasterResult::Aborted = wait_conn_result {
+            bail!("Connection was aborted");
+        }
+
+        debug!("Master connection succeeded, proceeding.");
+
+        Ok((Some((ssh_cmd_handle, tx)),
+        Executor {
+            loadbalancer: lb,
+            appconfig,
+            statsstore,
+            prompts_storage,
+            exec_context: ExecContext::Remote(
+                    executor::RemoteExecContext::MultiplexedSession(session_info.clone()))
+        }))
+    } else {
+        Ok((None, Executor {
+            loadbalancer: lb,
+            appconfig,
+            statsstore,
+            prompts_storage,
+            exec_context: ExecContext::Local
+        }))
+    }
+}
+
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -118,9 +230,14 @@ async fn main() -> Result<()> {
     command = command.disable_help_flag(true);
     command = command.next_help_heading("Prompt inputs");
     command = run::generate_arguments_from_dotprompt(command, &dotprompt)?;
-    command = command_add_general_options(command);
-    command = command_add_ssh_options(command);
-    command = command_add_configuration_options(command);
+    command = cmd::command_add_general_options(command);
+
+
+    #[cfg(not(target_os = "windows"))]
+    {
+    command = cmd::command_add_ssh_options(command);
+    }
+    command = cmd::command_add_configuration_options(command);
 
     let matches = command.get_matches();
 
@@ -128,94 +245,7 @@ async fn main() -> Result<()> {
         stats: statsstore
     };
 
-    let remote_dest = matches.get_one::<String>("ssh_dest");
-    let remote_port = *matches.get_one::<u32>("ssh_port").unwrap_or(&22);
-
-    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-    let (conmon_tx, conmon_rx) = tokio::sync::oneshot::channel::<()>();
-    let (ssh_handle, executor) = if let Some(remote_dest) = remote_dest {
-        let controlpath = controlpath::control_path(process::id()).context("Could not determine control path")?;
-        let destination = utils::get_destination(remote_dest);
-        debug!("Destination: {:#?}", destination);
-
-        let session_info = MultiplexedSession {
-            controlpath: controlpath.clone(),
-            destination,
-            port: remote_port
-        };
-
-        let connection_sharing_args = vec![
-            "-o".to_string(),
-            "ControlMaster=yes".to_string(),
-            "-o".to_string(),
-            format!("ControlPath={}", &controlpath),
-            "-o".to_string(),
-            "ControlPersist=no".to_string(),
-        ];
-
-        debug!("Setting up master connection to {}", &remote_dest);
-        let remote_dest_copy = remote_dest.clone();
-        let ssh_cmd_handle = tokio::spawn(async move {
-            let mut child = tokio::process::Command::new("ssh")
-                .arg("-t")
-                .arg("-N")
-                .arg("-p")
-                .arg(remote_port.to_string())
-                .args(connection_sharing_args)
-                .arg(remote_dest_copy)
-                .spawn().context("Error in ssh proc")?;
-
-            tokio::select! {
-                _ = child.wait() => {
-                    debug!("SSH session terminated normally");
-                    let _ = conmon_tx.send(());
-                }
-                 _ = rx => {
-                    debug!("Terminating master SSH session due to shutdown signal");
-                    let _ = child.kill().await;
-                }
-            }
-            Ok::<Child, anyhow::Error>(child)
-        });
-
-        debug!("Waiting 30 seconds for master connection to succeed");
-        let wait_conn_result = cmd::ssh::utils::async_wait_for_master_ready(
-            &controlpath,
-            remote_dest,
-            remote_port,
-            Duration::from_secs(120),
-            Some(conmon_rx)
-        ).await.map_err(|err|
-            anyhow!(err)
-        )?;
-
-        if let WaitForMasterResult::Timeout = wait_conn_result {
-            bail!("Timeout waiting for control master");
-        } else if let WaitForMasterResult::Aborted = wait_conn_result {
-            debug!("Connection was aborted");
-            return Ok(())
-        }
-
-        debug!("Master connection succeeded, proceeding.");
-
-        (Some(ssh_cmd_handle),
-        Executor {
-            loadbalancer: lb,
-            appconfig,
-            statsstore,
-            prompts_storage,
-            exec_context: ExecContext::Remote(RemoteExecContext::MultiplexedSession(session_info.clone()))
-        })
-    } else {
-        (None, Executor {
-            loadbalancer: lb,
-            appconfig,
-            statsstore,
-            prompts_storage,
-            exec_context: ExecContext::Local
-        })
-    };
-
+    let (ssh_handle, executor) = create_executor(&matches, lb, appconfig, statsstore, prompts_storage).await?;
 
     let arc_executor = Arc::new(executor);
 
@@ -256,7 +286,7 @@ async fn main() -> Result<()> {
         inputs, None, dry, render).await?;
 
     match result {
-        ExecutionOutput::StreamingOutput(mut stream) => {
+        executor::ExecutionOutput::StreamingOutput(mut stream) => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
 
@@ -274,7 +304,7 @@ async fn main() -> Result<()> {
                 handle.write_all("\n".as_bytes())?;
             }
         }
-        ExecutionOutput::StructuredStreamingOutput(mut stream) => {
+        executor::ExecutionOutput::StructuredStreamingOutput(mut stream) => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
             let mut ends_with_newline = false;
@@ -291,27 +321,28 @@ async fn main() -> Result<()> {
                 handle.write_all("\n".as_bytes())?;
             }
         }
-        ExecutionOutput::ImmediateOutput(output) => {
+        executor::ExecutionOutput::ImmediateOutput(output) => {
             print!("{}", &output);
             if !output.ends_with("\n") {
                 println!();
             }
         }
-        ExecutionOutput::DryRun(output) => {
+        executor::ExecutionOutput::DryRun(output) => {
             println!("{output}");
         }
-        ExecutionOutput::Cached(output) => {
+        executor::ExecutionOutput::Cached(output) => {
             print!("{}", &output);
             if !output.ends_with("\n") {
                 println!();
             }
         }
-        ExecutionOutput::RenderOnly(output) => {
+        executor::ExecutionOutput::RenderOnly(output) => {
             println!("{}", &output);
         }
     };
 
-    if let Some(handle) = ssh_handle {
+    #[cfg(not(target_os="windows"))]
+    if let Some((handle, tx)) = ssh_handle {
         let _ = tx.send(());
         let _ = handle.await;
     }

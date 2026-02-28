@@ -10,6 +10,8 @@ pub mod stats;
 pub mod resolve;
 pub mod config;
 pub mod render;
+
+#[cfg(not(target_os = "windows"))]
 pub mod ssh;
 
 mod templates;

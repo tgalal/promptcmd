@@ -1,7 +1,6 @@
 use handlebars::*;
 
-use crate::{dotprompt::helpers::{handle_multiplexed_session,
-    head::HeadHelperArguments}, executor::RemoteExecContext};
+use crate::{dotprompt::helpers, executor::RemoteExecContext};
 
 pub struct RemoteHeadHelper {
     pub context: RemoteExecContext
@@ -13,9 +12,7 @@ impl RemoteHeadHelper {
             out: &mut dyn Output,
         ) -> HelperResult {
 
-        let helper_args = HeadHelperArguments::try_from(h)?;
-
-        let cmd = "head";
+        let helper_args = helpers::head::HeadHelperArguments::try_from(h)?;
 
         let args: Vec<String> = vec![
             String::from("-n"),
@@ -24,8 +21,10 @@ impl RemoteHeadHelper {
         ];
 
         match &self.context {
-            RemoteExecContext::MultiplexedSession(session_info) => handle_multiplexed_session(
-                session_info, cmd, &args, out).await
+            #[cfg(not(target_os="windows"))]
+            RemoteExecContext::MultiplexedSession(session_info) => helpers::handle_multiplexed_session(
+                session_info, "head", &args, out).await,
+            RemoteExecContext::Other => todo!()
         }
     }
 }

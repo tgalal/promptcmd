@@ -24,19 +24,19 @@ pub use remote_cat::RemoteCatHelper;
 pub use remote_tail::RemoteTailHelper;
 pub use remote_head::RemoteHeadHelper;
 
+use crate::{executor};
 
-use crate::{executor::MultiplexedSession};
-use log::debug;
 use handlebars::{Output, HelperResult, RenderError, RenderErrorReason};
 use std::{io::Read, process::Command};
 
-async fn handle_multiplexed_session(session_info: &MultiplexedSession, cmd: &str, args: &[String],
+#[cfg(not(target_os="windows"))]
+async fn handle_multiplexed_session(session_info: &executor::MultiplexedSession, cmd: &str, args: &[String],
     out: &mut dyn Output,
 ) -> HelperResult {
 
     let (mut reader, writer) = std::io::pipe()?;
 
-    debug!("{:#?}", &args);
+    log::debug!("{:#?}", &args);
 
     let child =  {
         Command::new("ssh")

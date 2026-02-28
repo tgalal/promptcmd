@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 1.1.0-beta.3 (2026-02-28)
+
+### Changed
+
+- Disable ssh integration in windows
+
 ## Version 1.1.0-beta2 (2026-02-27)
 
 ### Changed

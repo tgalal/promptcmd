@@ -12,6 +12,11 @@ pub struct ShRemoteShell<'a> {
     workdir: &'a str,
 }
 
+pub fn sanitize_posix_function(name: &str) -> String {
+    name.replace("-", "_")
+        .replace(".", "_")
+}
+
 impl<'a> ShRemoteShell<'a > {
     pub fn bootstrap(
         sh_bin: &str,
@@ -54,7 +59,7 @@ impl<'a> ShRemoteShell<'a > {
         let bash = match bash_method {
             BashMethod::Posix => BashPosixRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names, remote_cmd),
             BashMethod::Rc => BashRcRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names, remote_cmd),
-            BashMethod::Exports => BashExportsRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names, remote_cmd),
+            BashMethod::Exports => BashExportsRemoteShell::new("bash", self.workdir, true).stage3(functions_file, prompts_names, remote_cmd),
         };
 
         let fish_functions = fish.create_prompt_functions(dispatcher_name, prompts_names);
@@ -142,8 +147,7 @@ esac
     }
 
     fn create_prompt_function(&self, prompt_name: &str, dispatcher_name: &str) -> String {
-        let sanitized_function_name = prompt_name.replace("-", "_")
-            .replace(".", "_");
+        let sanitized_function_name = sanitize_posix_function(prompt_name);
         format!(r#"
 {sanitized_function_name}() {{
     {dispatcher_name} {prompt_name} "$@"

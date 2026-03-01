@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 1.1.0-beta.4 (2026-03-01)
+
+### Fixed
+
+- Wrong exported functions name in bash when auto shell
+
 ## Version 1.1.0-beta.3 (2026-02-28)
 
 ### Changed

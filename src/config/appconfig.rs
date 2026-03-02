@@ -76,7 +76,6 @@ pub enum ShellOptions {
 #[derive(Debug, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ChannelOptions {
-    Auto,
     Nc,
     Socat,
     BashTcp,
@@ -149,8 +148,8 @@ impl Default for Ssh {
             host: None,
             user: None,
             bash_method: BashMethod::default(),
-            shell: ShellOptions::Auto,
-            channel: ChannelOptions::Auto,
+            shell: ShellOptions::default(),
+            channel: ChannelOptions::default(),
             remote_socket: RemoteSocket::default(),
             remote_ports: PortSettings::default(),
             local_ports: PortSettings::default(),

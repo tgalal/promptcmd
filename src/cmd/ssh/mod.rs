@@ -72,9 +72,6 @@ impl SshCmd {
         let remote_port = rng.random_range(remote_config.remote_ports.start..=remote_config.remote_ports.end);
 
         let channel = match remote_config.channel {
-            ChannelOptions::Auto  => {
-                Channel::Nc(local_port, remote_port)
-            },
             ChannelOptions::Nc => {
                 Channel::Nc(local_port, remote_port)
             },

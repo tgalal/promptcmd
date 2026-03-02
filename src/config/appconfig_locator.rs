@@ -19,9 +19,7 @@ pub fn search_paths() -> Vec<PathBuf> {
 }
 
 pub fn path() -> Option<PathBuf> {
-    search_paths().iter().find(|item| {
-        item.exists()
-    }).cloned()
+    search_paths().first().cloned()
 }
 
 #[cfg(test)]

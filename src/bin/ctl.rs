@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use promptcmd::{cmd, ENV_CONFIG};
 use promptcmd::cmd::BasicTextEditor;
 use promptcmd::config::appconfig::AppConfig;
@@ -106,10 +106,7 @@ async fn main() -> Result<()> {
         .or_else(|| env::var(ENV_CONFIG).ok().map(PathBuf::from))
         .or_else(appconfig_locator::path);
 
-    let appconfig = if let Some(appconfig_path) = appconfig_path.as_ref() {
-        if !appconfig_path.exists() {
-            bail!("Could not find a config file at {} ", appconfig_path.to_string_lossy());
-        }
+    let appconfig = if let Some(appconfig_path) = appconfig_path.as_ref() && appconfig_path.exists() {
         let appconfig_data = fs::read_to_string(appconfig_path)
         .map_err(|e| anyhow!("Error reading config at {}: {e}", appconfig_path.to_string_lossy()))?;
 

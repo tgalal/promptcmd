@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Version 1.1.0-beta.5 (2026-03-02)
+
+### Fixed
+
+- fifo as default channel instead of nc
+- promptctl config edit not working if config does not exist yet
+
 ## Version 1.1.0-beta.4 (2026-03-01)
 
 ### Fixed

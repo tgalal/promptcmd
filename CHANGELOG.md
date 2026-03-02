@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## Version 1.1.0-beta.6 (2026-03-03)
+
+### Fixed
+
+- motd was not disabled by default
+
+### Changed
+
+- Allow non-posix function names for auto shell when shell is bash or zsh
+
 ## Version 1.1.0-beta.5 (2026-03-02)
 
 ### Fixed

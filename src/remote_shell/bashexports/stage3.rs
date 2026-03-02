@@ -1,4 +1,4 @@
-use crate::remote_shell::{bashexports::BashExportsRemoteShell, sh, Stage3};
+use crate::remote_shell::{bashexports::BashExportsRemoteShell, Stage3};
 
 impl<'a> Stage3 for BashExportsRemoteShell<'a> {
     fn create_prompt_functions(&self, dispatcher_name: &str, prompt_names: &[String]) -> String {
@@ -16,18 +16,10 @@ impl<'a> Stage3 for BashExportsRemoteShell<'a> {
         if let Some(remote_cmd) = remote_cmd {
             format!(r#"exec {bin} -c ". {functions_file} && {remote_cmd}""#)
         } else {
-            let exports = if self.sanitize {
-                prompt_names.iter()
-                .map(|p| sh::sanitize_posix_function(p) )
+            let exports = prompt_names.iter()
                 .map(|p| format!("export -f {fn_name} 2>/dev/null || true", fn_name=p))
                 .collect::<Vec<_>>()
-                .join("\n")
-            } else {
-                prompt_names.iter()
-                .map(|p| format!("export -f {fn_name} 2>/dev/null || true", fn_name=p))
-                .collect::<Vec<_>>()
-                .join("\n")
-            };
+                .join("\n");
 
             let workdir = &self.workdir;
             format!(r#"

@@ -17,6 +17,43 @@ pub fn sanitize_posix_function(name: &str) -> String {
         .replace(".", "_")
 }
 
+/// Returns `true` if the given name is a valid POSIX-compliant shell function name.
+///
+/// Per POSIX, a function name must be a valid "Name":
+/// - Starts with a letter or underscore
+/// - Followed by zero or more letters, digits, or underscores
+/// - Must not be a POSIX shell reserved word
+pub fn is_posix_function_name(name: &str) -> bool {
+    let mut chars = name.chars();
+
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+
+    for c in chars {
+        if !(c.is_ascii_alphanumeric() || c == '_') {
+            return false;
+        }
+    }
+
+    !matches!(
+        name,
+        "if" | "then"
+            | "else"
+            | "elif"
+            | "fi"
+            | "do"
+            | "done"
+            | "case"
+            | "esac"
+            | "while"
+            | "until"
+            | "for"
+            | "in"
+    )
+}
+
 impl<'a> ShRemoteShell<'a > {
     pub fn bootstrap(
         sh_bin: &str,
@@ -53,18 +90,25 @@ impl<'a> ShRemoteShell<'a > {
 
         let fish = FishRemoteShell::new(self.workdir);
 
-        let ash = ShRemoteShell::new_ash(self.workdir).stage3(functions_file, prompts_names, remote_cmd);
-        let zsh= ZshRemoteShell::new(self.workdir).stage3(functions_file, prompts_names, remote_cmd);
-        let dash = ShRemoteShell::new_dash(self.workdir).stage3(functions_file, prompts_names, remote_cmd);
-        let bash = match bash_method {
+        let ash_stage3 = ShRemoteShell::new_ash(self.workdir).stage3(functions_file, prompts_names, remote_cmd);
+        let zsh= ZshRemoteShell::new(self.workdir);
+        let zsh_stage3 = zsh.stage3(functions_file, prompts_names, remote_cmd);
+        let dash_stage3 = ShRemoteShell::new_dash(self.workdir).stage3(functions_file, prompts_names, remote_cmd);
+        let bash_stage3 = match bash_method {
             BashMethod::Posix => BashPosixRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names, remote_cmd),
             BashMethod::Rc => BashRcRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names, remote_cmd),
-            BashMethod::Exports => BashExportsRemoteShell::new("bash", self.workdir, true).stage3(functions_file, prompts_names, remote_cmd),
+            BashMethod::Exports => BashExportsRemoteShell::new("bash", self.workdir).stage3(functions_file, prompts_names, remote_cmd),
         };
 
         let fish_functions = fish.create_prompt_functions(dispatcher_name, prompts_names);
         let stage3_file = format!("{workdir}/stage3.sh", workdir=self.workdir);
         let posix_functions = self.create_prompt_functions(dispatcher_name, prompts_names);
+        let nonposix_promptnames = prompts_names
+            .iter()
+            .filter(|name| !is_posix_function_name(name))
+            .cloned()
+            .collect::<Vec<_>>();
+        let nonposix_functions = zsh.create_prompt_functions(dispatcher_name, &nonposix_promptnames);
 
         format!(r#"
 SHELL_NAME=$(basename "$SHELL")
@@ -72,12 +116,12 @@ SHELL_NAME=$(basename "$SHELL")
 case "$SHELL_NAME" in
   bash)
 cat > {stage3_file} << EOF_STAGE2
-  {bash}
+  {bash_stage3}
 EOF_STAGE2
 ;;
   zsh)
 cat > {stage3_file} << EOF_STAGE2
-  {zsh}
+  {zsh_stage3}
 EOF_STAGE2
 ;;
   fish)
@@ -92,12 +136,12 @@ EOF_STAGE2
 ;;
   ash)
 cat > {stage3_file} << EOF_STAGE2
-  {ash}
+  {ash_stage3}
 EOF_STAGE2
 ;;
   dash)
 cat > {stage3_file} << EOF_STAGE2
-  {dash}
+  {dash_stage3}
 EOF_STAGE2
 ;;
   *) echo "Unsupported shell: $SHELL_NAME";
@@ -109,6 +153,14 @@ case "$SHELL_NAME" in
 cat > {functions_file} << EOF_STAGE2
   {posix_functions}
 EOF_STAGE2
+    case "$SHELL_NAME" in
+        bash | zsh)
+        cat >> {functions_file} << EOF_STAGE2
+  {nonposix_functions}
+EOF_STAGE2
+        ;;
+        *);;
+    esac
 ;;
   fish)
 cat > {functions_file} << EOF_STAGE2
@@ -122,7 +174,8 @@ esac
         fish_stage3=self.escape(&fish.stage3(functions_file, prompts_names, remote_cmd)),
         sh_stage3=self.escape(&self.stage3(functions_file, prompts_names, remote_cmd)),
         fish_functions=self.escape(&fish_functions),
-        posix_functions=self.escape(&posix_functions)
+        posix_functions=self.escape(&posix_functions),
+        nonposix_functions=self.escape(&nonposix_functions)
         )
 
     }

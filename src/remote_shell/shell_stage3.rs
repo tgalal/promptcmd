@@ -34,7 +34,7 @@ impl Stage3 for Shell {
                     .stage3(functions_file, prompts_names, remote_cmd)
             }
             Shell::Bash(BashMethod::Exports, workdir) => {
-                BashExportsRemoteShell::new("bash", workdir, false)
+                BashExportsRemoteShell::new("bash", workdir)
                     .stage3(functions_file, prompts_names, remote_cmd)
             }
             _ => {panic!("Not implemented")}
@@ -72,7 +72,7 @@ impl Stage3 for Shell {
                     .create_prompt_functions(dispatcher_name, prompts_names)
             }
             Shell::Bash(BashMethod::Exports, workdir) => {
-                BashExportsRemoteShell::new("bash", workdir, false)
+                BashExportsRemoteShell::new("bash", workdir)
                     .create_prompt_functions(dispatcher_name, prompts_names)
             }
             _ => {panic!("Not implemented")}

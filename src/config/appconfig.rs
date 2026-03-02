@@ -153,7 +153,7 @@ impl Default for Ssh {
             remote_socket: RemoteSocket::default(),
             remote_ports: PortSettings::default(),
             local_ports: PortSettings::default(),
-            motd: true
+            motd: false
         }
     }
 }

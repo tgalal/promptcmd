@@ -206,6 +206,13 @@ impl Executor {
             })
         };
 
+        let env_helper: Box<dyn HelperDef + Send + Sync> = match &self.exec_context {
+            ExecContext::Local => Box::new(helpers::EnvHelper),
+            ExecContext::Remote(cxt) =>  Box::new(helpers::RemoteEnvHelper {
+                context: cxt.clone()
+            })
+        };
+
         let concat_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::ConcatHelper);
         let stdin_helper: Box<dyn HelperDef + Send + Sync> = Box::new(helpers::StdinHelper {
             inp: Mutex::new(BufReader::new(std::io::stdin())),
@@ -230,6 +237,7 @@ impl Executor {
             ("cat", cat_helper),
             ("tail", tail_helper),
             ("head", head_helper),
+            ("env", env_helper),
         ]);
 
         let rendered_dotprompt: String = dotprompt.render(inputs, helpers_map)?;

@@ -6,10 +6,12 @@ mod ask;
 mod cat;
 mod tail;
 mod head;
+mod env;
 mod remote_exec;
 mod remote_cat;
 mod remote_tail;
 mod remote_head;
+mod remote_env;
 
 pub use exec::ExecHelper;
 pub use prompt::PromptHelper;
@@ -19,10 +21,12 @@ pub use ask::AskHelper;
 pub use cat::CatHelper;
 pub use tail::TailHelper;
 pub use head::HeadHelper;
+pub use env::EnvHelper;
 pub use remote_exec::RemoteExecHelper;
 pub use remote_cat::RemoteCatHelper;
 pub use remote_tail::RemoteTailHelper;
 pub use remote_head::RemoteHeadHelper;
+pub use remote_env::RemoteEnvHelper;
 
 use crate::{executor};
 
@@ -30,8 +34,11 @@ use handlebars::{Output, HelperResult, RenderError, RenderErrorReason};
 use std::{io::Read, process::Command};
 
 #[cfg(not(target_os="windows"))]
-async fn handle_multiplexed_session(session_info: &executor::MultiplexedSession, cmd: &str, args: &[String],
+async fn handle_multiplexed_session(
+    session_info: &executor::MultiplexedSession,
+    cmd: &str, args: &[String],
     out: &mut dyn Output,
+    default: Option<String>
 ) -> HelperResult {
 
     let (mut reader, writer) = std::io::pipe()?;
@@ -56,7 +63,11 @@ async fn handle_multiplexed_session(session_info: &executor::MultiplexedSession,
     reader.read_to_string(&mut output)?;
 
     if child.status.success() {
-        out.write(&output)?;
+        if output.trim().is_empty() && let Some(default) = default {
+            out.write(&default)?;
+        } else {
+            out.write(output.trim())?;
+        }
         Ok(())
     } else {
         let error_message = format!("Error executing command: {}, output was: {}", &cmd, &output);
@@ -82,7 +93,7 @@ fn handle_local_cmd(cmd: &str, args: &[String], out: &mut dyn Output,
         reader.read_to_string(&mut output)?;
 
         if child.status.success() {
-            out.write(&output)?;
+            out.write(output.trim())?;
             Ok(())
         } else {
             let error_message = format!("Error executing command: {}, output was: {}", &cmd, &output);

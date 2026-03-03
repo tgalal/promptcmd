@@ -28,7 +28,7 @@ impl RemoteExecHelper {
         match &self.context {
             #[cfg(not(target_os="windows"))]
             RemoteExecContext::MultiplexedSession(session_info) => helpers::handle_multiplexed_session(
-                session_info, &cmd, &args, out).await,
+                session_info, &cmd, &args, out, None).await,
             RemoteExecContext::Other => todo!()
         }
     }

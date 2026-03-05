@@ -34,7 +34,10 @@ impl ListCmd {
             table.printstd();
 
         } else {
-            let joined = prompts.keys().cloned().collect::<Vec<_>>().join(" ");
+            let joined = prompts
+                .keys()
+                .map(|k| k.as_str())
+                .collect::<Vec<_>>().join("\n");
             if !joined.is_empty() {
                 println!("{joined}");
             }

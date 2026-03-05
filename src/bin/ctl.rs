@@ -156,7 +156,7 @@ async fn main() -> Result<()> {
                 &mut installer,
                 &editor,
                 appconfig),
-        Commands::List(cmd) => cmd.exec(prompts_storage),
+        Commands::List(cmd) => cmd.exec(prompts_storage, &installer),
         Commands::Cat(cmd) => cmd.exec(
                 prompts_storage,
                 &mut std::io::stdout()),

@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use clap::{Parser};
 use anyhow::{ Result};
 use prettytable::{row, Table};
 use prettytable::format;
+use crate::installer::DotPromptInstaller;
 use crate::storage::{PromptFilesStorage};
 
 
@@ -9,6 +12,8 @@ use crate::storage::{PromptFilesStorage};
 pub struct ListCmd {
     #[arg(short, long, help="Print in long format")]
     pub long: bool,
+    #[arg(short, long, help="Print enabled prompts only")]
+    pub enabled: bool
 }
 
 impl ListCmd {
@@ -16,8 +21,18 @@ impl ListCmd {
     pub fn exec(
         &self,
         storage: &impl PromptFilesStorage,
+        installer: &impl DotPromptInstaller,
     ) -> Result<()> {
-        let prompts = storage.list()?;
+        let mut prompts = storage.list()?;
+
+        if self.enabled {
+            prompts = prompts
+                .into_iter()
+                .filter_map(
+                    |(pname, _)| installer.is_installed(&pname).map(|ipath| (pname, ipath))
+                )
+                .collect::<HashMap<_, _>>();
+        }
 
         if self.long {
 

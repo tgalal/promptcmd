@@ -83,6 +83,28 @@ static PROMPTS_STORAGE: OnceLock<FileSystemPromptFilesStorage> = OnceLock::new()
 static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();
 static STATS_STORE: OnceLock<RusqliteStore> = OnceLock::new();
 
+
+fn require_appconfig(appconfig_path: Option<PathBuf>) -> &'static AppConfig {
+
+    APP_CONFIG.get_or_init(||
+        if let Some(appconfig_path) = appconfig_path.as_ref() &&  appconfig_path.exists() {
+            match fs::read_to_string(appconfig_path) {
+                Ok(appconfig_data) => {
+                    match AppConfig::try_from(appconfig_data.as_str()) {
+                        Ok(appconfig) => appconfig,
+                        Err(err) => panic!("Failed to initialize: {}", err)
+                    }
+                }
+                Err(e) => {
+                panic!("Error reading config at {}: {e}", appconfig_path.to_string_lossy());
+                }
+            }
+        } else {
+            AppConfig::default()
+        }
+    )
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
@@ -105,20 +127,6 @@ async fn main() -> Result<()> {
         cli.config
         .or_else(|| env::var(ENV_CONFIG).ok().map(PathBuf::from))
         .or_else(appconfig_locator::path);
-
-    let appconfig = if let Some(appconfig_path) = appconfig_path.as_ref() && appconfig_path.exists() {
-        let appconfig_data = fs::read_to_string(appconfig_path)
-        .map_err(|e| anyhow!("Error reading config at {}: {e}", appconfig_path.to_string_lossy()))?;
-
-        APP_CONFIG.get_or_init(||
-            match AppConfig::try_from(appconfig_data.as_str()) {
-                Ok(appconfig) => appconfig,
-                Err(err) => panic!("Failed to initialize: {}", err)
-            }
-        )
-    } else {
-        APP_CONFIG.get_or_init(AppConfig::default)
-    };
 
     let runner_binary_name = RUNNER_BIN_NAME;
 
@@ -155,7 +163,7 @@ async fn main() -> Result<()> {
                 prompts_storage,
                 &mut installer,
                 &editor,
-                appconfig),
+                require_appconfig(appconfig_path)),
         Commands::List(cmd) => cmd.exec(prompts_storage, &installer),
         Commands::Cat(cmd) => cmd.exec(
                 prompts_storage,
@@ -166,7 +174,7 @@ async fn main() -> Result<()> {
                 };
                 let executor = Executor {
                     loadbalancer: lb,
-                    appconfig,
+                    appconfig: require_appconfig(appconfig_path),
                     statsstore,
                     prompts_storage,
                     exec_context: executor::ExecContext::Local
@@ -179,13 +187,13 @@ async fn main() -> Result<()> {
         Commands::Import(cmd) => cmd.exec(
                 prompts_storage,
                 &mut installer,
-                appconfig
+                require_appconfig(appconfig_path)
             ),
         Commands::Stats(cmd) => cmd.exec(
                 statsstore
             ),
         Commands::Resolve(cmd) => cmd.exec(
-                appconfig,
+                require_appconfig(appconfig_path),
                 &mut std::io::stdout(),
             ),
         Commands::Config(cmd) => cmd.exec(
@@ -218,6 +226,8 @@ async fn main() -> Result<()> {
                 destination,
                 port: parsed_sshg_args.port()
             };
+
+            let appconfig = require_appconfig(appconfig_path);
 
             let executor = Executor {
                 loadbalancer: lb,

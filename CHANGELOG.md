@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## Version 1.1.0 (2026-03-07)
+
+### Added
+
+- SSH integration
+- env, head, tail, cat template helpers
+- promptctl list --enabled to list only enabled prompts
+
+### Changed
+
+- Can now edit config file even it has errors
+
 ## Version 1.1.0-beta.6 (2026-03-03)
 
 ### Fixed

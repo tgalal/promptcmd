@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use promptcmd::{cmd, ENV_CONFIG};
 use promptcmd::cmd::BasicTextEditor;
 use promptcmd::config::appconfig::AppConfig;
@@ -15,7 +14,7 @@ use promptcmd::storage::promptfiles_fs::{FileSystemPromptFilesStorage};
 use std::fs;
 use std::io::{self, BufReader};
 use clap::{Parser, Subcommand};
-use anyhow::Context;
+use anyhow::{Context, Result};
 
 
 #[derive(Parser)]

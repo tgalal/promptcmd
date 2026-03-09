@@ -28,6 +28,18 @@ $ bashme_a_script_that renames all files in current directly to ".backup"
 
 [More on Execution](https://docs.promptcmd.sh/usage/exec).
 
+### Execute in Remote Shells
+
+Prepend SSH commands with `promptctl`, your prompts magically appear in your
+remote shell sessions.
+
+```bash
+$ promptctl ssh user@server
+server $ bashme_a_script_that renames all files in current directly to ".backup"
+```
+
+[More on SSH Integration](https://docs.promptcmd.sh/integrations/ssh).
+
 ### Local and Remote Provider Support
 
 Use your Ollama endpoint or configure an API key for OpenAI, OpenRouter,

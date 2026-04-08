@@ -70,6 +70,11 @@ impl Base {
 
                 (resolved.globals.clone(), ModelInfo::try_from(&resolved),ResolvedProviderConfig::OpenRouter(resolved))
             },
+            BaseProviderConfigSource::MiniMax(source_config) => {
+                let resolved = resolve_final_config!(minimax, source_config);
+
+                (resolved.globals.clone(), ModelInfo::try_from(&resolved),ResolvedProviderConfig::MiniMax(resolved))
+            },
         };
         Self {
             name,
@@ -97,6 +102,8 @@ impl TryFrom<&Base> for (ModelInfo, LLMBuilder) {
             ResolvedProviderConfig::Google(resolved) =>
                 Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
             ResolvedProviderConfig::OpenRouter(resolved) =>
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
+            ResolvedProviderConfig::MiniMax(resolved) =>
                 Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
         }
     }

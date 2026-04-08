@@ -213,6 +213,8 @@ pub struct Providers {
     pub google: providers::google::Providers,
     #[serde(default)]
     pub openrouter: providers::openrouter::Providers,
+    #[serde(default)]
+    pub minimax: providers::minimax::Providers,
 }
 
 #[derive(Debug, Deserialize, Default)]

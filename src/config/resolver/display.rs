@@ -73,6 +73,11 @@ impl fmt::Display for ResolvedProviderConfig {
                 writeln!(f, "Configuration:")?;
                 write!(indented(f).with_str("  "), "{conf}")?
             },
+            Self::MiniMax(conf) => {
+                writeln!(f, "MiniMax")?;
+                writeln!(f, "Configuration:")?;
+                write!(indented(f).with_str("  "), "{conf}")?
+            },
         };
 
         Ok(())

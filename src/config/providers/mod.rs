@@ -5,6 +5,7 @@ pub mod anthropic;
 pub mod openai;
 pub mod google;
 pub mod openrouter;
+pub mod minimax;
 pub mod constants;
 
 

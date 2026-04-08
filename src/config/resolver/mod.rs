@@ -12,6 +12,7 @@ use crate::config::providers::openai;
 use crate::config::providers::anthropic;
 use crate::config::providers::google;
 use crate::config::providers::openrouter;
+use crate::config::providers::minimax;
 
 pub use variant::Variant;
 pub use base::Base;
@@ -33,6 +34,7 @@ pub enum BaseProviderConfigSource<'a> {
     OpenAI(&'a  openai::Config),
     Google(&'a google::Config),
     OpenRouter(&'a openrouter::Config),
+    MiniMax(&'a minimax::Config),
 }
 
 pub enum VariantProviderConfigSource<'a> {
@@ -41,6 +43,7 @@ pub enum VariantProviderConfigSource<'a> {
     OpenAI(&'a openai::Config, &'a openai::Config),
     Google(&'a google::Config, &'a google::Config),
     OpenRouter(&'a openrouter::Config, &'a openrouter::Config),
+    MiniMax(&'a minimax::Config, &'a minimax::Config),
 }
 
 #[derive(Debug, PartialEq)]
@@ -50,6 +53,7 @@ pub enum ResolvedProviderConfig {
     OpenAI(openai::ResolvedProviderConfig),
     Google(google::ResolvedProviderConfig),
     OpenRouter(openrouter::ResolvedProviderConfig),
+    MiniMax(minimax::ResolvedProviderConfig),
 }
 
 
@@ -204,6 +208,17 @@ impl Resolver {
                     model_resolved_property
                 )
             },
+            "minimax" => {
+                debug!("Resolving {base_name} as MiniMax Base");
+                Base::new(
+                    provider.to_string(),
+                    BaseProviderConfigSource::MiniMax(&appconfig.providers.minimax.config),
+                    fm_properties,
+                    self.overrides.clone(),
+                    global_provider_properties,
+                    model_resolved_property
+                )
+            },
             _ => {
                 Err(error::ResolveError::NotFound(base_name.to_string()))?
             }
@@ -310,6 +325,16 @@ impl Resolver {
                 provider.into(),
                 "openrouter".into(),
                 VariantProviderConfigSource::OpenRouter(conf, &appconfig.providers.openrouter.config),
+                fm_properties,
+                self.overrides.clone(),
+                global_provider_properties,
+                model_resolved_property
+            )
+        } else if let Some(conf) = appconfig.providers.minimax.named.get(provider) {
+            Variant::new(
+                provider.into(),
+                "minimax".into(),
+                VariantProviderConfigSource::MiniMax(conf, &appconfig.providers.minimax.config),
                 fm_properties,
                 self.overrides.clone(),
                 global_provider_properties,
@@ -1604,6 +1629,7 @@ Templ
                         ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
                         ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
                         ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::MiniMax(conf) => assert_eq!(conf.globals.model, model),
                     }
                 }
                 Ok(ResolvedConfig::Variant(variant)) => {
@@ -1615,6 +1641,7 @@ Templ
                         ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
                         ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
                         ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::MiniMax(conf) => assert_eq!(conf.globals.model, model),
                     }
                 }
                 Ok(ResolvedConfig::Group(group)) => {
@@ -1634,6 +1661,7 @@ Templ
                                 ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
                                 ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
                                 ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                                ResolvedProviderConfig::MiniMax(conf) => assert_eq!(conf.globals.model, model),
                             }
                         }
                         GroupMember::Variant(variant, _) => {
@@ -1644,6 +1672,7 @@ Templ
                                 ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
                                 ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
                                 ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                                ResolvedProviderConfig::MiniMax(conf) => assert_eq!(conf.globals.model, model),
                             }
                         }
                     }
@@ -1938,6 +1967,7 @@ Templ
                         ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
                         ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
                         ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::MiniMax(conf) => assert_eq!(conf.globals.model, model),
                     }
                 }
                 Ok(ResolvedConfig::Variant(variant)) => {
@@ -1949,7 +1979,143 @@ Templ
                         ResolvedProviderConfig::OpenAI(conf) => assert_eq!(conf.globals.model, model),
                         ResolvedProviderConfig::Google(conf) => assert_eq!(conf.globals.model, model),
                         ResolvedProviderConfig::OpenRouter(conf) => assert_eq!(conf.globals.model, model),
+                        ResolvedProviderConfig::MiniMax(conf) => assert_eq!(conf.globals.model, model),
                     }
+                }
+                Ok(ResolvedConfig::Group(_)) => {
+                    assert!(matches!(resolve_type, ResolveType::Group));
+                }
+                Err(_) => {
+                    assert!(matches!(resolve_type, ResolveType::Fail));
+                }
+            }
+        });
+    }
+
+    #[rstest]
+    #[case::as_base_with_model(
+r#"
+"#,
+
+r#"
+[providers.minimax]
+api_key = "minimax-key"
+model = "MiniMax-M2.7"
+"#,
+
+r#"
+---
+---
+Templ
+"#,
+        Some("minimax".to_string()),
+        Some(ModelInfo {
+            provider: "minimax".to_string(),
+            model: "MiniMax-M2.7".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Base("minimax".to_string()),
+            value: "MiniMax-M2.7".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::as_base_with_model_in_path(
+r#"
+"#,
+
+r#"
+[providers.minimax]
+api_key = "minimax-key"
+model = "MiniMax-M2.7"
+"#,
+
+r#"
+---
+---
+Templ
+"#,
+        Some("minimax/MiniMax-M2.7-highspeed".to_string()),
+        Some(ModelInfo {
+            provider: "minimax".to_string(),
+            model: "MiniMax-M2.7-highspeed".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Inputs,
+            value: "MiniMax-M2.7-highspeed".to_string()
+        }), ResolveType::Base
+    )]
+    #[case::as_default(
+r#"
+"#,
+
+r#"
+[providers]
+default = "minimax"
+
+[providers.minimax]
+api_key = "minimax-key"
+model = "MiniMax-M2.7"
+"#,
+
+r#"
+---
+---
+Templ
+"#,
+        None,
+        Some(ModelInfo {
+            provider: "minimax".to_string(),
+            model: "MiniMax-M2.7".to_string()
+        }),
+        Some(ResolvedProperty {
+            source: ResolvedPropertySource::Base("minimax".to_string()),
+            value: "MiniMax-M2.7".to_string()
+        }), ResolveType::Base
+    )]
+    pub fn test_minimax(
+        #[case] env: &str,
+        #[case] appconfig: &str,
+        #[case] dotprompt: &str,
+        #[case] requested_model: Option<String>,
+        #[case] modelinfo: Option<ModelInfo>,
+        #[case] model: Option<ResolvedProperty<String>>,
+        #[case] resolve_type: ResolveType
+    ) {
+        let appconfig = AppConfig::try_from(appconfig).unwrap();
+        let dotprompt = DotPrompt::try_from(dotprompt).unwrap();
+
+        let env = if env.trim().is_empty() {
+            Vec::new()
+        } else {
+            env.trim().split("\n").map(|item| {
+                item.split_once("=").map(|(k, v)| (k.trim().to_string(), Some(v.to_string()))).unwrap()
+            }).collect::<Vec<_>>()
+        };
+
+        temp_env::with_vars(env, || {
+            let resolver = Resolver {
+                overrides: None,
+                fm_properties: Some(
+                    ResolvedGlobalProperties::from(
+                        (&GlobalProviderProperties::from(&dotprompt.frontmatter), ResolvedPropertySource::Dotprompt("test".to_string()))
+                    )
+                )
+            };
+            let resolved = resolver.resolve(&appconfig, requested_model);
+            match resolved {
+                Ok(ResolvedConfig::Base(base)) => {
+                    assert!(matches!(resolve_type, ResolveType::Base));
+                    if let Some(modelinfo) = modelinfo {
+                        assert_eq!(base.model_info.unwrap(), modelinfo);
+                    } else {
+                        assert!(base.model_info.is_err())
+                    }
+                    match base.resolved {
+                        ResolvedProviderConfig::MiniMax(conf) => assert_eq!(conf.globals.model, model),
+                        _ => panic!("Expected MiniMax provider"),
+                    }
+                }
+                Ok(ResolvedConfig::Variant(_)) => {
+                    assert!(matches!(resolve_type, ResolveType::Variant));
                 }
                 Ok(ResolvedConfig::Group(_)) => {
                     assert!(matches!(resolve_type, ResolveType::Group));

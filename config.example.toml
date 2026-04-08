@@ -52,6 +52,16 @@
 # cache_ttl = 0
 # stream = true
 
+# [providers.minimax]
+# api_key = "your-minimax-api-key"
+# model = "MiniMax-M2.7"
+# endpoint = "https://api.minimax.io/v1"
+# temperature = 1.0
+# max_tokens = 1000
+# system = "You are a useful assistant"
+# cache_ttl = 0
+# stream = true
+
 # [providers.google]
 # model = "gemini-2.5-flash"
 # api_key = "aaaaaa..."

@@ -73,6 +73,11 @@ impl Variant {
 
                 (resolved.globals.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::OpenRouter(resolved))
             },
+            VariantProviderConfigSource::MiniMax(variant_config, base_config) => {
+                let resolved = resolve_final_config!(minimax, base_config, variant_config);
+
+                (resolved.globals.clone(), ModelInfo::try_from(&resolved), ResolvedProviderConfig::MiniMax(resolved))
+            },
         };
 
         Self {
@@ -99,6 +104,8 @@ impl TryFrom<&Variant> for (ModelInfo, LLMBuilder) {
             ResolvedProviderConfig::Google(resolved) =>
                 Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
             ResolvedProviderConfig::OpenRouter(resolved) =>
+                Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
+            ResolvedProviderConfig::MiniMax(resolved) =>
                 Ok((ModelInfo::try_from(resolved)?, LLMBuilder::try_from(resolved)?)),
         }
     }

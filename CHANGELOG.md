@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 1.1.1 (2026-04-12)
+
+### Added
+
+- MiniMax provider support (thanks @octo-patch!)
+
 ## Version 1.1.0 (2026-03-07)
 
 ### Added

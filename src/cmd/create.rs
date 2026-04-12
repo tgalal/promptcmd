@@ -138,7 +138,9 @@ impl CreateCmd {
                                     writeln!(out, "{}{}", templates::ONBOARDING_GOOGLE, config_paths)?
                                 } else if model_name.starts_with("openrouter") {
                                     writeln!(out, "{}{}", templates::ONBOARDING_OPENROUTER, config_paths)?
-                                } else if model_name .starts_with("ollama") {
+                                } else if model_name.starts_with("minimax") {
+                                    writeln!(out, "{}{}", templates::ONBOARDING_MINIMAX, config_paths)?
+                                } else if model_name.starts_with("ollama") {
                                     writeln!(out, "{}{}", templates::ONBOARDING_OLLAMA, config_paths)?
                                 }
                             }

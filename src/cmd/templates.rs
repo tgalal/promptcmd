@@ -90,6 +90,27 @@ Or manually create/edit the file at:
 
 "#;
 
+pub const ONBOARDING_MINIMAX: &str = r#"
+You have successfully created a prompt file using MiniMax as the LLM provider.
+An API key and a supported model is required but not yet configured. To configure an API key:
+
+1. Go to https://platform.minimax.io
+2. Sign up or log in to your account
+3. Create a new API key
+4. Copy the key and add it to your configuration file:
+
+[providers.minimax]
+api_key="your-minimax-api-key"
+model="MiniMax-M2.7"
+
+Edit your configuration file by running:
+
+promptctl config --edit
+
+Or manually create/edit the file at:
+
+"#;
+
 pub const ONBOARDING_OLLAMA: &str = r#"
 You have successfully created a prompt file using Ollama as the LLM provider.
 An endpoint and model are required by not yet configured. Update your

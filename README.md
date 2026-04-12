@@ -43,7 +43,7 @@ server $ bashme_a_script_that renames all files in current directly to ".backup"
 ### Local and Remote Provider Support
 
 Use your Ollama endpoint or configure an API key for OpenAI, OpenRouter,
-Anthropic, or Google. Swap between them with ease.
+Anthropic, Google, or MiniMax. Swap between them with ease.
 
 ```bash
 $ promptctl create render-md
@@ -152,6 +152,7 @@ PROMPTCMD_ANTHROPIC_API_KEY="your_api_key"
 PROMPTCMD_OPENAI_API_KEY="your_api_key"
 PROMPTCMD_ANTHROPIC_API_KEY="your_api_key"
 PROMPTCMD_OPENROUTER_API_KEY="your_api_key"
+PROMPTCMD_MINIMAX_API_KEY="your_api_key"
 ```
 
 ### Create Your First Prompt

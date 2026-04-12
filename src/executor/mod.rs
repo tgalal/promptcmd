@@ -418,7 +418,7 @@ impl Executor {
             debug!("stream mode");
 
             match model_info.provider.as_str() {
-                "openai" | "google" | "openrouter" => {
+                "openai" | "google" | "openrouter" | "minimax" => {
                     match llm.chat_stream_struct(&messages).await {
                         Ok(stream) => {
                             Ok(
